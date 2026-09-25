@@ -1,33 +1,64 @@
-HELP.md
+# Maven
 target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+!.mvn/wrapper/maven-wrapper.jar
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+# Maven wrapper
+.mvn/wrapper/maven-wrapper.properties
 
-### IntelliJ IDEA ###
-.idea
+# Compiled class files
+*.class
+
+# Logs
+*.log
+
+# Package files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Spring Boot / Maven
+HELP.md
+
+# IntelliJ IDEA
+.idea/
 *.iws
 *.iml
 *.ipr
 
-### NetBeans ###
+# Eclipse / STS
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+
+# NetBeans
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### VS Code ###
+# VS Code
 .vscode/
+
+# Build directories
+build/
+**/build/
+
+# Generated files
+.apt_generated
+
+# Java crash logs
+hs_err_pid*
+replay_pid*
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
