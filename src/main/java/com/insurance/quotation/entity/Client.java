@@ -20,4 +20,24 @@ public class Client {
 
     @OneToMany(mappedBy = "client")
     private List<QuotationRequest> quotationRequests;
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public List<QuotationRequest> getQuotationRequests() {
+        return quotationRequests;
+    }
 }
