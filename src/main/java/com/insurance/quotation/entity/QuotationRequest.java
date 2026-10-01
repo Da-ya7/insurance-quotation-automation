@@ -1,6 +1,9 @@
+
+
 package com.insurance.quotation.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -11,66 +14,127 @@ public class QuotationRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // client_id
     @ManyToOne
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
-    private String destination;
+    // policy_type
+    @Column(name = "policy_type", length = 60)
+    private String policyType;
 
-    private String departureDate;
+    // status
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private QuotationRequestStatus status = QuotationRequestStatus.EMAIL_RECEIVED;
 
-    private String returnDate;
+    // assigned_to
+    @ManyToOne
+    @JoinColumn(name = "assigned_to")
+    private User assignedTo;
 
-    private Integer travellerCount;
+    // created_at
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-    private String status;
+    // updated_at
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
+    // Relationship with RequestFieldValue
     @OneToMany(mappedBy = "quotationRequest")
     private List<RequestFieldValue> fieldValues;
 
+    // Relationship with MissingField
     @OneToMany(mappedBy = "quotationRequest")
     private List<MissingField> missingFields;
 
+    // Relationship with Quotation
     @OneToOne(mappedBy = "quotationRequest")
     private Quotation quotation;
 
+
+    // =========================
+    // Getters and Setters
+    // =========================
+
     public Long getId() {
         return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public Client getClient() {
         return client;
     }
 
-    public String getDestination() {
-        return destination;
+    public void setClient(Client client) {
+        this.client = client;
     }
 
-    public String getDepartureDate() {
-        return departureDate;
+    public String getPolicyType() {
+        return policyType;
     }
 
-    public String getReturnDate() {
-        return returnDate;
+    public void setPolicyType(String policyType) {
+        this.policyType = policyType;
     }
 
-    public Integer getTravellerCount() {
-        return travellerCount;
-    }
-
-    public String getStatus() {
+    public QuotationRequestStatus getStatus() {
         return status;
+    }
+
+    public void setStatus(QuotationRequestStatus status) {
+        this.status = status;
+    }
+
+    public User getAssignedTo() {
+        return assignedTo;
+    }
+
+    public void setAssignedTo(User assignedTo) {
+        this.assignedTo = assignedTo;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 
     public List<RequestFieldValue> getFieldValues() {
         return fieldValues;
     }
 
+    public void setFieldValues(List<RequestFieldValue> fieldValues) {
+        this.fieldValues = fieldValues;
+    }
+
     public List<MissingField> getMissingFields() {
         return missingFields;
     }
 
+    public void setMissingFields(List<MissingField> missingFields) {
+        this.missingFields = missingFields;
+    }
+
     public Quotation getQuotation() {
         return quotation;
+    }
+
+    public void setQuotation(Quotation quotation) {
+        this.quotation = quotation;
     }
 }
