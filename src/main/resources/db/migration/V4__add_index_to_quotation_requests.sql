@@ -1,2 +1,0 @@
-CREATE INDEX idx_quotation_client_id
-ON quotation_requests(client_id);
