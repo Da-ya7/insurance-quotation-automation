@@ -1,0 +1,777 @@
+/* ===============================
+   PAGE
+================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100vh;
+}
+
+.login-page {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  overflow: hidden;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  background: #ffffff;
+}
+
+
+/* ===============================
+   LEFT BRAND PANEL
+================================ */
+
+.brand-panel {
+  width: 54%;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+
+  background:
+    radial-gradient(
+      circle at 75% 35%,
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(226, 237, 250, 0.8) 32%,
+      rgba(211, 226, 243, 0.95) 70%
+    );
+
+  color: #132b50;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+
+/* Decorative background */
+
+.brand-panel::before {
+  content: "";
+  position: absolute;
+  width: 620px;
+  height: 620px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  top: -250px;
+  right: -200px;
+}
+
+.brand-panel::after {
+  content: "";
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  bottom: 80px;
+  right: -280px;
+}
+
+
+/* ===============================
+   BRAND CONTENT
+================================ */
+
+.brand-content {
+  position: relative;
+  z-index: 2;
+  padding: 52px 65px 30px;
+}
+
+
+/* Brand header */
+
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.shield-logo {
+  width: 58px;
+  height: 68px;
+
+  background: linear-gradient(
+    145deg,
+    #e3b331,
+    #bd8510
+  );
+
+  clip-path: polygon(
+    50% 0%,
+    91% 14%,
+    91% 57%,
+    78% 78%,
+    50% 100%,
+    22% 78%,
+    9% 57%,
+    9% 14%
+  );
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  color: white;
+  font-size: 28px;
+
+  box-shadow:
+    0 8px 20px rgba(183, 132, 22, 0.25);
+}
+
+.brand-header h2 {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 700;
+  color: #17345e;
+}
+
+.brand-header p {
+  margin: 6px 0 0;
+  color: #6480a4;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+
+
+/* ===============================
+   HERO
+================================ */
+
+.hero-content {
+  margin-top: 80px;
+  max-width: 620px;
+}
+
+.hero-content h1 {
+  margin: 0;
+
+  font-size: clamp(38px, 3.5vw, 56px);
+  line-height: 1.08;
+  letter-spacing: -1.8px;
+  font-weight: 750;
+
+  color: #122d55;
+}
+
+.hero-content h1 span {
+  display: block;
+  color: #c29119;
+}
+
+.hero-description {
+  max-width: 570px;
+
+  margin-top: 25px;
+  margin-bottom: 0;
+
+  color: #526d91;
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+
+/* ===============================
+   WORKFLOW
+================================ */
+
+.workflow {
+  display: flex;
+  align-items: center;
+  margin-top: 42px;
+  gap: 13px;
+}
+
+.workflow-item {
+  width: 112px;
+  text-align: center;
+
+  color: #16345d;
+}
+
+.workflow-icon {
+  width: 54px;
+  height: 54px;
+
+  margin: 0 auto 10px;
+
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #e1edfc;
+
+  color: #143c6d;
+
+  font-size: 25px;
+
+  box-shadow:
+    0 6px 16px rgba(46, 84, 126, 0.08);
+}
+
+.gold-icon {
+  background: #f8ebc9;
+  color: #bd8715;
+}
+
+.workflow-item strong {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.arrow {
+  font-size: 25px;
+  color: #6683a7;
+  margin-bottom: 25px;
+}
+
+
+/* ===============================
+   FEATURES
+================================ */
+
+.features {
+  margin-top: 34px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  color: #18365f;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.feature-icon {
+  width: 30px;
+  height: 30px;
+
+  border-radius: 50%;
+
+  background: #c9951d;
+  color: white;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-size: 16px;
+}
+
+
+/* ===============================
+   BOTTOM
+================================ */
+
+.bottom-decoration {
+  position: relative;
+  z-index: 3;
+
+  height: 86px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 18px;
+
+  padding-left: 65px;
+
+  background: #142f55;
+
+  color: white;
+
+  font-size: 13px;
+  letter-spacing: 0.2px;
+
+  clip-path: polygon(
+    0 25%,
+    12% 55%,
+    24% 40%,
+    39% 58%,
+    55% 42%,
+    72% 55%,
+    100% 38%,
+    100% 100%,
+    0 100%
+  );
+}
+
+.gold-line {
+  width: 42px;
+  height: 2px;
+  background: #d5a52a;
+}
+
+
+/* ===============================
+   RIGHT PANEL
+================================ */
+
+.login-panel {
+  width: 46%;
+  height: 100vh;
+
+  position: relative;
+
+  background: #ffffff;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
+/* Top labels */
+
+.top-tags {
+  position: absolute;
+
+  top: 48px;
+  right: 55px;
+
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  color: #7189a9;
+
+  font-size: 13px;
+}
+
+.top-tags b {
+  color: #b5c1d0;
+  font-weight: 400;
+}
+
+
+/* ===============================
+   LOGIN CONTAINER
+================================ */
+
+.login-container {
+  width: min(520px, 80%);
+  margin-top: 20px;
+}
+
+.login-container h1 {
+  margin: 0;
+
+  color: #102b52;
+
+  font-size: 42px;
+  line-height: 1.1;
+
+  font-weight: 750;
+  letter-spacing: -1px;
+}
+
+.login-subtitle {
+  margin: 14px 0 48px;
+
+  color: #8296b1;
+
+  font-size: 15px;
+}
+
+
+/* ===============================
+   FORM
+================================ */
+
+.form-group {
+  margin-bottom: 26px;
+}
+
+.form-group label {
+  display: block;
+
+  margin-bottom: 9px;
+
+  color: #182e4d;
+
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.input-wrapper {
+  height: 58px;
+
+  display: flex;
+  align-items: center;
+
+  border: 1px solid #ccd8e7;
+
+  border-radius: 7px;
+
+  background: #ffffff;
+
+  transition: 0.2s ease;
+}
+
+.input-wrapper:focus-within {
+  border-color: #315987;
+
+  box-shadow:
+    0 0 0 3px rgba(49, 89, 135, 0.08);
+}
+
+.input-icon {
+  width: 55px;
+
+  display: flex;
+  justify-content: center;
+
+  color: #28486f;
+
+  font-size: 19px;
+}
+
+.input-wrapper input {
+  flex: 1;
+
+  height: 100%;
+
+  border: none;
+  outline: none;
+
+  font-size: 14px;
+
+  color: #1a3150;
+
+  padding-right: 15px;
+
+  background: transparent;
+}
+
+.input-wrapper input::placeholder {
+  color: #9aabc0;
+}
+
+.eye-button {
+  width: 48px;
+
+  border: none;
+  background: transparent;
+
+  color: #7790ad;
+
+  cursor: pointer;
+
+  font-size: 17px;
+}
+
+
+/* ===============================
+   OPTIONS
+================================ */
+
+.login-options {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  margin-top: -3px;
+  margin-bottom: 27px;
+
+  font-size: 13px;
+}
+
+.remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  color: #536b88;
+
+  cursor: pointer;
+}
+
+.remember input {
+  width: 18px;
+  height: 18px;
+
+  accent-color: #254b78;
+
+  cursor: pointer;
+}
+
+.login-options a {
+  color: #bd8715;
+
+  text-decoration: none;
+
+  font-weight: 600;
+}
+
+.login-options a:hover {
+  text-decoration: underline;
+}
+
+
+/* ===============================
+   SIGN IN BUTTON
+================================ */
+
+.sign-in-button {
+  width: 100%;
+  height: 58px;
+
+  border: none;
+  border-radius: 7px;
+
+  background: #294d78;
+
+  color: white;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+
+  box-shadow:
+    0 7px 18px rgba(38, 71, 109, 0.18);
+
+  transition: all 0.2s ease;
+}
+
+.sign-in-button:hover {
+  background: #1e3e66;
+  transform: translateY(-1px);
+}
+
+.button-arrow {
+  font-size: 21px;
+}
+
+
+/* ===============================
+   DIVIDER
+================================ */
+
+.divider {
+  display: flex;
+  align-items: center;
+
+  gap: 14px;
+
+  margin: 32px 0 22px;
+}
+
+.divider span {
+  flex: 1;
+
+  height: 1px;
+
+  background: #dce3ec;
+}
+
+.divider p {
+  margin: 0;
+
+  color: #8093ac;
+
+  font-size: 13px;
+}
+
+
+/* ===============================
+   SOCIAL LOGIN
+================================ */
+
+.social-login {
+  display: flex;
+
+  gap: 14px;
+}
+
+.social-button {
+  flex: 1;
+
+  height: 51px;
+
+  border: 1px solid #d3deea;
+
+  border-radius: 7px;
+
+  background: white;
+
+  color: #29415f;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  cursor: pointer;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  gap: 10px;
+
+  transition: 0.2s ease;
+}
+
+.social-button:hover {
+  background: #f7f9fc;
+  border-color: #b8c8da;
+}
+
+.microsoft-icon {
+  color: #2674c8;
+  font-size: 20px;
+}
+
+.google-icon {
+  color: #4285f4;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+
+/* ===============================
+   SECURITY
+================================ */
+
+.secure-access {
+  margin-top: 70px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  gap: 9px;
+
+  color: #7890ad;
+
+  font-size: 12px;
+}
+
+
+/* ===============================
+   RESPONSIVE
+================================ */
+
+@media (max-width: 1100px) {
+
+  .brand-content {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+  .hero-content {
+    margin-top: 55px;
+  }
+
+  .hero-content h1 {
+    font-size: 42px;
+  }
+
+  .workflow {
+    gap: 5px;
+  }
+
+  .workflow-item {
+    width: 90px;
+  }
+
+  .bottom-decoration {
+    padding-left: 40px;
+  }
+
+}
+
+
+@media (max-width: 850px) {
+
+  .login-page {
+    height: auto;
+    min-height: 100vh;
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .brand-panel,
+  .login-panel {
+    width: 100%;
+    height: auto;
+  }
+
+  .brand-panel {
+    min-height: 650px;
+  }
+
+  .login-panel {
+    min-height: 700px;
+    padding: 70px 0;
+  }
+
+  .top-tags {
+    top: 25px;
+    right: 30px;
+  }
+
+}
+
+
+@media (max-width: 550px) {
+
+  .brand-content {
+    padding: 35px 25px;
+  }
+
+  .brand-header h2 {
+    font-size: 19px;
+  }
+
+  .hero-content {
+    margin-top: 50px;
+  }
+
+  .hero-content h1 {
+    font-size: 34px;
+  }
+
+  .workflow {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .arrow {
+    display: none;
+  }
+
+  .login-container {
+    width: 88%;
+  }
+
+  .login-container h1 {
+    font-size: 34px;
+  }
+
+  .social-login {
+    flex-direction: column;
+  }
+
+  .bottom-decoration {
+    padding-left: 25px;
+  }
+
+}

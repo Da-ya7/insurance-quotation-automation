@@ -1,0 +1,215 @@
+<div class="missing-page">
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="eyebrow">CLIENT FOLLOW-UP</div>
+      <h1>Missing Information</h1>
+      <p>Track information required from clients</p>
+    </div>
+
+    <button type="button" class="dashboard-btn" (click)="goToDashboard()">
+      ← Dashboard
+    </button>
+  </div>
+
+
+  <!-- ATTENTION BANNER -->
+  <div class="attention-banner">
+    <div class="attention-icon">!</div>
+
+    <div class="attention-content">
+      <strong>3 client responses require attention</strong>
+      <span>
+        Follow up with clients to complete the required quotation information.
+      </span>
+    </div>
+
+    <div class="attention-count">03</div>
+  </div>
+
+
+  <!-- SUMMARY -->
+  <div class="summary-row">
+
+    <div class="summary-item">
+      <span class="summary-number">03</span>
+      <span class="summary-label">Pending Requests</span>
+    </div>
+
+    <div class="summary-item">
+      <span class="summary-number">02</span>
+      <span class="summary-label">Awaiting Response</span>
+    </div>
+
+    <div class="summary-item">
+      <span class="summary-number">01</span>
+      <span class="summary-label">Needs Follow-up</span>
+    </div>
+
+  </div>
+
+
+  <!-- SECTION HEADER -->
+  <div class="section-heading">
+    <div>
+      <h2>Information Requests</h2>
+      <p>Details still required to complete client quotations</p>
+    </div>
+
+    <div class="request-filter">
+      <button class="filter-active">All Requests</button>
+      <button>Requested</button>
+      <button>Pending</button>
+    </div>
+  </div>
+
+
+  <!-- REQUEST CARDS -->
+
+  <div class="request-list">
+
+    <!-- RAHUL -->
+    <div class="request-card">
+
+      <div class="client-block">
+        <div class="client-avatar">RN</div>
+
+        <div>
+          <h3>Rahul Nair</h3>
+          <span>rahul@gmail.com</span>
+        </div>
+      </div>
+
+      <div class="missing-block">
+        <span class="block-label">INFORMATION REQUIRED</span>
+
+        <div class="missing-value">
+          <span class="field-icon">◷</span>
+          <strong>Travel Dates</strong>
+        </div>
+
+        <p>
+          Travel start and return dates are required to continue the quotation.
+        </p>
+      </div>
+
+      <div class="status-block">
+        <span class="block-label">STATUS</span>
+
+        <span class="status requested">
+          <span class="status-dot"></span>
+          Requested
+        </span>
+
+        <small>Request sent today</small>
+      </div>
+
+      <div class="action-block">
+        <button class="view-btn">View</button>
+        <button class="remind-btn">Send Reminder</button>
+      </div>
+
+    </div>
+
+
+    <!-- DIVYA -->
+    <div class="request-card">
+
+      <div class="client-block">
+        <div class="client-avatar purple">DR</div>
+
+        <div>
+          <h3>Divya Raj</h3>
+          <span>divya@gmail.com</span>
+        </div>
+      </div>
+
+      <div class="missing-block">
+        <span class="block-label">INFORMATION REQUIRED</span>
+
+        <div class="missing-value">
+          <span class="field-icon">▣</span>
+          <strong>Coverage Type</strong>
+        </div>
+
+        <p>
+          Client needs to specify the preferred insurance coverage type.
+        </p>
+      </div>
+
+      <div class="status-block">
+        <span class="block-label">STATUS</span>
+
+        <span class="status pending">
+          <span class="status-dot"></span>
+          Pending
+        </span>
+
+        <small>Awaiting client response</small>
+      </div>
+
+      <div class="action-block">
+        <button class="view-btn">View</button>
+        <button class="remind-btn">Send Reminder</button>
+      </div>
+
+    </div>
+
+
+    <!-- PRIYA -->
+    <div class="request-card">
+
+      <div class="client-block">
+        <div class="client-avatar orange">PS</div>
+
+        <div>
+          <h3>Priya Sharma</h3>
+          <span>priya@gmail.com</span>
+        </div>
+      </div>
+
+      <div class="missing-block">
+        <span class="block-label">INFORMATION REQUIRED</span>
+
+        <div class="missing-value">
+          <span class="field-icon">♙</span>
+          <strong>Traveller Age</strong>
+        </div>
+
+        <p>
+          Age details for all travellers are required for premium calculation.
+        </p>
+      </div>
+
+      <div class="status-block">
+        <span class="block-label">STATUS</span>
+
+        <span class="status requested">
+          <span class="status-dot"></span>
+          Requested
+        </span>
+
+        <small>Request sent yesterday</small>
+      </div>
+
+      <div class="action-block">
+        <button class="view-btn">View</button>
+        <button class="remind-btn">Send Reminder</button>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- FOOTER -->
+  <div class="page-footer">
+    <span>Showing 3 pending information requests</span>
+
+    <button class="load-btn">
+      View Completed Requests →
+    </button>
+  </div>
+
+</div>

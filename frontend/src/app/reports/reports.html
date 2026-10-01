@@ -1,0 +1,343 @@
+<div class="reports-page">
+
+  <!-- HEADER -->
+  <header class="reports-header">
+    <div>
+      <div class="page-label">ANALYTICS & INSIGHTS</div>
+      <h1>Reports</h1>
+      <p>Insurance automation system performance and activity reports</p>
+    </div>
+
+    <button class="dashboard-btn" type="button" (click)="goToDashboard()">
+      ← Dashboard
+    </button>
+  </header>
+
+
+  <!-- REPORT TOOLBAR -->
+  <div class="report-toolbar">
+
+    <div class="toolbar-title">
+      <span>REPORT PERIOD</span>
+      <strong>September 2026</strong>
+    </div>
+
+    <div class="toolbar-actions">
+      <select>
+        <option>Last 30 Days</option>
+        <option>Last 7 Days</option>
+        <option>Last 3 Months</option>
+        <option>This Year</option>
+      </select>
+
+      <button class="export-btn">
+        ↓ Export Report
+      </button>
+    </div>
+
+  </div>
+
+
+  <!-- KEY METRICS -->
+  <section class="metrics-section">
+
+    <div class="metric-card emails">
+      <div class="metric-top">
+        <span class="metric-title">TOTAL EMAILS</span>
+        <span class="metric-icon">✉</span>
+      </div>
+
+      <strong class="metric-number">1,248</strong>
+
+      <div class="metric-bottom">
+        <span class="positive">↑ 12.4%</span>
+        <span>vs last month</span>
+      </div>
+    </div>
+
+
+    <div class="metric-card requests">
+      <div class="metric-top">
+        <span class="metric-title">QUOTATION REQUESTS</span>
+        <span class="metric-icon">◫</span>
+      </div>
+
+      <strong class="metric-number">486</strong>
+
+      <div class="metric-bottom">
+        <span class="positive">↑ 8.7%</span>
+        <span>vs last month</span>
+      </div>
+    </div>
+
+
+    <div class="metric-card quotations">
+      <div class="metric-top">
+        <span class="metric-title">QUOTATIONS GENERATED</span>
+        <span class="metric-icon">▣</span>
+      </div>
+
+      <strong class="metric-number">301</strong>
+
+      <div class="metric-bottom">
+        <span class="positive">↑ 15.2%</span>
+        <span>vs last month</span>
+      </div>
+    </div>
+
+
+    <div class="metric-card pending">
+      <div class="metric-top">
+        <span class="metric-title">PENDING DETAILS</span>
+        <span class="metric-icon">◷</span>
+      </div>
+
+      <strong class="metric-number">47</strong>
+
+      <div class="metric-bottom">
+        <span class="attention">12 need follow-up</span>
+      </div>
+    </div>
+
+  </section>
+
+
+  <!-- MAIN ANALYTICS -->
+  <section class="analytics-grid">
+
+    <!-- EMAIL PROCESSING -->
+    <div class="analytics-card large">
+
+      <div class="analytics-header">
+        <div>
+          <h2>Email Processing</h2>
+          <p>Incoming email activity over the selected period</p>
+        </div>
+
+        <button class="more-btn">•••</button>
+      </div>
+
+      <div class="chart-area">
+
+        <div class="y-axis">
+          <span>400</span>
+          <span>300</span>
+          <span>200</span>
+          <span>100</span>
+          <span>0</span>
+        </div>
+
+        <div class="chart">
+
+          <div class="grid-line line-1"></div>
+          <div class="grid-line line-2"></div>
+          <div class="grid-line line-3"></div>
+          <div class="grid-line line-4"></div>
+
+          <div class="bars">
+
+            <div class="bar-group">
+              <div class="bar" style="height: 48%;"></div>
+              <span>W1</span>
+            </div>
+
+            <div class="bar-group">
+              <div class="bar" style="height: 64%;"></div>
+              <span>W2</span>
+            </div>
+
+            <div class="bar-group">
+              <div class="bar" style="height: 57%;"></div>
+              <span>W3</span>
+            </div>
+
+            <div class="bar-group">
+              <div class="bar" style="height: 78%;"></div>
+              <span>W4</span>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="chart-legend">
+        <span><i class="legend-dot"></i> Processed Emails</span>
+        <strong>1,201 processed</strong>
+      </div>
+
+    </div>
+
+
+    <!-- EMAIL CATEGORY -->
+    <div class="analytics-card">
+
+      <div class="analytics-header">
+        <div>
+          <h2>Email Categories</h2>
+          <p>Classification breakdown</p>
+        </div>
+
+        <button class="more-btn">•••</button>
+      </div>
+
+      <div class="category-list">
+
+        <div class="category-row">
+          <div class="category-info">
+            <span class="category-marker quotation-marker"></span>
+            <span>Quotation</span>
+          </div>
+
+          <strong>486</strong>
+
+          <div class="progress">
+            <span style="width: 78%;"></span>
+          </div>
+        </div>
+
+
+        <div class="category-row">
+          <div class="category-info">
+            <span class="category-marker renewal-marker"></span>
+            <span>Policy Renewal</span>
+          </div>
+
+          <strong>284</strong>
+
+          <div class="progress">
+            <span style="width: 55%;"></span>
+          </div>
+        </div>
+
+
+        <div class="category-row">
+          <div class="category-info">
+            <span class="category-marker claim-marker"></span>
+            <span>Claim Enquiry</span>
+          </div>
+
+          <strong>221</strong>
+
+          <div class="progress">
+            <span style="width: 43%;"></span>
+          </div>
+        </div>
+
+
+        <div class="category-row">
+          <div class="category-info">
+            <span class="category-marker general-marker"></span>
+            <span>General Enquiry</span>
+          </div>
+
+          <strong>257</strong>
+
+          <div class="progress">
+            <span style="width: 49%;"></span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- SECOND ROW -->
+  <section class="bottom-grid">
+
+    <!-- QUOTATION PIPELINE -->
+    <div class="pipeline-card">
+
+      <div class="analytics-header">
+        <div>
+          <h2>Quotation Pipeline</h2>
+          <p>Current quotation processing stages</p>
+        </div>
+      </div>
+
+      <div class="pipeline">
+
+        <div class="pipeline-step">
+          <span class="pipeline-number">486</span>
+          <span class="pipeline-label">Requests</span>
+        </div>
+
+        <span class="pipeline-arrow">→</span>
+
+        <div class="pipeline-step">
+          <span class="pipeline-number">392</span>
+          <span class="pipeline-label">Processing</span>
+        </div>
+
+        <span class="pipeline-arrow">→</span>
+
+        <div class="pipeline-step">
+          <span class="pipeline-number">301</span>
+          <span class="pipeline-label">Generated</span>
+        </div>
+
+        <span class="pipeline-arrow">→</span>
+
+        <div class="pipeline-step">
+          <span class="pipeline-number">47</span>
+          <span class="pipeline-label">Pending</span>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- REPORT SUMMARY -->
+    <div class="summary-card">
+
+      <div class="summary-heading">
+        <div>
+          <h2>Report Summary</h2>
+          <p>System activity overview</p>
+        </div>
+      </div>
+
+      <div class="summary-item">
+        <span class="summary-icon">✉</span>
+        <div>
+          <strong>Email Processing</strong>
+          <span>1,248 emails received and classified</span>
+        </div>
+      </div>
+
+      <div class="summary-item">
+        <span class="summary-icon">▣</span>
+        <div>
+          <strong>Quotation Generation</strong>
+          <span>301 quotations successfully generated</span>
+        </div>
+      </div>
+
+      <div class="summary-item">
+        <span class="summary-icon">👥</span>
+        <div>
+          <strong>Client Activity</strong>
+          <span>842 active clients in the system</span>
+        </div>
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- FOOTER -->
+  <div class="reports-footer">
+    <span>Report updated: 30 September 2026</span>
+
+    <button>
+      View Detailed Reports →
+    </button>
+  </div>
+
+</div>

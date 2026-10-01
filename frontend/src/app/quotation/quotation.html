@@ -1,0 +1,525 @@
+<div class="quotation-page">
+
+  <!-- HEADER -->
+  <div class="quotation-header">
+
+    <div>
+      <div class="breadcrumb">
+        Dashboard / Quotations
+      </div>
+
+      <h1>Quotations</h1>
+
+      <p>Manage generated insurance quotations</p>
+    </div>
+
+    <button
+      type="button"
+      class="dashboard-btn"
+      (click)="goToDashboard()">
+      ← Dashboard
+    </button>
+
+  </div>
+
+
+  <!-- TOP OVERVIEW -->
+  <div class="overview">
+
+    <div class="overview-main">
+
+      <div class="overview-label">
+        TOTAL QUOTATIONS
+      </div>
+
+      <div class="overview-number">
+        301
+      </div>
+
+      <div class="overview-description">
+        Insurance quotations generated
+      </div>
+
+    </div>
+
+
+    <div class="overview-item">
+
+      <span class="overview-icon generated">
+        ✓
+      </span>
+
+      <div>
+        <small>Generated</small>
+        <strong>245</strong>
+      </div>
+
+    </div>
+
+
+    <div class="overview-item">
+
+      <span class="overview-icon processing">
+        ◷
+      </span>
+
+      <div>
+        <small>Processing</small>
+        <strong>38</strong>
+      </div>
+
+    </div>
+
+
+    <div class="overview-item">
+
+      <span class="overview-icon expired">
+        !
+      </span>
+
+      <div>
+        <small>Expired</small>
+        <strong>18</strong>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- CONTENT -->
+  <div class="quotation-workspace">
+
+
+    <!-- LEFT FILTER PANEL -->
+    <aside class="filter-panel">
+
+      <h3>Quotation Filters</h3>
+
+      <p class="filter-description">
+        Find quotations quickly
+      </p>
+
+
+      <div class="filter-section">
+
+        <label>Search</label>
+
+        <div class="search-field">
+          <span>⌕</span>
+
+          <input
+            type="text"
+            placeholder="Quotation number..."
+          />
+        </div>
+
+      </div>
+
+
+      <div class="filter-section">
+
+        <label>Status</label>
+
+        <button class="filter-option selected">
+          <span>All Quotations</span>
+          <b>301</b>
+        </button>
+
+        <button class="filter-option">
+          <span>Generated</span>
+          <b>245</b>
+        </button>
+
+        <button class="filter-option">
+          <span>Processing</span>
+          <b>38</b>
+        </button>
+
+        <button class="filter-option">
+          <span>Expired</span>
+          <b>18</b>
+        </button>
+
+      </div>
+
+
+      <div class="filter-section">
+
+        <label>Destination</label>
+
+        <select class="destination-select">
+          <option>All Destinations</option>
+          <option>Singapore</option>
+          <option>Dubai</option>
+          <option>Thailand</option>
+          <option>Malaysia</option>
+        </select>
+
+      </div>
+
+
+      <button class="clear-filter">
+        Clear Filters
+      </button>
+
+    </aside>
+
+
+    <!-- RIGHT QUOTATION AREA -->
+    <main class="quotation-content">
+
+      <div class="content-header">
+
+        <div>
+          <h2>Recent Quotations</h2>
+          <span>Latest generated insurance quotations</span>
+        </div>
+
+        <button class="refresh-btn">
+          ↻
+        </button>
+
+      </div>
+
+
+      <!-- QUOTATION CARD 1 -->
+      <div class="quotation-card">
+
+        <div class="quotation-top">
+
+          <div class="quotation-number">
+            QTN-2026-0042
+          </div>
+
+          <span class="status generated-status">
+            ● Generated
+          </span>
+
+        </div>
+
+
+        <div class="quotation-details">
+
+          <div class="customer">
+
+            <div class="customer-avatar">
+              AK
+            </div>
+
+            <div>
+              <strong>Arun Kumar</strong>
+              <span>arun@gmail.com</span>
+            </div>
+
+          </div>
+
+
+          <div class="trip-info">
+
+            <div>
+              <small>Destination</small>
+              <strong>Singapore</strong>
+            </div>
+
+            <div>
+              <small>Travellers</small>
+              <strong>2 Persons</strong>
+            </div>
+
+            <div>
+              <small>Premium</small>
+              <strong class="premium">
+                ₹4,500
+              </strong>
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="quotation-footer">
+
+          <span>
+            Generated on 30 Sep 2026
+          </span>
+
+          <div class="quotation-actions">
+
+            <button class="outline-btn">
+              View
+            </button>
+
+            <button class="pdf-btn">
+              ↓ Download PDF
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- QUOTATION CARD 2 -->
+      <div class="quotation-card">
+
+        <div class="quotation-top">
+
+          <div class="quotation-number">
+            QTN-2026-0041
+          </div>
+
+          <span class="status processing-status">
+            ● Processing
+          </span>
+
+        </div>
+
+
+        <div class="quotation-details">
+
+          <div class="customer">
+
+            <div class="customer-avatar purple">
+              PS
+            </div>
+
+            <div>
+              <strong>Priya Sharma</strong>
+              <span>priya@gmail.com</span>
+            </div>
+
+          </div>
+
+
+          <div class="trip-info">
+
+            <div>
+              <small>Destination</small>
+              <strong>Dubai</strong>
+            </div>
+
+            <div>
+              <small>Travellers</small>
+              <strong>3 Persons</strong>
+            </div>
+
+            <div>
+              <small>Premium</small>
+              <strong class="premium">
+                ₹6,200
+              </strong>
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="quotation-footer">
+
+          <span>
+            Updated today
+          </span>
+
+          <div class="quotation-actions">
+
+            <button class="outline-btn">
+              View
+            </button>
+
+            <button class="pdf-btn disabled">
+              ↓ Download PDF
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- QUOTATION CARD 3 -->
+      <div class="quotation-card">
+
+        <div class="quotation-top">
+
+          <div class="quotation-number">
+            QTN-2026-0039
+          </div>
+
+          <span class="status generated-status">
+            ● Generated
+          </span>
+
+        </div>
+
+
+        <div class="quotation-details">
+
+          <div class="customer">
+
+            <div class="customer-avatar orange">
+              DR
+            </div>
+
+            <div>
+              <strong>Divya Raj</strong>
+              <span>divya@gmail.com</span>
+            </div>
+
+          </div>
+
+
+          <div class="trip-info">
+
+            <div>
+              <small>Destination</small>
+              <strong>Thailand</strong>
+            </div>
+
+            <div>
+              <small>Travellers</small>
+              <strong>2 Persons</strong>
+            </div>
+
+            <div>
+              <small>Premium</small>
+              <strong class="premium">
+                ₹5,100
+              </strong>
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="quotation-footer">
+
+          <span>
+            Generated on 29 Sep 2026
+          </span>
+
+          <div class="quotation-actions">
+
+            <button class="outline-btn">
+              View
+            </button>
+
+            <button class="pdf-btn">
+              ↓ Download PDF
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- QUOTATION CARD 4 -->
+      <div class="quotation-card">
+
+        <div class="quotation-top">
+
+          <div class="quotation-number">
+            QTN-2026-0038
+          </div>
+
+          <span class="status generated-status">
+            ● Generated
+          </span>
+
+        </div>
+
+
+        <div class="quotation-details">
+
+          <div class="customer">
+
+            <div class="customer-avatar green">
+              RN
+            </div>
+
+            <div>
+              <strong>Rahul Nair</strong>
+              <span>rahul@gmail.com</span>
+            </div>
+
+          </div>
+
+
+          <div class="trip-info">
+
+            <div>
+              <small>Destination</small>
+              <strong>Malaysia</strong>
+            </div>
+
+            <div>
+              <small>Travellers</small>
+              <strong>4 Persons</strong>
+            </div>
+
+            <div>
+              <small>Premium</small>
+              <strong class="premium">
+                ₹5,800
+              </strong>
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div class="quotation-footer">
+
+          <span>
+            Generated on 28 Sep 2026
+          </span>
+
+          <div class="quotation-actions">
+
+            <button class="outline-btn">
+              View
+            </button>
+
+            <button class="pdf-btn">
+              ↓ Download PDF
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- PAGINATION -->
+      <div class="pagination">
+
+        <span>
+          Showing 1–4 of 301 quotations
+        </span>
+
+        <div>
+          <button disabled>‹</button>
+          <button class="current">1</button>
+          <button>2</button>
+          <button>3</button>
+          <button>4</button>
+          <button>5</button>
+          <button>›</button>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+</div>
