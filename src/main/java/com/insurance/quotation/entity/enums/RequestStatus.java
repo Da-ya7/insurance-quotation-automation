@@ -1,0 +1,34 @@
+// package com.insurance.quotation.entity.enums;
+
+// public enum RequestStatus {
+
+//     RECEIVED,
+//     PROCESSING,
+//     WAITING_FOR_INFORMATION,
+//     READY_FOR_QUOTATION,
+//     QUOTED,
+//     MANUAL_REVIEW,
+//     FAILED
+// }
+
+package com.insurance.quotation.entity.enums;
+
+public enum RequestStatus {
+    EMAIL_RECEIVED,
+    PROCESSING,
+    DATA_EXTRACTED,
+    VALIDATING,
+    MISSING_INFORMATION,
+    WAITING_FOR_CLIENT,
+    CLIENT_REPLY_RECEIVED,
+    RE_VALIDATING,
+    READY_FOR_QUOTATION,
+    QUOTATION_GENERATED,
+    QUOTATION_SENT,
+    COMPLETED,
+    EMAIL_PROCESSING_FAILED,
+    DATA_EXTRACTION_FAILED,
+    QUOTATION_GENERATION_FAILED,
+    EMAIL_SEND_FAILED,
+    MANUAL_REVIEW_REQUIRED
+}

@@ -1,0 +1,230 @@
+<div class="login-page">
+
+  <!-- ================= LEFT PANEL ================= -->
+  <section class="brand-panel">
+
+    <div class="brand-content">
+
+      <!-- Brand -->
+      <div class="brand-header">
+        <div class="shield-logo">
+          <span>☂</span>
+        </div>
+
+        <div>
+          <h2>Insurance Automation</h2>
+          <p>Email · Quotation · Client Management</p>
+        </div>
+      </div>
+
+      <!-- Main heading -->
+      <div class="hero-content">
+        <h1>
+          Intelligent Insurance
+          <span>Email &amp; Quotation</span>
+          Automation
+        </h1>
+
+        <p class="hero-description">
+          Automate email processing, quotation requests,
+          client information and quotation generation
+          in one intelligent platform.
+        </p>
+      </div>
+
+      <!-- Workflow -->
+      <div class="workflow">
+
+        <div class="workflow-item">
+          <div class="workflow-icon">✉</div>
+          <strong>Incoming<br>Email</strong>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="workflow-item">
+          <div class="workflow-icon">▤</div>
+          <strong>Information<br>Extraction</strong>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="workflow-item">
+          <div class="workflow-icon">♙</div>
+          <strong>Quotation<br>Request</strong>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="workflow-item">
+          <div class="workflow-icon gold-icon">▣</div>
+          <strong>Quotation<br>Generated</strong>
+        </div>
+
+      </div>
+
+      <!-- Features -->
+      <div class="features">
+
+        <div class="feature">
+          <div class="feature-icon">ϟ</div>
+          <span>Automated Email Processing</span>
+        </div>
+
+        <div class="feature">
+          <div class="feature-icon">▤</div>
+          <span>Smart Quotation Management</span>
+        </div>
+
+        <div class="feature">
+          <div class="feature-icon">♙</div>
+          <span>Client &amp; Policy Management</span>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Decorative bottom -->
+    <div class="bottom-decoration">
+      <div class="gold-line"></div>
+      <span>Smarter Automation. Better Insurance.</span>
+    </div>
+
+  </section>
+
+
+  <!-- ================= RIGHT PANEL ================= -->
+  <section class="login-panel">
+
+    <div class="top-tags">
+      <span>Secure</span>
+      <b>•</b>
+      <span>Efficient</span>
+      <b>•</b>
+      <span>Trusted</span>
+    </div>
+
+    <div class="login-container">
+
+      <h1>Welcome back</h1>
+
+      <p class="login-subtitle">
+        Sign in to your insurance automation workspace.
+      </p>
+
+      <!-- Email -->
+      <div class="form-group">
+
+        <label for="email">Email Address</label>
+
+        <div class="input-wrapper">
+          <span class="input-icon">✉</span>
+
+          <input
+            id="email"
+            type="email"
+            [(ngModel)]="email"
+            placeholder="Enter your email address"
+          />
+        </div>
+
+      </div>
+
+
+      <!-- Password -->
+      <div class="form-group">
+
+        <label for="password">Password</label>
+
+        <div class="input-wrapper">
+
+          <span class="input-icon">🔒</span>
+
+          <input
+            id="password"
+            [type]="showPassword ? 'text' : 'password'"
+            [(ngModel)]="password"
+            placeholder="Enter your password"
+          />
+
+          <button
+            type="button"
+            class="eye-button"
+            (click)="togglePassword()">
+            {{ showPassword ? '◉' : '○' }}
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <!-- Remember / Forgot -->
+      <div class="login-options">
+
+        <label class="remember">
+
+          <input
+            type="checkbox"
+            [(ngModel)]="rememberMe"
+          />
+
+          <span>Remember me</span>
+
+        </label>
+
+        <a href="javascript:void(0)">
+          Forgot password?
+        </a>
+
+      </div>
+
+
+      <!-- Sign in -->
+      <button
+        type="button"
+        class="sign-in-button"
+        (click)="login()">
+
+        <span>Sign In</span>
+        <span class="button-arrow">→</span>
+
+      </button>
+
+
+      <!-- Divider -->
+      <div class="divider">
+        <span></span>
+        <p>or continue with</p>
+        <span></span>
+      </div>
+
+
+      <!-- Social login -->
+      <div class="social-login">
+
+        <button type="button" class="social-button">
+          <span class="microsoft-icon">▦</span>
+          Microsoft
+        </button>
+
+        <button type="button" class="social-button">
+          <span class="google-icon">G</span>
+          Google
+        </button>
+
+      </div>
+
+
+      <!-- Security -->
+      <div class="secure-access">
+        <span>🔒</span>
+        <span>Secure enterprise access</span>
+      </div>
+
+    </div>
+
+  </section>
+
+</div>

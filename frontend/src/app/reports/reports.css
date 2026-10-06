@@ -1,0 +1,560 @@
+/* =========================================
+   REPORTS PAGE
+========================================= */
+
+.reports-page {
+  min-height: 100vh;
+  background: #f4f6f9;
+  padding: 32px 40px;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #182230;
+}
+
+
+/* =========================================
+   HEADER
+========================================= */
+
+.reports-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 25px;
+}
+
+.page-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #8993a3;
+  margin-bottom: 7px;
+}
+
+.reports-header h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.reports-header p {
+  margin: 7px 0 0;
+  font-size: 13px;
+  color: #7a8493;
+}
+
+.dashboard-btn {
+  background: white;
+  border: 1px solid #d9dee7;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #344054;
+  cursor: pointer;
+}
+
+
+/* =========================================
+   TOOLBAR
+========================================= */
+
+.report-toolbar {
+  background: white;
+  border: 1px solid #e0e5ec;
+  border-radius: 10px;
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.toolbar-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.toolbar-title span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #9aa2af;
+}
+
+.toolbar-title strong {
+  font-size: 13px;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 9px;
+}
+
+.toolbar-actions select {
+  border: 1px solid #d8dee7;
+  background: white;
+  border-radius: 7px;
+  padding: 9px 12px;
+  font-size: 12px;
+  color: #475467;
+}
+
+.export-btn {
+  border: none;
+  border-radius: 7px;
+  padding: 9px 14px;
+  background: #273b59;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+
+/* =========================================
+   METRICS
+========================================= */
+
+.metrics-section {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.metric-card {
+  background: white;
+  border: 1px solid #e0e5ec;
+  border-radius: 10px;
+  padding: 19px 20px;
+}
+
+.metric-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.metric-title {
+  font-size: 9px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: #8a94a3;
+}
+
+.metric-icon {
+  width: 29px;
+  height: 29px;
+  border-radius: 7px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f0f3f7;
+  color: #536174;
+  font-size: 13px;
+}
+
+.metric-number {
+  display: block;
+  font-size: 27px;
+  margin-top: 13px;
+}
+
+.metric-bottom {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 10px;
+  color: #98a1ae;
+}
+
+.positive {
+  color: #3e7b61;
+  font-weight: 700;
+}
+
+.attention {
+  color: #ad7726;
+  font-weight: 600;
+}
+
+
+/* =========================================
+   ANALYTICS GRID
+========================================= */
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.analytics-card,
+.pipeline-card,
+.summary-card {
+  background: white;
+  border: 1px solid #e0e5ec;
+  border-radius: 10px;
+  padding: 21px;
+}
+
+.analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.analytics-header h2,
+.summary-heading h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.analytics-header p,
+.summary-heading p {
+  margin: 5px 0 0;
+  font-size: 11px;
+  color: #8a94a3;
+}
+
+.more-btn {
+  border: none;
+  background: transparent;
+  color: #8b95a4;
+  cursor: pointer;
+}
+
+
+/* =========================================
+   BAR CHART
+========================================= */
+
+.chart-area {
+  height: 220px;
+  display: flex;
+  margin-top: 25px;
+}
+
+.y-axis {
+  width: 35px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-bottom: 22px;
+}
+
+.y-axis span {
+  font-size: 9px;
+  color: #a0a8b4;
+}
+
+.chart {
+  position: relative;
+  flex: 1;
+  height: 100%;
+}
+
+.grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #edf0f4;
+}
+
+.line-1 {
+  top: 0;
+}
+
+.line-2 {
+  top: 25%;
+}
+
+.line-3 {
+  top: 50%;
+}
+
+.line-4 {
+  top: 75%;
+}
+
+.bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding: 0 40px;
+}
+
+.bar-group {
+  height: 100%;
+  width: 45px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 7px;
+}
+
+.bar {
+  width: 28px;
+  min-height: 15px;
+  border-radius: 5px 5px 2px 2px;
+  background: #657994;
+}
+
+.bar-group span {
+  font-size: 9px;
+  color: #8b95a4;
+}
+
+
+/* =========================================
+   LEGEND
+========================================= */
+
+.chart-legend {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #edf0f4;
+  margin-top: 8px;
+  padding-top: 13px;
+  font-size: 10px;
+  color: #7f8998;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #657994;
+  margin-right: 5px;
+}
+
+
+/* =========================================
+   CATEGORY LIST
+========================================= */
+
+.category-list {
+  margin-top: 28px;
+}
+
+.category-row {
+  margin-bottom: 22px;
+}
+
+.category-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+
+.category-info strong {
+  margin-left: auto;
+}
+
+.category-row > strong {
+  float: right;
+  font-size: 11px;
+}
+
+.category-marker {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #657994;
+}
+
+.renewal-marker {
+  background: #8797ac;
+}
+
+.claim-marker {
+  background: #a4aebc;
+}
+
+.general-marker {
+  background: #c0c7d0;
+}
+
+.progress {
+  height: 6px;
+  background: #edf0f4;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  background: #657994;
+  border-radius: 10px;
+}
+
+
+/* =========================================
+   BOTTOM GRID
+========================================= */
+
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr;
+  gap: 15px;
+}
+
+
+/* =========================================
+   PIPELINE
+========================================= */
+
+.pipeline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 35px;
+}
+
+.pipeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.pipeline-number {
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.pipeline-label {
+  font-size: 10px;
+  color: #8a94a3;
+}
+
+.pipeline-arrow {
+  color: #b3bbc6;
+  font-size: 18px;
+}
+
+
+/* =========================================
+   SUMMARY
+========================================= */
+
+.summary-heading {
+  margin-bottom: 17px;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid #edf0f4;
+}
+
+.summary-icon {
+  width: 31px;
+  height: 31px;
+  border-radius: 7px;
+  background: #f1f4f7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.summary-item div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.summary-item strong {
+  font-size: 11px;
+}
+
+.summary-item span {
+  font-size: 9px;
+  color: #8c95a2;
+}
+
+
+/* =========================================
+   FOOTER
+========================================= */
+
+.reports-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 17px 3px;
+  font-size: 10px;
+  color: #929aa7;
+}
+
+.reports-footer button {
+  border: none;
+  background: transparent;
+  color: #536b8e;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 1000px) {
+
+  .metrics-section {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .analytics-grid,
+  .bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+@media (max-width: 650px) {
+
+  .reports-page {
+    padding: 22px;
+  }
+
+  .reports-header,
+  .report-toolbar {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .metrics-section {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar-actions {
+    width: 100%;
+  }
+
+  .toolbar-actions select,
+  .export-btn {
+    flex: 1;
+  }
+
+  .pipeline {
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+}

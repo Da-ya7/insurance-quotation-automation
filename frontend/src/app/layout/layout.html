@@ -1,0 +1,185 @@
+<div class="layout">
+
+  <!-- LEFT SIDEBAR : EXACTLY 250px -->
+  <aside class="sidebar" [class.closed]="!sidebarOpen">
+
+    <!-- Logo + Menu Button -->
+    <div class="logo-section">
+
+      <div class="logo-left">
+        <div class="logo-icon">
+          IQ
+        </div>
+
+        <div class="logo-text" *ngIf="sidebarOpen">
+          <h2>Insurance</h2>
+          <span>Quotation</span>
+        </div>
+      </div>
+
+      <!-- THREE DASH BUTTON -->
+      <button
+        class="menu-button"
+        (click)="toggleSidebar()"
+        title="Toggle Menu">
+        ☰
+      </button>
+
+    </div>
+
+
+    <!-- MENU -->
+    <nav class="menu">
+
+      <a
+        routerLink="/dashboard"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="menu-item">
+
+        <span class="icon">📊</span>
+
+        <span class="menu-text" *ngIf="sidebarOpen">
+          Dashboard
+        </span>
+
+      </a>
+
+
+      <a
+        routerLink="/incoming-emails"
+        routerLinkActive="active"
+        class="menu-item">
+
+        <span class="icon">📧</span>
+
+        <span class="menu-text" *ngIf="sidebarOpen">
+          Incoming Emails
+        </span>
+
+      </a>
+
+
+      <a
+        routerLink="/quotation-requests"
+        routerLinkActive="active"
+        class="menu-item">
+
+        <span class="icon">📋</span>
+
+        <span class="menu-text" *ngIf="sidebarOpen">
+          Quotation Requests
+        </span>
+
+      </a>
+
+
+      <a
+        routerLink="/clients"
+        routerLinkActive="active"
+        class="menu-item">
+
+        <span class="icon">👥</span>
+
+        <span class="menu-text" *ngIf="sidebarOpen">
+          Clients
+        </span>
+
+      </a>
+
+
+      <a
+        routerLink="/quotations"
+        routerLinkActive="active"
+        class="menu-item">
+
+        <span class="icon">📄</span>
+
+        <span class="menu-text" *ngIf="sidebarOpen">
+          Quotations
+        </span>
+
+      </a>
+
+
+      <a
+        routerLink="/missing-information"
+        routerLinkActive="active"
+        class="menu-item">
+
+        <span class="icon">⚠️</span>
+
+        <span class="menu-text" *ngIf="sidebarOpen">
+          Missing Information
+        </span>
+
+      </a>
+
+
+      <a
+        routerLink="/reports"
+        routerLinkActive="active"
+        class="menu-item">
+
+        <span class="icon">📈</span>
+
+        <span class="menu-text" *ngIf="sidebarOpen">
+          Reports
+        </span>
+
+      </a>
+
+
+      <a
+        routerLink="/settings"
+        routerLinkActive="active"
+        class="menu-item">
+
+        <span class="icon">⚙️</span>
+
+        <span class="menu-text" *ngIf="sidebarOpen">
+          Settings
+        </span>
+
+      </a>
+
+    </nav>
+
+
+    <!-- BOTTOM -->
+    <div class="sidebar-bottom">
+
+      <div class="status" *ngIf="sidebarOpen">
+        <span class="status-dot"></span>
+        System Active
+      </div>
+
+      <button
+        class="logout"
+        (click)="logout()">
+
+        <span class="icon">↪</span>
+
+        <span *ngIf="sidebarOpen">
+          Logout
+        </span>
+
+      </button>
+
+    </div>
+
+  </aside>
+
+
+  <!-- RIGHT SIDE : REMAINING SCREEN -->
+  <main class="main-area">
+
+    <section class="page-content">
+
+      <router-outlet></router-outlet>
+
+    </section>
+
+  </main>
+
+</div>

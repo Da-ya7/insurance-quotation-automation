@@ -1,0 +1,420 @@
+<div class="client-page">
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+
+    <div class="header-content">
+      <h1>Clients</h1>
+      <p>Manage insurance clients</p>
+    </div>
+
+    <button
+      type="button"
+      class="back-btn"
+      (click)="goToDashboard()">
+      ← Dashboard
+    </button>
+
+  </div>
+
+
+  <!-- SUMMARY CARDS -->
+  <div class="summary-cards">
+
+    <div class="summary-card">
+      <div class="summary-icon clients-icon">
+        👥
+      </div>
+
+      <div class="summary-info">
+        <span>Total Clients</span>
+        <strong>842</strong>
+        <small>Registered clients</small>
+      </div>
+    </div>
+
+
+    <div class="summary-card">
+      <div class="summary-icon active-icon">
+        ✓
+      </div>
+
+      <div class="summary-info">
+        <span>Active Clients</span>
+        <strong>796</strong>
+        <small>Currently active</small>
+      </div>
+    </div>
+
+
+    <div class="summary-card">
+      <div class="summary-icon quotation-icon">
+        ▣
+      </div>
+
+      <div class="summary-info">
+        <span>With Quotations</span>
+        <strong>486</strong>
+        <small>Quotation requests</small>
+      </div>
+    </div>
+
+
+    <div class="summary-card">
+      <div class="summary-icon new-icon">
+        +
+      </div>
+
+      <div class="summary-info">
+        <span>New This Month</span>
+        <strong>38</strong>
+        <small>Recently registered</small>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- CLIENT MANAGEMENT CONTAINER -->
+  <div class="client-container">
+
+    <!-- SECTION HEADER -->
+    <div class="section-header">
+
+      <div>
+        <h2>Client Management</h2>
+        <p>View and manage your insurance clients</p>
+      </div>
+
+      <button
+        type="button"
+        class="add-client-btn">
+        + Add Client
+      </button>
+
+    </div>
+
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+
+      <div class="search-box">
+
+        <span>⌕</span>
+
+        <input
+          type="text"
+          placeholder="Search by name, email or phone..."
+        />
+
+      </div>
+
+
+      <div class="filter-group">
+
+        <select>
+          <option>All Clients</option>
+          <option>Active Clients</option>
+          <option>Inactive Clients</option>
+        </select>
+
+        <select>
+          <option>All Types</option>
+          <option>Individual</option>
+          <option>Family</option>
+        </select>
+
+      </div>
+
+    </div>
+
+
+    <!-- CLIENT TABLE -->
+    <div class="table-wrapper">
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>CLIENT</th>
+            <th>CONTACT</th>
+            <th>LOCATION</th>
+            <th>QUOTATIONS</th>
+            <th>STATUS</th>
+            <th>ACTION</th>
+          </tr>
+
+        </thead>
+
+
+        <tbody>
+
+          <!-- CLIENT 1 -->
+          <tr>
+
+            <td>
+              <div class="client-cell">
+
+                <div class="client-avatar">
+                  AK
+                </div>
+
+                <div class="client-info">
+                  <strong>Arun Kumar</strong>
+                  <span>Client ID: CL-2026-00842</span>
+                </div>
+
+              </div>
+            </td>
+
+
+            <td>
+              <div class="contact-info">
+                <span>arun@gmail.com</span>
+                <small>+91 98765 43210</small>
+              </div>
+            </td>
+
+
+            <td>
+              Chennai, India
+            </td>
+
+
+            <td>
+              <span class="quotation-count">
+                4
+              </span>
+            </td>
+
+
+            <td>
+              <span class="status active">
+                <span class="status-dot"></span>
+                Active
+              </span>
+            </td>
+
+
+            <td>
+              <button
+                type="button"
+                class="view-btn">
+                View
+              </button>
+            </td>
+
+          </tr>
+
+
+          <!-- CLIENT 2 -->
+          <tr>
+
+            <td>
+              <div class="client-cell">
+
+                <div class="client-avatar purple">
+                  PS
+                </div>
+
+                <div class="client-info">
+                  <strong>Priya Sharma</strong>
+                  <span>Client ID: CL-2026-00841</span>
+                </div>
+
+              </div>
+            </td>
+
+
+            <td>
+              <div class="contact-info">
+                <span>priya@gmail.com</span>
+                <small>+91 98765 12345</small>
+              </div>
+            </td>
+
+
+            <td>
+              Bangalore, India
+            </td>
+
+
+            <td>
+              <span class="quotation-count">
+                3
+              </span>
+            </td>
+
+
+            <td>
+              <span class="status active">
+                <span class="status-dot"></span>
+                Active
+              </span>
+            </td>
+
+
+            <td>
+              <button
+                type="button"
+                class="view-btn">
+                View
+              </button>
+            </td>
+
+          </tr>
+
+
+          <!-- CLIENT 3 -->
+          <tr>
+
+            <td>
+              <div class="client-cell">
+
+                <div class="client-avatar orange">
+                  RN
+                </div>
+
+                <div class="client-info">
+                  <strong>Rahul Nair</strong>
+                  <span>Client ID: CL-2026-00840</span>
+                </div>
+
+              </div>
+            </td>
+
+
+            <td>
+              <div class="contact-info">
+                <span>rahul@gmail.com</span>
+                <small>+91 99887 66554</small>
+              </div>
+            </td>
+
+
+            <td>
+              Kochi, India
+            </td>
+
+
+            <td>
+              <span class="quotation-count">
+                2
+              </span>
+            </td>
+
+
+            <td>
+              <span class="status active">
+                <span class="status-dot"></span>
+                Active
+              </span>
+            </td>
+
+
+            <td>
+              <button
+                type="button"
+                class="view-btn">
+                View
+              </button>
+            </td>
+
+          </tr>
+
+
+          <!-- CLIENT 4 -->
+          <tr>
+
+            <td>
+              <div class="client-cell">
+
+                <div class="client-avatar green">
+                  SK
+                </div>
+
+                <div class="client-info">
+                  <strong>Swetha Kumar</strong>
+                  <span>Client ID: CL-2026-00839</span>
+                </div>
+
+              </div>
+            </td>
+
+
+            <td>
+              <div class="contact-info">
+                <span>swetha@gmail.com</span>
+                <small>+91 91234 56789</small>
+              </div>
+            </td>
+
+
+            <td>
+              Hyderabad, India
+            </td>
+
+
+            <td>
+              <span class="quotation-count">
+                5
+              </span>
+            </td>
+
+
+            <td>
+              <span class="status inactive">
+                <span class="status-dot"></span>
+                Inactive
+              </span>
+            </td>
+
+
+            <td>
+              <button
+                type="button"
+                class="view-btn">
+                View
+              </button>
+            </td>
+
+          </tr>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+
+    <!-- FOOTER -->
+    <div class="table-footer">
+
+      <span>
+        Showing <strong>1–4</strong> of <strong>842</strong> clients
+      </span>
+
+      <div class="pagination">
+
+        <button disabled>‹</button>
+
+        <button class="active-page">1</button>
+
+        <button>2</button>
+
+        <button>3</button>
+
+        <button>4</button>
+
+        <button>5</button>
+
+        <button>›</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
