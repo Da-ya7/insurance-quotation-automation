@@ -1,11 +1,14 @@
 package com.insurance.quotation.repository;
 
-import com.insurance.quotation.entity.QuotationRequest;
-import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.List;
 
-public interface QuotationRequestRepository extends JpaRepository<QuotationRequest, Long> {
+import org.springframework.data.jpa.repository.JpaRepository;
 
-    List<QuotationRequest> findByStatus(String status);
+import com.insurance.quotation.entity.QuotationRequest;
+import com.insurance.quotation.entity.enums.RequestStatus;
+
+public interface QuotationRequestRepository
+        extends JpaRepository<QuotationRequest, Long> {
+
+    List<QuotationRequest> findByStatus(RequestStatus status);
 }

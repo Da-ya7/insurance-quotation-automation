@@ -1,0 +1,824 @@
+<div class="dashboard-wrapper">
+
+  <!-- =====================================================
+       SIDEBAR
+       ===================================================== -->
+
+  <aside class="sidebar">
+
+    <!-- ================= BRAND ================= -->
+
+    <div class="brand-header">
+
+      <div class="shield-logo">
+        <span>☂</span>
+      </div>
+
+      <div>
+        <h2>Insurance Automation</h2>
+        <p>Smart Insurance System</p>
+      </div>
+
+    </div>
+
+
+    <!-- ================= MENU ================= -->
+
+    <nav class="sidebar-menu">
+
+      <!-- Dashboard -->
+
+      <a
+        class="menu-item active"
+        (click)="goToPage('/dashboard')">
+
+        <span class="menu-icon">📊</span>
+        <span>Dashboard</span>
+
+      </a>
+
+
+      <!-- Incoming Emails -->
+
+      <a
+        class="menu-item"
+        (click)="goToPage('/incoming-emails')">
+
+        <span class="menu-icon">📧</span>
+        <span>Incoming Emails</span>
+
+      </a>
+
+
+      <!-- Quotation Requests -->
+
+      <a
+        class="menu-item"
+        (click)="goToPage('/quotation-requests')">
+
+        <span class="menu-icon">📋</span>
+        <span>Quotation Requests</span>
+
+      </a>
+
+
+      <!-- Clients -->
+
+      <a
+        class="menu-item"
+        (click)="goToPage('/clients')">
+
+        <span class="menu-icon">👥</span>
+        <span>Clients</span>
+
+      </a>
+
+
+      <!-- Quotations -->
+
+      <a
+        class="menu-item"
+        (click)="goToPage('/quotations')">
+
+        <span class="menu-icon">📄</span>
+        <span>Quotations</span>
+
+      </a>
+
+
+      <!-- Missing Information -->
+
+      <a
+        class="menu-item"
+        (click)="goToPage('/missing-information')">
+
+        <span class="menu-icon">⚠️</span>
+        <span>Missing Information</span>
+
+      </a>
+
+
+      <!-- Reports -->
+
+      <a
+        class="menu-item"
+        (click)="goToPage('/reports')">
+
+        <span class="menu-icon">📈</span>
+        <span>Reports</span>
+
+      </a>
+
+
+      <!-- Settings -->
+
+      <a
+        class="menu-item"
+        (click)="goToPage('/settings')">
+
+        <span class="menu-icon">⚙️</span>
+        <span>Settings</span>
+
+      </a>
+
+    </nav>
+
+  </aside>
+
+
+  <!-- =====================================================
+       MAIN CONTENT
+       ===================================================== -->
+
+  <main class="main-content">
+
+
+    <!-- ================= TOP HEADER ================= -->
+
+    <header class="top-header">
+
+      <!-- Header Title -->
+
+      <div class="header-title">
+
+        <h1>
+          Insurance Automation Dashboard
+        </h1>
+
+        <p>
+          Intelligent Insurance Email & Quotation Automation
+        </p>
+
+      </div>
+
+
+      <!-- Header Actions -->
+
+      <div class="header-actions">
+
+
+        <!-- ================= SEARCH ================= -->
+
+        <div class="search-container">
+
+          <div class="search-box">
+
+            <span>🔍</span>
+
+            <input
+              type="text"
+              [(ngModel)]="searchQuery"
+              placeholder="Search..."
+            />
+
+          </div>
+
+
+          <!-- ================= SEARCH RESULTS ================= -->
+
+          <div
+            class="search-results"
+            *ngIf="searchQuery.trim() && filteredItems.length > 0">
+
+            <div
+              class="search-result-item"
+              *ngFor="let item of filteredItems"
+              (click)="goToPage(item.route)">
+
+              <span class="result-icon">
+                🔍
+              </span>
+
+              <span>
+                {{ item.name }}
+              </span>
+
+            </div>
+
+          </div>
+
+
+          <!-- ================= NO RESULTS ================= -->
+
+          <div
+            class="search-results no-results"
+            *ngIf="searchQuery.trim() && filteredItems.length === 0">
+
+            <div class="search-result-item">
+
+              <span class="result-icon">
+                🔍
+              </span>
+
+              <span>
+                No results found
+              </span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- ================= NOTIFICATION ================= -->
+
+        <button
+          class="notification-btn">
+
+          🔔
+
+        </button>
+
+
+        <!-- ================= PROFILE ================= -->
+
+        <div class="profile-container">
+
+          <button
+            class="profile-btn"
+            (click)="toggleProfileMenu()">
+
+            <div class="profile-avatar">
+              A
+            </div>
+
+            <div class="profile-info">
+
+              <strong>
+                Admin
+              </strong>
+
+              <span>
+                Administrator
+              </span>
+
+            </div>
+
+            <span>
+              ▼
+            </span>
+
+          </button>
+
+
+          <!-- Profile Dropdown -->
+
+          <div
+            class="profile-dropdown"
+            *ngIf="showProfileMenu">
+
+            <button
+              (click)="goToPage('/settings'); showProfileMenu = false">
+
+              ⚙️ Settings
+
+            </button>
+
+
+            <button
+              (click)="logout()">
+
+              🚪 Logout
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </header>
+
+
+    <!-- =====================================================
+         DASHBOARD CONTENT
+         ===================================================== -->
+
+    <section class="dashboard-content">
+
+
+      <!-- ================= PAGE HEADING ================= -->
+
+      <div class="page-heading">
+
+        <div>
+
+          <h2>
+            Dashboard
+          </h2>
+
+          <p>
+            Overview of your insurance email and quotation automation
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <!-- =================================================
+           KPI CARDS
+           ================================================= -->
+
+      <div class="stats-grid">
+
+
+        <!-- Incoming Emails -->
+
+        <div class="stat-card">
+
+          <div class="stat-icon">
+            📧
+          </div>
+
+          <div class="stat-details">
+
+            <span class="stat-title">
+              Incoming Emails
+            </span>
+
+            <h3>
+              {{ totalEmails }}
+            </h3>
+
+            <span class="stat-change">
+              +12.5% from last month
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <!-- Quotation Requests -->
+
+        <div class="stat-card">
+
+          <div class="stat-icon">
+            📋
+          </div>
+
+          <div class="stat-details">
+
+            <span class="stat-title">
+              Quotation Requests
+            </span>
+
+            <h3>
+              {{ quotationRequests }}
+            </h3>
+
+            <span class="stat-change">
+              +8.2% from last month
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <!-- Active Clients -->
+
+        <div class="stat-card">
+
+          <div class="stat-icon">
+            👥
+          </div>
+
+          <div class="stat-details">
+
+            <span class="stat-title">
+              Active Clients
+            </span>
+
+            <h3>
+              {{ activeClients }}
+            </h3>
+
+            <span class="stat-change">
+              +5.4% from last month
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <!-- Pending Requests -->
+
+        <div class="stat-card">
+
+          <div class="stat-icon">
+            ⚠️
+          </div>
+
+          <div class="stat-details">
+
+            <span class="stat-title">
+              Pending Requests
+            </span>
+
+            <h3>
+              {{ pendingDetails }}
+            </h3>
+
+            <span class="stat-warning">
+              Requires attention
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <!-- Quotations Sent -->
+
+        <div class="stat-card">
+
+          <div class="stat-icon">
+            📄
+          </div>
+
+          <div class="stat-details">
+
+            <span class="stat-title">
+              Quotations Sent
+            </span>
+
+            <h3>
+              {{ quotationsGenerated }}
+            </h3>
+
+            <span class="stat-change">
+              +10.8% from last month
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =================================================
+           CHART + EMAIL CATEGORIES
+           ================================================= -->
+
+      <div class="dashboard-grid">
+
+
+        <!-- ================= ACTIVITY CHART ================= -->
+
+        <div class="chart-card">
+
+          <div class="card-header">
+
+            <div>
+
+              <h3>
+                Insurance Email & Quotation Activity
+              </h3>
+
+              <p>
+                Email processing and quotation activity
+              </p>
+
+            </div>
+
+
+            <!-- Time Range -->
+
+            <div class="time-range">
+
+              <button
+                [class.active]="selectedTimeRange === '7 Days'"
+                (click)="setTimeRange('7 Days')">
+
+                7 Days
+
+              </button>
+
+
+              <button
+                [class.active]="selectedTimeRange === '30 Days'"
+                (click)="setTimeRange('30 Days')">
+
+                30 Days
+
+              </button>
+
+
+              <button
+                [class.active]="selectedTimeRange === '90 Days'"
+                (click)="setTimeRange('90 Days')">
+
+                90 Days
+
+              </button>
+
+
+              <button
+                [class.active]="selectedTimeRange === 'Year to Date'"
+                (click)="setTimeRange('Year to Date')">
+
+                Year to Date
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <!-- ================= GRAPH ================= -->
+
+          <div class="chart-container">
+
+            <svg
+              viewBox="0 0 900 350"
+              class="activity-chart">
+
+
+              <!-- Horizontal Grid Lines -->
+
+              <line
+                x1="60"
+                y1="50"
+                x2="850"
+                y2="50">
+              </line>
+
+              <line
+                x1="60"
+                y1="110"
+                x2="850"
+                y2="110">
+              </line>
+
+              <line
+                x1="60"
+                y1="170"
+                x2="850"
+                y2="170">
+              </line>
+
+              <line
+                x1="60"
+                y1="230"
+                x2="850"
+                y2="230">
+              </line>
+
+              <line
+                x1="60"
+                y1="290"
+                x2="850"
+                y2="290">
+              </line>
+
+
+              <!-- Y Axis -->
+
+              <text
+                x="25"
+                y="55">
+                100
+              </text>
+
+              <text
+                x="30"
+                y="115">
+                80
+              </text>
+
+              <text
+                x="30"
+                y="175">
+                60
+              </text>
+
+              <text
+                x="30"
+                y="235">
+                40
+              </text>
+
+              <text
+                x="30"
+                y="295">
+                20
+              </text>
+
+
+              <!-- Activity Line -->
+
+              <polyline
+                points="
+                  60,250
+                  150,210
+                  240,225
+                  330,170
+                  420,190
+                  510,130
+                  600,150
+                  690,100
+                  780,125
+                  850,75
+                "
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3">
+              </polyline>
+
+
+              <!-- Data Points -->
+
+              <circle
+                cx="60"
+                cy="250"
+                r="5">
+              </circle>
+
+              <circle
+                cx="150"
+                cy="210"
+                r="5">
+              </circle>
+
+              <circle
+                cx="240"
+                cy="225"
+                r="5">
+              </circle>
+
+              <circle
+                cx="330"
+                cy="170"
+                r="5">
+              </circle>
+
+              <circle
+                cx="420"
+                cy="190"
+                r="5">
+              </circle>
+
+              <circle
+                cx="510"
+                cy="130"
+                r="5">
+              </circle>
+
+              <circle
+                cx="600"
+                cy="150"
+                r="5">
+              </circle>
+
+              <circle
+                cx="690"
+                cy="100"
+                r="5">
+              </circle>
+
+              <circle
+                cx="780"
+                cy="125"
+                r="5">
+              </circle>
+
+              <circle
+                cx="850"
+                cy="75"
+                r="5">
+              </circle>
+
+
+              <!-- X Axis -->
+
+              <text
+                x="55"
+                y="325">
+                01
+              </text>
+
+              <text
+                x="150"
+                y="325">
+                05
+              </text>
+
+              <text
+                x="240"
+                y="325">
+                10
+              </text>
+
+              <text
+                x="330"
+                y="325">
+                15
+              </text>
+
+              <text
+                x="420"
+                y="325">
+                20
+              </text>
+
+              <text
+                x="510"
+                y="325">
+                25
+              </text>
+
+              <text
+                x="600"
+                y="325">
+                30
+              </text>
+
+            </svg>
+
+          </div>
+
+        </div>
+
+
+        <!-- ================= EMAIL CATEGORIES ================= -->
+
+        <div class="category-card">
+
+          <div class="card-header">
+
+            <div>
+
+              <h3>
+                Email Categories
+              </h3>
+
+              <p>
+                Classification of incoming emails
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div class="category-list">
+
+
+            <!-- Category -->
+
+            <div
+              class="category-item"
+              *ngFor="let category of emailCategories">
+
+              <div class="category-top">
+
+                <span>
+                  {{ category.name }}
+                </span>
+
+                <strong>
+                  {{ category.count }}
+                </strong>
+
+              </div>
+
+
+              <div class="progress-bar">
+
+                <div
+                  class="progress"
+                  [style.width.%]="category.percentage">
+                </div>
+
+              </div>
+
+
+              <span class="percentage">
+                {{ category.percentage }}%
+              </span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =================================================
+           NO RECENT ACTIVITY SECTION
+           ================================================= -->
+
+    </section>
+
+  </main>
+
+</div>

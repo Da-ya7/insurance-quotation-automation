@@ -1,0 +1,415 @@
+<div class="incoming-page">
+
+  <!-- TOP HEADER -->
+  <div class="top-header">
+
+    <div>
+      <h1>Incoming Emails</h1>
+      <p>Monitor and process client communication</p>
+    </div>
+
+    <button class="back-btn" (click)="goToDashboard()">
+      ← Dashboard
+    </button>
+
+  </div>
+
+
+  <!-- SUMMARY CARDS -->
+  <div class="summary-section">
+
+    <div class="summary-card">
+      <div class="summary-icon">✉</div>
+      <div>
+        <span>Total Emails</span>
+        <strong>1,248</strong>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-icon pending-icon">◷</div>
+      <div>
+        <span>Pending</span>
+        <strong>47</strong>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-icon processed-icon">✓</div>
+      <div>
+        <span>Processed</span>
+        <strong>1,201</strong>
+      </div>
+    </div>
+
+    <div class="summary-card">
+      <div class="summary-icon quotation-icon">▣</div>
+      <div>
+        <span>Quotations</span>
+        <strong>486</strong>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- MAIN EMAIL SECTION -->
+  <div class="email-container">
+
+    <!-- LEFT EMAIL LIST -->
+    <div class="email-list">
+
+      <div class="list-header">
+
+        <div>
+          <h2>Client Emails</h2>
+          <span>Recent incoming messages</span>
+        </div>
+
+        <button class="refresh-btn">
+          ↻
+        </button>
+
+      </div>
+
+
+      <!-- SEARCH -->
+      <div class="search-box">
+
+        <span>⌕</span>
+
+        <input
+          type="text"
+          placeholder="Search emails..."
+        />
+
+      </div>
+
+
+      <!-- FILTER -->
+      <div class="filters">
+
+        <button class="filter active">
+          All
+        </button>
+
+        <button class="filter">
+          Quotation
+        </button>
+
+        <button class="filter">
+          Renewal
+        </button>
+
+        <button class="filter">
+          Pending
+        </button>
+
+      </div>
+
+
+      <!-- EMAIL ITEM 1 -->
+      <div class="email-item selected">
+
+        <div class="email-avatar">
+          AK
+        </div>
+
+        <div class="email-details">
+
+          <div class="email-top">
+
+            <strong>Arun Kumar</strong>
+
+            <span class="email-time">
+              10:42 AM
+            </span>
+
+          </div>
+
+          <div class="email-address">
+            arun@gmail.com
+          </div>
+
+          <div class="email-subject">
+            Travel Insurance Quotation
+          </div>
+
+          <div class="email-bottom">
+
+            <span class="tag quotation">
+              Quotation
+            </span>
+
+            <span class="status processed">
+              Processed
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- EMAIL ITEM 2 -->
+      <div class="email-item">
+
+        <div class="email-avatar purple">
+          PS
+        </div>
+
+        <div class="email-details">
+
+          <div class="email-top">
+
+            <strong>Priya Sharma</strong>
+
+            <span class="email-time">
+              09:35 AM
+            </span>
+
+          </div>
+
+          <div class="email-address">
+            priya@gmail.com
+          </div>
+
+          <div class="email-subject">
+            Policy Renewal Request
+          </div>
+
+          <div class="email-bottom">
+
+            <span class="tag renewal">
+              Policy Renewal
+            </span>
+
+            <span class="status processed">
+              Processed
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- EMAIL ITEM 3 -->
+      <div class="email-item">
+
+        <div class="email-avatar orange">
+          RN
+        </div>
+
+        <div class="email-details">
+
+          <div class="email-top">
+
+            <strong>Rahul Nair</strong>
+
+            <span class="email-time">
+              Yesterday
+            </span>
+
+          </div>
+
+          <div class="email-address">
+            rahul@gmail.com
+          </div>
+
+          <div class="email-subject">
+            Travel Insurance Details
+          </div>
+
+          <div class="email-bottom">
+
+            <span class="tag quotation">
+              Quotation
+            </span>
+
+            <span class="status pending">
+              Pending
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- EMAIL ITEM 4 -->
+      <div class="email-item">
+
+        <div class="email-avatar green">
+          SK
+        </div>
+
+        <div class="email-details">
+
+          <div class="email-top">
+
+            <strong>Swetha Kumar</strong>
+
+            <span class="email-time">
+              Yesterday
+            </span>
+
+          </div>
+
+          <div class="email-address">
+            swetha@gmail.com
+          </div>
+
+          <div class="email-subject">
+            Claim Enquiry
+          </div>
+
+          <div class="email-bottom">
+
+            <span class="tag claim">
+              Claim Enquiry
+            </span>
+
+            <span class="status processed">
+              Processed
+            </span>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- RIGHT EMAIL PREVIEW -->
+    <div class="email-preview">
+
+      <div class="preview-header">
+
+        <div>
+
+          <span class="preview-label">
+            EMAIL DETAILS
+          </span>
+
+          <h2>
+            Travel Insurance Quotation
+          </h2>
+
+        </div>
+
+        <span class="status processed">
+          Processed
+        </span>
+
+      </div>
+
+
+      <!-- SENDER -->
+      <div class="sender-section">
+
+        <div class="large-avatar">
+          AK
+        </div>
+
+        <div>
+
+          <strong>
+            Arun Kumar
+          </strong>
+
+          <span>
+            arun@gmail.com
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <!-- EMAIL CONTENT -->
+      <div class="email-body">
+
+        <p>
+          Hello Insurance Team,
+        </p>
+
+        <p>
+          I am planning a trip and would like to know
+          about your travel insurance options.
+        </p>
+
+        <p>
+          Please provide me with a quotation for travel
+          insurance coverage.
+        </p>
+
+        <p>
+          Thank you.
+        </p>
+
+        <p>
+          Regards,<br>
+          Arun Kumar
+        </p>
+
+      </div>
+
+
+      <!-- DETECTED INFORMATION -->
+      <div class="detected-section">
+
+        <h3>
+          Detected Information
+        </h3>
+
+        <div class="detected-grid">
+
+          <div class="info-box">
+            <span>Name</span>
+            <strong>Arun Kumar</strong>
+          </div>
+
+          <div class="info-box">
+            <span>Email</span>
+            <strong>arun@gmail.com</strong>
+          </div>
+
+          <div class="info-box">
+            <span>Category</span>
+            <strong>Quotation</strong>
+          </div>
+
+          <div class="info-box">
+            <span>Status</span>
+            <strong>Processed</strong>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- ACTIONS -->
+      <div class="action-section">
+
+        <button class="primary-btn">
+          Process Email
+        </button>
+
+        <button class="secondary-btn">
+          View Details
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>

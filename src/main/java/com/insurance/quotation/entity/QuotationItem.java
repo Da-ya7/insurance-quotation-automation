@@ -15,11 +15,44 @@ public class QuotationItem {
     @JoinColumn(name = "quotation_id", nullable = false)
     private Quotation quotation;
 
-    private String itemName;
-
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "description", nullable = false, length = 200)
     private String description;
 
-    @Column(precision = 10, scale = 2)
+    @Column(name = "amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
+
+
+    // Getters and Setters
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Quotation getQuotation() {
+        return quotation;
+    }
+
+    public void setQuotation(Quotation quotation) {
+        this.quotation = quotation;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
 }

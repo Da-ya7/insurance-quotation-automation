@@ -1,0 +1,250 @@
+<div class="settings-page">
+
+  <!-- HEADER -->
+  <header class="settings-header">
+    <div>
+      <div class="page-label">SYSTEM ADMINISTRATION</div>
+      <h1>Settings</h1>
+      <p>Manage application configuration and automation preferences</p>
+    </div>
+
+    <button type="button" class="dashboard-btn" (click)="goToDashboard()">
+      ← Dashboard
+    </button>
+  </header>
+
+
+  <!-- SETTINGS LAYOUT -->
+  <div class="settings-layout">
+
+    <!-- LEFT NAVIGATION -->
+    <aside class="settings-sidebar">
+
+      <div class="sidebar-title">
+        SETTINGS
+      </div>
+
+      <button class="settings-nav active">
+        <span class="nav-icon">⚙</span>
+        <span>
+          <strong>System Settings</strong>
+          <small>Application controls</small>
+        </span>
+      </button>
+
+      <button class="settings-nav">
+        <span class="nav-icon">✉</span>
+        <span>
+          <strong>Email Configuration</strong>
+          <small>Email processing</small>
+        </span>
+      </button>
+
+      <button class="settings-nav">
+        <span class="nav-icon">▣</span>
+        <span>
+          <strong>Quotation Settings</strong>
+          <small>Quotation generation</small>
+        </span>
+      </button>
+
+      <button class="settings-nav">
+        <span class="nav-icon">🔔</span>
+        <span>
+          <strong>Notifications</strong>
+          <small>Alerts and reminders</small>
+        </span>
+      </button>
+
+      <div class="sidebar-footer">
+        <span class="status-circle"></span>
+        System Online
+      </div>
+
+    </aside>
+
+
+    <!-- MAIN SETTINGS CONTENT -->
+    <main class="settings-content">
+
+      <div class="content-title">
+        <div>
+          <h2>System Settings</h2>
+          <p>Control how the insurance automation system processes requests.</p>
+        </div>
+
+        <span class="saved-status">
+          ● Configuration active
+        </span>
+      </div>
+
+
+      <!-- EMAIL PROCESSING -->
+      <section class="setting-section">
+
+        <div class="section-heading">
+          <div class="section-icon">✉</div>
+
+          <div>
+            <h3>Email Processing</h3>
+            <p>Configure how incoming client emails are handled.</p>
+          </div>
+        </div>
+
+
+        <div class="setting-row">
+
+          <div class="setting-info">
+            <strong>Automatic Email Classification</strong>
+            <span>
+              Automatically identify quotation, renewal, claim and general enquiries.
+            </span>
+          </div>
+
+          <label class="switch">
+            <input type="checkbox" checked>
+            <span class="slider"></span>
+          </label>
+
+        </div>
+
+
+        <div class="setting-row">
+
+          <div class="setting-info">
+            <strong>Automatic Missing Information Email</strong>
+            <span>
+              Send an email to clients when required quotation information is missing.
+            </span>
+          </div>
+
+          <label class="switch">
+            <input type="checkbox" checked>
+            <span class="slider"></span>
+          </label>
+
+        </div>
+
+      </section>
+
+
+      <!-- QUOTATION AUTOMATION -->
+      <section class="setting-section">
+
+        <div class="section-heading">
+          <div class="section-icon quotation-icon">▣</div>
+
+          <div>
+            <h3>Quotation Automation</h3>
+            <p>Manage automatic quotation generation and processing.</p>
+          </div>
+        </div>
+
+
+        <div class="setting-row">
+
+          <div class="setting-info">
+            <strong>Automatic Quotation Generation</strong>
+            <span>
+              Generate quotations automatically after all required information is received.
+            </span>
+          </div>
+
+          <label class="switch">
+            <input type="checkbox" checked>
+            <span class="slider"></span>
+          </label>
+
+        </div>
+
+
+        <div class="setting-row">
+
+          <div class="setting-info">
+            <strong>Generate Unique Quotation Number</strong>
+            <span>
+              Automatically assign a unique quotation number to every generated quotation.
+            </span>
+          </div>
+
+          <label class="switch">
+            <input type="checkbox" checked>
+            <span class="slider"></span>
+          </label>
+
+        </div>
+
+      </section>
+
+
+      <!-- EMAIL SETTINGS -->
+      <section class="setting-section">
+
+        <div class="section-heading">
+          <div class="section-icon email-icon">↗</div>
+
+          <div>
+            <h3>Email Preferences</h3>
+            <p>Configure automated communication with clients.</p>
+          </div>
+        </div>
+
+
+        <div class="form-grid">
+
+          <div class="form-field">
+            <label>Sender Name</label>
+            <input type="text" value="Insurance Automation">
+          </div>
+
+          <div class="form-field">
+            <label>Reply Email</label>
+            <input type="email" value="support@insurance.com">
+          </div>
+
+        </div>
+
+
+        <div class="form-field full-field">
+          <label>Automatic Response Delay</label>
+
+          <select>
+            <option>Immediately</option>
+            <option>After 5 minutes</option>
+            <option>After 15 minutes</option>
+            <option>After 30 minutes</option>
+          </select>
+
+          <small>
+            Controls when automated client responses are sent.
+          </small>
+        </div>
+
+      </section>
+
+
+      <!-- SAVE AREA -->
+      <div class="save-area">
+
+        <div>
+          <strong>Unsaved configuration changes</strong>
+          <span>Review your settings before saving.</span>
+        </div>
+
+        <div class="save-actions">
+          <button class="cancel-btn">
+            Cancel
+          </button>
+
+          <button class="save-btn">
+            ✓ Save Settings
+          </button>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+</div>

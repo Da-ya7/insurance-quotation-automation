@@ -1,10 +1,21 @@
+// package com.insurance.quotation.entity.enums;
+
+// public enum EmailType {
+
+//     QUOTATION,
+//     RENEWAL,
+//     CLAIM,
+//     GENERAL_ENQUIRY,
+//     UNKNOWN
+// }
+
 package com.insurance.quotation.entity.enums;
 
 public enum EmailType {
-
+    INCOMING_REQUEST,
+    CLIENT_REPLY,
+    MISSING_FIELD,
     QUOTATION,
-    RENEWAL,
-    CLAIM,
-    GENERAL_ENQUIRY,
-    UNKNOWN
+    REMINDER,
+    MANUAL_REVIEW
 }

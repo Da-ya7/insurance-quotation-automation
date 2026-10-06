@@ -26,7 +26,6 @@ public class AuthController {
             AuthenticationManager authenticationManager,
             UserRepository userRepository,
             JwtService jwtService) {
-
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.jwtService = jwtService;
@@ -43,13 +42,12 @@ public class AuthController {
                         )
                 );
 
-        User user = userRepository.findByEmail(
-                authentication.getName()
-        ).orElseThrow();
+        User user = userRepository.findByEmail(authentication.getName())
+                .orElseThrow();
 
         String token = jwtService.generateToken(
                 user.getEmail(),
-                user.getRole()
+                user.getRole().name()
         );
 
         return new LoginResponse(token);

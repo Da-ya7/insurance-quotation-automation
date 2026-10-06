@@ -1,19 +1,21 @@
 package com.insurance.quotation.dto.response;
 
+import java.time.LocalDateTime;
+
+import com.insurance.quotation.entity.enums.RequestStatus;
+
 public class RequestDetailResponse {
 
     private Long id;
-
     private Long clientId;
     private String clientName;
     private String clientEmail;
     private String clientPhone;
-
-    private String destination;
-    private String departureDate;
-    private String returnDate;
-    private Integer travellerCount;
-    private String status;
+    private String policyType;
+    private RequestStatus status;
+    private Long assignedToId;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     public RequestDetailResponse(
             Long id,
@@ -21,22 +23,22 @@ public class RequestDetailResponse {
             String clientName,
             String clientEmail,
             String clientPhone,
-            String destination,
-            String departureDate,
-            String returnDate,
-            Integer travellerCount,
-            String status) {
+            String policyType,
+            RequestStatus status,
+            Long assignedToId,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt) {
 
         this.id = id;
         this.clientId = clientId;
         this.clientName = clientName;
         this.clientEmail = clientEmail;
         this.clientPhone = clientPhone;
-        this.destination = destination;
-        this.departureDate = departureDate;
-        this.returnDate = returnDate;
-        this.travellerCount = travellerCount;
+        this.policyType = policyType;
         this.status = status;
+        this.assignedToId = assignedToId;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     public Long getId() {
@@ -59,23 +61,23 @@ public class RequestDetailResponse {
         return clientPhone;
     }
 
-    public String getDestination() {
-        return destination;
+    public String getPolicyType() {
+        return policyType;
     }
 
-    public String getDepartureDate() {
-        return departureDate;
-    }
-
-    public String getReturnDate() {
-        return returnDate;
-    }
-
-    public Integer getTravellerCount() {
-        return travellerCount;
-    }
-
-    public String getStatus() {
+    public RequestStatus getStatus() {
         return status;
+    }
+
+    public Long getAssignedToId() {
+        return assignedToId;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
     }
 }
