@@ -1,17 +1,14 @@
 package com.insurance.quotation.entity;
 import java.time.LocalDateTime;
 
-import com.insurance.quotation.entity.enums.ProcessingStatus;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
@@ -48,9 +45,8 @@ public class IncomingEmail {
     private String body;
 
     // processing_status
-    @Enumerated(EnumType.STRING)
     @Column(name = "processing_status", nullable = false)
-    private ProcessingStatus processingStatus = ProcessingStatus.RECEIVED;
+    private String processingStatus = "RECEIVED";
 
     // received_at
     @Column(name = "received_at", nullable = false)
@@ -60,6 +56,11 @@ public class IncomingEmail {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    // Automatically set createdAt before saving
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
 
     // Getters and Setters
 
@@ -106,7 +107,7 @@ public class IncomingEmail {
     public String getSubject() {
         return subject;
     }
-
+    
     public void setSubject(String subject) {
         this.subject = subject;
     }
@@ -119,11 +120,11 @@ public class IncomingEmail {
         this.body = body;
     }
 
-    public ProcessingStatus getProcessingStatus() {
+    public String getProcessingStatus() {
         return processingStatus;
     }
 
-    public void setProcessingStatus(ProcessingStatus processingStatus) {
+    public void setProcessingStatus(String processingStatus) {
         this.processingStatus = processingStatus;
     }
 

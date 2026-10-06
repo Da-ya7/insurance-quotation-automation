@@ -1,17 +1,14 @@
 package com.insurance.quotation.entity;
 import java.time.LocalDateTime;
 
-import com.insurance.quotation.entity.enums.MissingFieldStatus;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
@@ -33,9 +30,8 @@ public class MissingField {
     private RequiredField requiredField;
 
     // status
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private MissingFieldStatus status = MissingFieldStatus.OPEN;
+    private String status = "OPEN";
 
     // created_at
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -45,6 +41,11 @@ public class MissingField {
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
 
+    // Set createdAt automatically before inserting
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
 
     // Getters and Setters
 
@@ -72,11 +73,11 @@ public class MissingField {
         this.requiredField = requiredField;
     }
 
-    public MissingFieldStatus getStatus() {
+    public String getStatus() {
         return status;
     }
 
-    public void setStatus(MissingFieldStatus status) {
+    public void setStatus(String status) {
         this.status = status;
     }
 

@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { Login } from './login/login';
+import { Layout } from './layout/layout';
 import { Dashboard } from './dashboard/dashboard';
 
 import { Clients } from './clients/clients';
@@ -13,8 +14,6 @@ import { MissingInformation } from './missing-information/missing-information';
 
 import { Reports } from './reports/reports';
 import { Settings } from './settings/settings';
-
-
 
 
 export const routes: Routes = [
@@ -32,55 +31,62 @@ export const routes: Routes = [
   },
 
 
-  // Dashboard
+  // Main Layout
   {
-    path: 'dashboard',
-    component: Dashboard
-  },
+    path: '',
+    component: Layout,
 
+    children: [
 
-  // Clients
-  {
-    path: 'clients',
-    component: Clients
-  },
+      // Dashboard
+      {
+        path: 'dashboard',
+        component: Dashboard
+      },
 
+      // Incoming Emails
+      {
+        path: 'incoming-emails',
+        component: IncomingEmails
+      },
 
-  // Incoming Emails
-  {
-    path: 'incoming-emails',
-    component: IncomingEmails
-  },
+      // Quotation Requests
+      {
+        path: 'quotation-requests',
+        component: Quotationrequest
+      },
 
+      // Clients
+      {
+        path: 'clients',
+        component: Clients
+      },
 
-  {
-  path: 'quotation-requests',
-  component: Quotationrequest
-},
+      // Quotations
+      {
+        path: 'quotations',
+        component: Quotation
+      },
 
-{
-  path: 'quotations',
-  component: Quotation
-},
+      // Missing Information
+      {
+        path: 'missing-information',
+        component: MissingInformation
+      },
 
-  // Missing Information
-  {
-    path: 'missing-information',
-    component: MissingInformation
-  },
+      // Reports
+      {
+        path: 'reports',
+        component: Reports
+      },
 
+      // Settings
+      {
+        path: 'settings',
+        component: Settings
+      }
 
-  // Reports
-  {
-    path: 'reports',
-    component: Reports
-  },
-
-
-  // Settings
-  {
-    path: 'settings',
-    component: Settings
+    ]
   }
 
 ];
