@@ -1,5 +1,6 @@
 package com.insurance.quotation.entity;
 
+import com.insurance.quotation.entity.enums.FieldSource;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -36,7 +37,7 @@ public class RequestFieldValue {
     // source
     @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false)
-    private FieldValueSource source;
+    private FieldSource source;
 
     // extracted_from_email_id
     @ManyToOne
@@ -52,7 +53,9 @@ public class RequestFieldValue {
     private LocalDateTime updatedAt;
 
 
-    // Getters and Setters
+    // =========================
+    // GETTERS AND SETTERS
+    // =========================
 
     public Long getId() {
         return id;
@@ -62,6 +65,7 @@ public class RequestFieldValue {
         this.id = id;
     }
 
+
     public QuotationRequest getQuotationRequest() {
         return quotationRequest;
     }
@@ -69,6 +73,7 @@ public class RequestFieldValue {
     public void setQuotationRequest(QuotationRequest quotationRequest) {
         this.quotationRequest = quotationRequest;
     }
+
 
     public RequiredField getRequiredField() {
         return requiredField;
@@ -78,6 +83,7 @@ public class RequestFieldValue {
         this.requiredField = requiredField;
     }
 
+
     public String getFieldValue() {
         return fieldValue;
     }
@@ -86,13 +92,15 @@ public class RequestFieldValue {
         this.fieldValue = fieldValue;
     }
 
-    public FieldValueSource getSource() {
+
+    public FieldSource getSource() {
         return source;
     }
 
-    public void setSource(FieldValueSource source) {
+    public void setSource(FieldSource source) {
         this.source = source;
     }
+
 
     public IncomingEmail getExtractedFromEmail() {
         return extractedFromEmail;
@@ -102,6 +110,7 @@ public class RequestFieldValue {
         this.extractedFromEmail = extractedFromEmail;
     }
 
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -109,6 +118,7 @@ public class RequestFieldValue {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
@@ -118,3 +128,4 @@ public class RequestFieldValue {
         this.updatedAt = updatedAt;
     }
 }
+

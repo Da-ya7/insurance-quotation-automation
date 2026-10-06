@@ -1,8 +1,8 @@
-
-
 package com.insurance.quotation.entity;
 
+import com.insurance.quotation.entity.enums.RequestStatus;
 import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,48 +14,105 @@ public class QuotationRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // client_id
+
+    // =========================
+    // CLIENT
+    // =========================
+
     @ManyToOne
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
-    // policy_type
+
+    // =========================
+    // POLICY TYPE
+    // =========================
+
     @Column(name = "policy_type", length = 60)
     private String policyType;
 
-    // status
+
+    // =========================
+    // STATUS
+    // =========================
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private QuotationRequestStatus status = QuotationRequestStatus.EMAIL_RECEIVED;
+    private RequestStatus status = RequestStatus.EMAIL_RECEIVED;
 
-    // assigned_to
+
+    // =========================
+    // ASSIGNED USER
+    // =========================
+
     @ManyToOne
     @JoinColumn(name = "assigned_to")
     private User assignedTo;
 
-    // created_at
+
+    // =========================
+    // CREATED AT
+    // =========================
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // updated_at
+
+    // =========================
+    // UPDATED AT
+    // =========================
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Relationship with RequestFieldValue
+
+    // =========================
+    // REQUEST FIELD VALUES
+    // =========================
+
     @OneToMany(mappedBy = "quotationRequest")
     private List<RequestFieldValue> fieldValues;
 
-    // Relationship with MissingField
+
+    // =========================
+    // MISSING FIELDS
+    // =========================
+
     @OneToMany(mappedBy = "quotationRequest")
     private List<MissingField> missingFields;
 
-    // Relationship with Quotation
+
+    // =========================
+    // QUOTATION
+    // =========================
+
     @OneToOne(mappedBy = "quotationRequest")
     private Quotation quotation;
 
 
     // =========================
-    // Getters and Setters
+    // DATE/TIME METHODS
+    // =========================
+
+    @PrePersist
+    protected void onCreate() {
+
+        LocalDateTime now = LocalDateTime.now();
+
+        createdAt = now;
+        updatedAt = now;
+    }
+
+
+    @PreUpdate
+    protected void onUpdate() {
+
+        updatedAt = LocalDateTime.now();
+    }
+
+
+    // =========================
+    // GETTERS AND SETTERS
     // =========================
 
     public Long getId() {
@@ -66,6 +123,7 @@ public class QuotationRequest {
         this.id = id;
     }
 
+
     public Client getClient() {
         return client;
     }
@@ -73,6 +131,7 @@ public class QuotationRequest {
     public void setClient(Client client) {
         this.client = client;
     }
+
 
     public String getPolicyType() {
         return policyType;
@@ -82,13 +141,15 @@ public class QuotationRequest {
         this.policyType = policyType;
     }
 
-    public QuotationRequestStatus getStatus() {
+
+    public RequestStatus getStatus() {
         return status;
     }
 
-    public void setStatus(QuotationRequestStatus status) {
+    public void setStatus(RequestStatus status) {
         this.status = status;
     }
+
 
     public User getAssignedTo() {
         return assignedTo;
@@ -98,6 +159,7 @@ public class QuotationRequest {
         this.assignedTo = assignedTo;
     }
 
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -105,6 +167,7 @@ public class QuotationRequest {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
@@ -114,6 +177,7 @@ public class QuotationRequest {
         this.updatedAt = updatedAt;
     }
 
+
     public List<RequestFieldValue> getFieldValues() {
         return fieldValues;
     }
@@ -122,6 +186,7 @@ public class QuotationRequest {
         this.fieldValues = fieldValues;
     }
 
+
     public List<MissingField> getMissingFields() {
         return missingFields;
     }
@@ -129,6 +194,7 @@ public class QuotationRequest {
     public void setMissingFields(List<MissingField> missingFields) {
         this.missingFields = missingFields;
     }
+
 
     public Quotation getQuotation() {
         return quotation;

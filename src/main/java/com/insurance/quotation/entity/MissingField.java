@@ -22,9 +22,8 @@ public class MissingField {
     private RequiredField requiredField;
 
     // status
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private MissingFieldStatus status = MissingFieldStatus.OPEN;
+    private String status = "OPEN";
 
     // created_at
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -34,6 +33,11 @@ public class MissingField {
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
 
+    // Set createdAt automatically before inserting
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
 
     // Getters and Setters
 
@@ -61,11 +65,11 @@ public class MissingField {
         this.requiredField = requiredField;
     }
 
-    public MissingFieldStatus getStatus() {
+    public String getStatus() {
         return status;
     }
 
-    public void setStatus(MissingFieldStatus status) {
+    public void setStatus(String status) {
         this.status = status;
     }
 

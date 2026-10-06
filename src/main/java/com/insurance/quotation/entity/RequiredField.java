@@ -1,5 +1,6 @@
 package com.insurance.quotation.entity;
 
+import com.insurance.quotation.entity.enums.FieldDataType;
 import jakarta.persistence.*;
 
 @Entity
@@ -18,7 +19,7 @@ public class RequiredField {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "data_type", nullable = false)
-    private DataType dataType;
+    private FieldDataType dataType;
 
     @Column(name = "policy_type", length = 60)
     private String policyType;
@@ -37,6 +38,7 @@ public class RequiredField {
         this.id = id;
     }
 
+
     public String getFieldName() {
         return fieldName;
     }
@@ -44,6 +46,7 @@ public class RequiredField {
     public void setFieldName(String fieldName) {
         this.fieldName = fieldName;
     }
+
 
     public String getDisplayLabel() {
         return displayLabel;
@@ -53,13 +56,15 @@ public class RequiredField {
         this.displayLabel = displayLabel;
     }
 
-    public DataType getDataType() {
+
+    public FieldDataType getDataType() {
         return dataType;
     }
 
-    public void setDataType(DataType dataType) {
+    public void setDataType(FieldDataType dataType) {
         this.dataType = dataType;
     }
+
 
     public String getPolicyType() {
         return policyType;
@@ -68,6 +73,7 @@ public class RequiredField {
     public void setPolicyType(String policyType) {
         this.policyType = policyType;
     }
+
 
     public Boolean getIsActive() {
         return isActive;
