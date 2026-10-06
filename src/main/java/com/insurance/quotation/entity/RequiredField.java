@@ -26,7 +26,7 @@ public class RequiredField {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "data_type", nullable = false)
-    private FieldDataType FieldDataType;
+    private FieldDataType dataType;
 
     @Column(name = "policy_type", length = 60)
     private String policyType;
@@ -61,13 +61,15 @@ public class RequiredField {
         this.displayLabel = displayLabel;
     }
 
-    public FieldDataType getFieldDataType() {
-        return FieldDataType;
+    public FieldDataType getDataType() {
+        return dataType;
     }
 
-    public void setFieldDataType(FieldDataType FieldDataType) {
-        this.FieldDataType = FieldDataType;
-    }
+   
+
+    public void setDataType(FieldDataType dataType) {
+    this.dataType = dataType;
+    }       
 
     public String getPolicyType() {
         return policyType;

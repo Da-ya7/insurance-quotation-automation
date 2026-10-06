@@ -1,14 +1,15 @@
 package com.insurance.quotation.repository;
 
-import com.insurance.quotation.entity.MissingField;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
+import com.insurance.quotation.entity.MissingField;
+import com.insurance.quotation.entity.enums.MissingFieldStatus;
 
 public interface MissingFieldRepository extends JpaRepository<MissingField, Long> {
 
     List<MissingField> findByQuotationRequestIdAndStatus(
             Long quotationRequestId,
-            String status
-    );
+            MissingFieldStatus status);
 }
