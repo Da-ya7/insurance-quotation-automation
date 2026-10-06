@@ -52,8 +52,15 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/actuator/health"
                         ).permitAll()
+
+                        .requestMatchers(
+                                "/api/clients/**",
+                                "/api/requests/**"
+                        ).hasAnyRole("ADMIN", "OPERATIONS")
+
                         .anyRequest().authenticated()
                 )
+
 
                 .addFilterBefore(
                         jwtAuthenticationFilter,
