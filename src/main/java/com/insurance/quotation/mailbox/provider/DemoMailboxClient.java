@@ -19,15 +19,21 @@ public class DemoMailboxClient implements MailboxClient {
 
                 """
                 Name: John Smith
+                Email: john.smith@example.com
+                Phone: 9876543210
                 Passport Number: A1234567
                 Origin Country: India
                 Destination Country: France
-                Travel Start Date: 20-10-2026
-                Travel End Date: 30-10-2026
+                Travel Start Date: 2026-10-20
+                Travel End Date: 2026-10-30
+                Travellers: 2
+                Policy Type: TRAVEL
                 """,
 
                 LocalDateTime.now()
         );
+
+        
 
         return List.of(email);
     }

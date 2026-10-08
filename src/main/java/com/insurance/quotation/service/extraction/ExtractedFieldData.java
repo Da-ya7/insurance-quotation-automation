@@ -1,229 +1,93 @@
-// package com.insurance.quotation.service.extraction;
-
-// public class ExtractedFieldData {
-
-//     private String customerName;
-//     private String email;
-//     private String phone;
-//     private String passportNumber;
-//     private String originCountry;
-//     private String destinationCountry;
-//     private String travelStartDate;
-//     private String travelEndDate;
-//     private Integer travellerCount;
-//     private String requiredCoverage;
-
-//     public ExtractedFieldData() {
-//     }
-
-//     public String getCustomerName() {
-//         return customerName;
-//     }
-
-//     public void setCustomerName(String customerName) {
-//         this.customerName = customerName;
-//     }
-
-//     public String getEmail() {
-//         return email;
-//     }
-
-//     public void setEmail(String email) {
-//         this.email = email;
-//     }
-
-//     public String getPhone() {
-//         return phone;
-//     }
-
-//     public void setPhone(String phone) {
-//         this.phone = phone;
-//     }
-
-//     public String getPassportNumber() {
-//         return passportNumber;
-//     }
-
-//     public void setPassportNumber(String passportNumber) {
-//         this.passportNumber = passportNumber;
-//     }
-
-//     public String getOriginCountry() {
-//         return originCountry;
-//     }
-
-//     public void setOriginCountry(String originCountry) {
-//         this.originCountry = originCountry;
-//     }
-
-//     public String getDestinationCountry() {
-//         return destinationCountry;
-//     }
-
-//     public void setDestinationCountry(String destinationCountry) {
-//         this.destinationCountry = destinationCountry;
-//     }
-
-//     public String getTravelStartDate() {
-//         return travelStartDate;
-//     }
-
-//     public void setTravelStartDate(String travelStartDate) {
-//         this.travelStartDate = travelStartDate;
-//     }
-
-//     public String getTravelEndDate() {
-//         return travelEndDate;
-//     }
-
-//     public void setTravelEndDate(String travelEndDate) {
-//         this.travelEndDate = travelEndDate;
-//     }
-
-//     public Integer getTravellerCount() {
-//         return travellerCount;
-//     }
-
-//     public void setTravellerCount(Integer travellerCount) {
-//         this.travellerCount = travellerCount;
-//     }
-
-//     public String getRequiredCoverage() {
-//         return requiredCoverage;
-//     }
-
-//     public void setRequiredCoverage(String requiredCoverage) {
-//         this.requiredCoverage = requiredCoverage;
-//     }
-
-//     @Override
-//     public String toString() {
-//         return "ExtractedFieldData{" +
-//                 "customerName='" + customerName + '\'' +
-//                 ", email='" + email + '\'' +
-//                 ", phone='" + phone + '\'' +
-//                 ", passportNumber='" + passportNumber + '\'' +
-//                 ", originCountry='" + originCountry + '\'' +
-//                 ", destinationCountry='" + destinationCountry + '\'' +
-//                 ", travelStartDate='" + travelStartDate + '\'' +
-//                 ", travelEndDate='" + travelEndDate + '\'' +
-//                 ", travellerCount=" + travellerCount +
-//                 ", requiredCoverage='" + requiredCoverage + '\'' +
-//                 '}';
-//     }
-// }
-
 package com.insurance.quotation.service.extraction;
+
+import com.insurance.quotation.entity.enums.FieldDataType;
+import com.insurance.quotation.entity.enums.FieldSource;
 
 public class ExtractedFieldData {
 
-    private String name;
-    private String email;
-    private String phone;
-    private String passportNumber;
-    private String originCountry;
-    private String destinationCountry;
-    private String travelStartDate;
-    private String travelEndDate;
-    private String travellerCount;
-    private String requiredCoverage;
+    private String fieldName;
+    private String fieldValue;
+    private FieldDataType dataType;
+    private FieldSource source;
+    private Double confidence;
+    private boolean missing;
 
     public ExtractedFieldData() {
     }
 
-    public String getName() {
-        return name;
+    public ExtractedFieldData(
+            String fieldName,
+            String fieldValue,
+            FieldDataType dataType,
+            FieldSource source,
+            Double confidence,
+            boolean missing) {
+
+        this.fieldName = fieldName;
+        this.fieldValue = fieldValue;
+        this.dataType = dataType;
+        this.source = source;
+        this.confidence = confidence;
+        this.missing = missing;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public String getFieldName() {
+        return fieldName;
     }
 
-    public String getEmail() {
-        return email;
+    public void setFieldName(String fieldName) {
+        this.fieldName = fieldName;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public String getFieldValue() {
+        return fieldValue;
     }
 
-    public String getPhone() {
-        return phone;
+    public void setFieldValue(String fieldValue) {
+        this.fieldValue = fieldValue;
     }
 
-    public void setPhone(String phone) {
-        this.phone = phone;
+    public FieldDataType getDataType() {
+        return dataType;
     }
 
-    public String getPassportNumber() {
-        return passportNumber;
+    public void setDataType(FieldDataType dataType) {
+        this.dataType = dataType;
     }
 
-    public void setPassportNumber(String passportNumber) {
-        this.passportNumber = passportNumber;
+    public FieldSource getSource() {
+        return source;
     }
 
-    public String getOriginCountry() {
-        return originCountry;
+    public void setSource(FieldSource source) {
+        this.source = source;
     }
 
-    public void setOriginCountry(String originCountry) {
-        this.originCountry = originCountry;
+    public Double getConfidence() {
+        return confidence;
     }
 
-    public String getDestinationCountry() {
-        return destinationCountry;
+    public void setConfidence(Double confidence) {
+        this.confidence = confidence;
     }
 
-    public void setDestinationCountry(String destinationCountry) {
-        this.destinationCountry = destinationCountry;
+    public boolean isMissing() {
+        return missing;
     }
 
-    public String getTravelStartDate() {
-        return travelStartDate;
-    }
-
-    public void setTravelStartDate(String travelStartDate) {
-        this.travelStartDate = travelStartDate;
-    }
-
-    public String getTravelEndDate() {
-        return travelEndDate;
-    }
-
-    public void setTravelEndDate(String travelEndDate) {
-        this.travelEndDate = travelEndDate;
-    }
-
-    public String getTravellerCount() {
-        return travellerCount;
-    }
-
-    public void setTravellerCount(String travellerCount) {
-        this.travellerCount = travellerCount;
-    }
-
-    public String getRequiredCoverage() {
-        return requiredCoverage;
-    }
-
-    public void setRequiredCoverage(String requiredCoverage) {
-        this.requiredCoverage = requiredCoverage;
+    public void setMissing(boolean missing) {
+        this.missing = missing;
     }
 
     @Override
     public String toString() {
         return "ExtractedFieldData{" +
-                "name='" + name + '\'' +
-                ", email='" + email + '\'' +
-                ", phone='" + phone + '\'' +
-                ", passportNumber='" + passportNumber + '\'' +
-                ", originCountry='" + originCountry + '\'' +
-                ", destinationCountry='" + destinationCountry + '\'' +
-                ", travelStartDate='" + travelStartDate + '\'' +
-                ", travelEndDate='" + travelEndDate + '\'' +
-                ", travellerCount='" + travellerCount + '\'' +
-                ", requiredCoverage='" + requiredCoverage + '\'' +
+                "fieldName='" + fieldName + '\'' +
+                ", fieldValue='" + fieldValue + '\'' +
+                ", dataType=" + dataType +
+                ", source=" + source +
+                ", confidence=" + confidence +
+                ", missing=" + missing +
                 '}';
     }
 }
