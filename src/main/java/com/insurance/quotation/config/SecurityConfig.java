@@ -45,45 +45,40 @@ public class SecurityConfig {
             HttpSecurity http) throws Exception {
 
         http
-                // Disable CSRF for JWT-based REST API
                 .csrf(csrf -> csrf.disable())
 
-                // Enable CORS
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(cors ->
+                        cors.configurationSource(corsConfigurationSource()))
 
-                // JWT application is stateless
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS
                         )
                 )
 
-                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
 
-                        // Allow browser preflight requests
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                        // Allow root endpoint for testing
-                        .requestMatchers("/").permitAll()
-
-                        // Login and health check do not require JWT
                         .requestMatchers(
-                                "/api/auth/**",
-                                "/actuator/health"
+                                HttpMethod.OPTIONS,
+                                "/**"
                         ).permitAll()
 
-                        // Protected client APIs
+                        .requestMatchers(
+                                "/",
+                                "/error",
+                                "/api/auth/**",
+                                "/actuator/health",
+                                "/api/automation/process"
+                        ).permitAll()
+
                         .requestMatchers(
                                 "/api/clients/**",
                                 "/api/requests/**"
                         ).hasAnyRole("ADMIN", "OPERATIONS")
 
-                        // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
 
-                // Add JWT filter before Spring Security's username/password filter
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
@@ -95,14 +90,13 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration configuration = new CorsConfiguration();
+        CorsConfiguration configuration =
+                new CorsConfiguration();
 
-        // Angular frontend
         configuration.setAllowedOrigins(
-    List.of("http://localhost:4200")
-);
+                List.of("http://localhost:4200")
+        );
 
-        // Allowed HTTP methods
         configuration.setAllowedMethods(
                 List.of(
                         "GET",
@@ -113,12 +107,10 @@ public class SecurityConfig {
                 )
         );
 
-        // Allow request headers
         configuration.setAllowedHeaders(
                 List.of("*")
         );
 
-        // Allow credentials
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source =

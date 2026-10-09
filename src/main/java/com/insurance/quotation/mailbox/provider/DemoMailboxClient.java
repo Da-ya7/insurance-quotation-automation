@@ -12,7 +12,7 @@ public class DemoMailboxClient implements MailboxClient {
     public List<EmailMessage> fetchUnreadEmails() {
 
         EmailMessage email = new EmailMessage(
-                "DEMO-EMAIL-001",
+                "DEMO-EMAIL-003",
                 null,
                 "john.smith@example.com",
                 "Travel Insurance Quotation Request",
@@ -33,13 +33,13 @@ public class DemoMailboxClient implements MailboxClient {
                 LocalDateTime.now()
         );
 
-        
-
         return List.of(email);
     }
 
     @Override
     public void markAsProcessed(String messageId) {
-        System.out.println("Demo email marked as processed: " + messageId);
+        System.out.println(
+                "Demo email marked as processed: " + messageId
+        );
     }
 }

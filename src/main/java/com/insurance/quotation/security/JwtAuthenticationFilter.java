@@ -166,11 +166,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
 
+        
+
         } catch (Exception exception) {
 
-            // Invalid JWT → continue without authentication.
-            // Spring Security will decide whether the endpoint
-            // requires authentication.
+            System.out.println(
+                    "JWT validation failed: "
+                            + exception.getClass().getSimpleName()
+                            + " - "
+                            + exception.getMessage()
+            );
         }
 
         filterChain.doFilter(request, response);
