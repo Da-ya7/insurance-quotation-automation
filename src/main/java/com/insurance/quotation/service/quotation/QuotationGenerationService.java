@@ -41,7 +41,7 @@ public class QuotationGenerationService {
         }
 
         QuotationCalculationService.CalculationResult calculation =
-                calculationService.calculate();
+                calculationService.calculate(quotationRequest);
 
         Quotation quotation = new Quotation();
 

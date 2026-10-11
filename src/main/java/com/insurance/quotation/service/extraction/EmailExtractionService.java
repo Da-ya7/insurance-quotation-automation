@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.service.extraction;
 
 import com.insurance.quotation.entity.enums.FieldDataType;
@@ -17,7 +18,7 @@ public class EmailExtractionService {
 
         List<ExtractedFieldData> fields = new ArrayList<>();
 
-        String body = email.getBody();
+        String body = email.getBody() == null ? "" : email.getBody();
 
         fields.add(extract(body, "Name", "name", FieldDataType.TEXT));
         fields.add(extract(body, "Email", "email", FieldDataType.EMAIL));
@@ -40,8 +41,9 @@ public class EmailExtractionService {
             FieldDataType dataType) {
 
         Pattern pattern = Pattern.compile(
-                "^" + Pattern.quote(label) + "\\s*:\\s*(.*)$",
-                Pattern.MULTILINE
+                "^\\s*" + Pattern.quote(label)
+                        + "\\s*[:\\-–—]\\s*(.*?)\\s*$",
+                Pattern.MULTILINE | Pattern.CASE_INSENSITIVE
         );
 
         Matcher matcher = pattern.matcher(body);

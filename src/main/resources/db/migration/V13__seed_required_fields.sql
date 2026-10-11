@@ -10,4 +10,4 @@ VALUES
     ('travelStartDate', 'Travel Start Date', 'DATE', 'TRAVEL', TRUE),
     ('travelEndDate', 'Travel End Date', 'DATE', 'TRAVEL', TRUE),
     ('travellers', 'Travellers', 'NUMBER', 'TRAVEL', TRUE),
-    ('policyType', 'Policy Type', 'TEXT', 'TRAVEL', TRUE);
+    ('policyType', 'Policy Type', 'TEXT', 'TRAVEL', TRUE);    
