@@ -14,7 +14,7 @@ import { MissingInformation } from './missing-information/missing-information';
 
 import { Reports } from './reports/reports';
 import { Settings } from './settings/settings';
-
+import { ClientQuotation } from './client-quotation/client-quotation';
 
 export const routes: Routes = [
 
@@ -28,6 +28,11 @@ export const routes: Routes = [
   {
     path: 'login',
     component: Login
+  },
+
+  {
+  path: 'client-quotation',
+  component: ClientQuotation
   },
 
 

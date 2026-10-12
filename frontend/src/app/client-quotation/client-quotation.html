@@ -1,0 +1,271 @@
+
+<div class="quotation-page">
+  <header class="hero">
+    <div class="brand">
+      <span class="brand-icon">✈</span>
+      <span>TravelSure</span>
+    </div>
+
+    <div class="hero-content">
+      <p class="eyebrow">TRAVEL WITH CONFIDENCE</p>
+      <h1>Your journey.<br />Our protection.</h1>
+      <p class="hero-description">
+        Tell us about your trip and request a travel insurance quotation.
+      </p>
+    </div>
+  </header>
+
+  <main class="form-container">
+    <section class="form-heading">
+      <div class="form-heading-row">
+        <div>
+          <span class="step-label">TRAVEL INSURANCE</span>
+          <h2>Request a quotation</h2>
+          <p>Enter each traveller's details and share the trip details once.</p>
+        </div>
+
+        <button
+          type="button"
+          class="add-form-button"
+          (click)="addTraveller()"
+        >
+          + Add Form
+        </button>
+      </div>
+    </section>
+
+    <form #quotationForm="ngForm" (ngSubmit)="submitForm(quotationForm)">
+
+      <!-- Main applicant -->
+      <section class="form-section">
+        <h3>01. Traveller 1 — Main Applicant</h3>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="mainName">Full Name *</label>
+            <input id="mainName" name="name" type="text"
+              [(ngModel)]="formData.name" required maxlength="150"
+              placeholder="Enter full name" />
+          </div>
+
+          <div class="form-field">
+            <label for="mainDob">Date of Birth *</label>
+            <input id="mainDob" name="dateOfBirth" type="date"
+              [(ngModel)]="formData.dateOfBirth" [max]="today"
+              (ngModelChange)="calculateAge()" required />
+          </div>
+
+          <div class="form-field">
+            <label for="mainAge">Age</label>
+            <input id="mainAge" name="mainAge" type="number"
+              [ngModel]="formData.age" readonly />
+          </div>
+
+          <div class="form-field">
+            <label for="mainPassport">Passport Number *</label>
+            <input id="mainPassport" name="passportNumber" type="text"
+              [(ngModel)]="formData.passportNumber" required maxlength="20"
+              placeholder="Enter passport number" />
+          </div>
+
+          <div class="form-field">
+            <label for="mainGender">Gender</label>
+            <select id="mainGender" name="gender" [(ngModel)]="formData.gender">
+              <option value="">Select if required</option>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="OTHER">Other</option>
+              <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="mainNationality">Nationality *</label>
+            <input id="mainNationality" name="nationality" type="text"
+              [(ngModel)]="formData.nationality" required />
+          </div>
+
+          <div class="form-field">
+            <label for="mainResidence">Country of Residence *</label>
+            <input id="mainResidence" name="countryOfResidence" type="text"
+              [(ngModel)]="formData.countryOfResidence" required />
+          </div>
+
+          <div class="form-field">
+            <label for="mainEmail">Email Address *</label>
+            <input id="mainEmail" name="email" type="email"
+              [(ngModel)]="formData.email" required email />
+          </div>
+
+          <div class="form-field">
+            <label for="mainPhone">Contact Number *</label>
+            <input id="mainPhone" name="phone" type="tel"
+              [(ngModel)]="formData.phone" required />
+          </div>
+
+          <div class="form-field">
+            <label for="mainMedical">Pre-existing Medical Conditions</label>
+            <textarea id="mainMedical" name="preExistingMedicalConditions"
+              rows="3" [(ngModel)]="formData.preExistingMedicalConditions"
+              placeholder="Provide details if applicable"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Additional travellers -->
+      <section
+        class="form-section"
+        *ngFor="let traveller of additionalTravellers; let i = index"
+      >
+        <div class="traveller-section-header">
+          <h3>Traveller {{ i + 2 }}</h3>
+          <button type="button" class="remove-form-button"
+            (click)="removeTraveller(i)">
+            Remove Form
+          </button>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label [for]="'travellerName' + i">Full Name *</label>
+            <input [id]="'travellerName' + i" [name]="'travellerName_' + i"
+              type="text" [(ngModel)]="traveller.name" required maxlength="150" />
+          </div>
+
+          <div class="form-field">
+            <label [for]="'travellerDob' + i">Date of Birth *</label>
+            <input [id]="'travellerDob' + i" [name]="'travellerDob_' + i"
+              type="date" [(ngModel)]="traveller.dateOfBirth"
+              [max]="today" (ngModelChange)="calculateTravellerAge(i)" required />
+          </div>
+
+          <div class="form-field">
+            <label [for]="'travellerAge' + i">Age</label>
+            <input [id]="'travellerAge' + i" [name]="'travellerAge_' + i"
+              type="number" [ngModel]="traveller.age" readonly />
+          </div>
+
+          <div class="form-field">
+            <label [for]="'travellerPassport' + i">Passport Number *</label>
+            <input [id]="'travellerPassport' + i"
+              [name]="'travellerPassport_' + i" type="text"
+              [(ngModel)]="traveller.passportNumber" required maxlength="20" />
+          </div>
+
+          <div class="form-field">
+            <label [for]="'travellerGender' + i">Gender</label>
+            <select [id]="'travellerGender' + i" [name]="'travellerGender_' + i"
+              [(ngModel)]="traveller.gender">
+              <option value="">Select if required</option>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="OTHER">Other</option>
+              <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label [for]="'travellerNationality' + i">Nationality *</label>
+            <input [id]="'travellerNationality' + i"
+              [name]="'travellerNationality_' + i" type="text"
+              [(ngModel)]="traveller.nationality" required />
+          </div>
+
+          <div class="form-field">
+            <label [for]="'travellerResidence' + i">Country of Residence *</label>
+            <input [id]="'travellerResidence' + i"
+              [name]="'travellerResidence_' + i" type="text"
+              [(ngModel)]="traveller.countryOfResidence" required />
+          </div>
+
+          <div class="form-field">
+            <label [for]="'travellerEmail' + i">Email Address *</label>
+            <input [id]="'travellerEmail' + i" [name]="'travellerEmail_' + i"
+              type="email" [(ngModel)]="traveller.email" required email />
+          </div>
+
+          <div class="form-field">
+            <label [for]="'travellerPhone' + i">Contact Number *</label>
+            <input [id]="'travellerPhone' + i" [name]="'travellerPhone_' + i"
+              type="tel" [(ngModel)]="traveller.phone" required />
+          </div>
+
+          <div class="form-field">
+            <label [for]="'travellerMedical' + i">Pre-existing Medical Conditions</label>
+            <textarea [id]="'travellerMedical' + i"
+              [name]="'travellerMedical_' + i" rows="3"
+              [(ngModel)]="traveller.preExistingMedicalConditions"
+              placeholder="Provide details if applicable"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Shared trip details -->
+      <section class="form-section">
+        <h3>02. Shared Trip Details</h3>
+        <p class="traveller-count">
+          Total travellers: {{ 1 + additionalTravellers.length }}
+        </p>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="departureCountry">Departure Country *</label>
+            <input id="departureCountry" name="departureCountry" type="text"
+              [(ngModel)]="formData.departureCountry" required />
+          </div>
+
+          <div class="form-field">
+            <label for="destinationCountry">Destination Country *</label>
+            <input id="destinationCountry" name="destinationCountry" type="text"
+              [(ngModel)]="formData.destinationCountry" required />
+          </div>
+
+          <div class="form-field">
+            <label for="travelStartDate">Travel Start Date *</label>
+            <input id="travelStartDate" name="travelStartDate" type="date"
+              [(ngModel)]="formData.travelStartDate" [min]="today" required />
+          </div>
+
+          <div class="form-field">
+            <label for="travelEndDate">Travel End Date *</label>
+            <input id="travelEndDate" name="travelEndDate" type="date"
+              [(ngModel)]="formData.travelEndDate"
+              [min]="formData.travelStartDate || today" required />
+          </div>
+
+          <div class="form-field">
+            <label for="purposeOfTravel">Purpose of Travel *</label>
+            <select id="purposeOfTravel" name="purposeOfTravel"
+              [(ngModel)]="formData.purposeOfTravel" required>
+              <option value="">Select purpose</option>
+              <option value="HOLIDAY">Holiday / Tourism</option>
+              <option value="BUSINESS">Business</option>
+              <option value="STUDY">Study</option>
+              <option value="FAMILY_VISIT">Family Visit</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <p class="privacy-note">
+        Your information will be used to process your quotation request.
+        Submitting this form does not activate insurance coverage.
+      </p>
+
+      <p class="error-message" *ngIf="errorMessage">
+        {{ errorMessage }}
+      </p>
+
+      <p class="success-message" *ngIf="successMessage">
+        {{ successMessage }}
+      </p>
+
+      <button class="submit-button" type="submit" [disabled]="isSubmitting">
+        {{ isSubmitting ? 'Submitting...' : 'Submit quotation request' }}
+        <span aria-hidden="true">→</span>
+      </button>
+    </form>
+  </main>
+</div>
+
