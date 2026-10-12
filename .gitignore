@@ -62,3 +62,9 @@ replay_pid*
 .env
 .env.*
 !.env.example
+
+
+# Gmail OAuth credentials and tokens
+credentials/
+tokens/
+token.json
