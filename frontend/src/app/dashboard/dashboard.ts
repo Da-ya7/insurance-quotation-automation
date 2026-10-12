@@ -19,7 +19,7 @@ export class Dashboard {
 
   totalEmails = 1248;
   quotationRequests = 486;
-  activeClients = 842;
+  // activeClients = 842;
   pendingDetails = 47;
   quotationsGenerated = 301;
 
@@ -36,8 +36,8 @@ export class Dashboard {
     { name: 'Incoming Emails', route: '/incoming-emails' },
     { name: 'Quotation Requests', route: '/quotation-requests' },
     { name: 'Missing Information', route: '/missing-information' },
-    { name: 'Quotations', route: '/quotation' },
-    { name: 'Clients', route: '/client' },
+    { name: 'Quotations', route: '/quotations' },
+    { name: 'Clients', route: '/clients' },
     { name: 'Reports', route: '/reports' },
     { name: 'Settings', route: '/settings' }
   ];
@@ -45,7 +45,6 @@ export class Dashboard {
   // ================= FILTER SEARCH RESULTS =================
 
   get filteredItems() {
-
     const search = this.searchQuery.toLowerCase().trim();
 
     if (!search) {
@@ -60,10 +59,10 @@ export class Dashboard {
   // ================= EMAIL CATEGORIES =================
 
   emailCategories = [
-    { name: 'Quotation', count: 42, percentage: 33 },
-    { name: 'Policy Renewal', count: 31, percentage: 24 },
-    { name: 'Claim Enquiry', count: 24, percentage: 19 },
-    { name: 'General Enquiry', count: 31, percentage: 24 }
+    { name: 'Incoming Emails', count: 1248, percentage: 33 },
+    { name: 'Quotation Requests', count: 486, percentage: 24 },
+    { name: 'Pending Requests', count: 47, percentage: 19 },
+    { name: 'Quotations Sent', count: 301, percentage: 24 }
   ];
 
   // ================= ACTIVITIES =================
@@ -153,7 +152,18 @@ export class Dashboard {
   // ================= LOGOUT =================
 
   logout(): void {
-    localStorage.removeItem('isLoggedIn');
-    this.router.navigate(['/login']);
+    const confirmed = window.confirm(
+      'Are you sure you want to logout?'
+    );
+
+    if (confirmed) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('isLoggedIn');
+
+      this.showProfileMenu = false;
+
+      this.router.navigate(['/login']);
+    }
   }
 }

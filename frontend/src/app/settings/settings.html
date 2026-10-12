@@ -1,16 +1,27 @@
+
 <div class="settings-page">
 
   <!-- HEADER -->
   <header class="settings-header">
-    <div>
-      <div class="page-label">SYSTEM ADMINISTRATION</div>
-      <h1>Settings</h1>
-      <p>Manage application configuration and automation preferences</p>
+
+    <div class="header-left">
+
+      <button
+        type="button"
+        class="back-arrow-btn"
+        (click)="goBack()"
+        aria-label="Go back to previous page"
+        title="Go back">
+        &larr;
+      </button>
+
+      <div class="header-content">
+        <h1>Settings</h1>
+        <p>Manage application configuration and automation preferences</p>
+      </div>
+
     </div>
 
-    <button type="button" class="dashboard-btn" (click)="goToDashboard()">
-      ← Dashboard
-    </button>
   </header>
 
 
@@ -24,7 +35,7 @@
         SETTINGS
       </div>
 
-      <button class="settings-nav active">
+      <button type="button" class="settings-nav active">
         <span class="nav-icon">⚙</span>
         <span>
           <strong>System Settings</strong>
@@ -32,7 +43,7 @@
         </span>
       </button>
 
-      <button class="settings-nav">
+      <button type="button" class="settings-nav">
         <span class="nav-icon">✉</span>
         <span>
           <strong>Email Configuration</strong>
@@ -40,7 +51,7 @@
         </span>
       </button>
 
-      <button class="settings-nav">
+      <button type="button" class="settings-nav">
         <span class="nav-icon">▣</span>
         <span>
           <strong>Quotation Settings</strong>
@@ -48,7 +59,7 @@
         </span>
       </button>
 
-      <button class="settings-nav">
+      <button type="button" class="settings-nav">
         <span class="nav-icon">🔔</span>
         <span>
           <strong>Notifications</strong>
@@ -91,7 +102,6 @@
           </div>
         </div>
 
-
         <div class="setting-row">
 
           <div class="setting-info">
@@ -107,7 +117,6 @@
           </label>
 
         </div>
-
 
         <div class="setting-row">
 
@@ -140,7 +149,6 @@
           </div>
         </div>
 
-
         <div class="setting-row">
 
           <div class="setting-info">
@@ -156,7 +164,6 @@
           </label>
 
         </div>
-
 
         <div class="setting-row">
 
@@ -189,26 +196,30 @@
           </div>
         </div>
 
-
         <div class="form-grid">
 
           <div class="form-field">
-            <label>Sender Name</label>
-            <input type="text" value="Insurance Automation">
+            <label for="senderName">Sender Name</label>
+            <input
+              id="senderName"
+              type="text"
+              value="Insurance Automation">
           </div>
 
           <div class="form-field">
-            <label>Reply Email</label>
-            <input type="email" value="support@insurance.com">
+            <label for="replyEmail">Reply Email</label>
+            <input
+              id="replyEmail"
+              type="email"
+              value="support@insurance.com">
           </div>
 
         </div>
 
-
         <div class="form-field full-field">
-          <label>Automatic Response Delay</label>
+          <label for="responseDelay">Automatic Response Delay</label>
 
-          <select>
+          <select id="responseDelay">
             <option>Immediately</option>
             <option>After 5 minutes</option>
             <option>After 15 minutes</option>
@@ -226,19 +237,27 @@
       <!-- SAVE AREA -->
       <div class="save-area">
 
-        <div>
+        <div class="save-message">
           <strong>Unsaved configuration changes</strong>
           <span>Review your settings before saving.</span>
         </div>
 
         <div class="save-actions">
-          <button class="cancel-btn">
+
+          <button
+            type="button"
+            class="cancel-btn"
+            (click)="goBack()">
             Cancel
           </button>
 
-          <button class="save-btn">
+          <button
+            type="button"
+            class="save-btn"
+            (click)="saveSettings()">
             ✓ Save Settings
           </button>
+
         </div>
 
       </div>

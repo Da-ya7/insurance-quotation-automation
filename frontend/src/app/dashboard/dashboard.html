@@ -1,33 +1,26 @@
 <!-- =====================================================
      DASHBOARD MAIN CONTENT
-     
-     IMPORTANT:
+
      Sidebar is handled by Layout.
      Do NOT add another sidebar here.
      ===================================================== -->
 
 <div class="dashboard-page">
 
-  <!-- =====================================================
-       TOP HEADER
-       ===================================================== -->
+  <!-- ================= TOP HEADER ================= -->
 
   <header class="top-header">
 
-    <!-- Header Title -->
+    <!-- Updated Header Title -->
 
     <div class="header-title">
 
       <h1>
-        Insurance Automation Dashboard
+        Dashboard
       </h1>
 
-      <p>
-        Intelligent Insurance Email & Quotation Automation
-      </p>
-
+      
     </div>
-
 
     <!-- Header Actions -->
 
@@ -49,8 +42,7 @@
 
         </div>
 
-
-        <!-- ================= SEARCH RESULTS ================= -->
+        <!-- SEARCH RESULTS -->
 
         <div
           class="search-results"
@@ -61,20 +53,15 @@
             *ngFor="let item of filteredItems"
             (click)="goToPage(item.route)">
 
-            <span class="result-icon">
-              🔍
-            </span>
+            <span class="result-icon">🔍</span>
 
-            <span>
-              {{ item.name }}
-            </span>
+            <span>{{ item.name }}</span>
 
           </div>
 
         </div>
 
-
-        <!-- ================= NO RESULTS ================= -->
+        <!-- NO RESULTS -->
 
         <div
           class="search-results no-results"
@@ -82,13 +69,9 @@
 
           <div class="search-result-item">
 
-            <span class="result-icon">
-              🔍
-            </span>
+            <span class="result-icon">🔍</span>
 
-            <span>
-              No results found
-            </span>
+            <span>No results found</span>
 
           </div>
 
@@ -96,13 +79,11 @@
 
       </div>
 
-
       <!-- ================= NOTIFICATION ================= -->
 
       <button class="notification-btn">
         🔔
       </button>
-
 
       <!-- ================= PROFILE ================= -->
 
@@ -118,24 +99,17 @@
 
           <div class="profile-info">
 
-            <strong>
-              Admin
-            </strong>
+            <strong>Admin</strong>
 
-            <span>
-              Administrator
-            </span>
+            <span>Administrator</span>
 
           </div>
 
-          <span>
-            ▼
-          </span>
+          <span>▼</span>
 
         </button>
 
-
-        <!-- Profile Dropdown -->
+        <!-- PROFILE DROPDOWN -->
 
         <div
           class="profile-dropdown"
@@ -148,9 +122,7 @@
 
           </button>
 
-
-          <button
-            (click)="logout()">
+          <button (click)="logout()">
 
             🚪 Logout
 
@@ -164,41 +136,21 @@
 
   </header>
 
-
-  <!-- =====================================================
-       DASHBOARD CONTENT
-       ===================================================== -->
+  <!-- ================= DASHBOARD CONTENT ================= -->
 
   <section class="dashboard-content">
 
+    <!--
+      Removed:
+      Dashboard
+      Overview of your insurance email and quotation automation
+    -->
 
-    <!-- ================= PAGE HEADING ================= -->
-
-      <div class="page-heading">
-
-        <div>
-
-          <h2>
-            Dashboard
-          </h2>
-
-          <p>
-            Overview of your insurance email and quotation automation
-          </p>
-
-        </div>
-
-      </div>
-
-
-    <!-- =================================================
-         KPI CARDS
-         ================================================= -->
+    <!-- ================= KPI CARDS ================= -->
 
     <div class="stats-grid">
 
-
-      <!-- Incoming Emails -->
+      <!-- INCOMING EMAILS -->
 
       <div class="stat-card">
 
@@ -212,9 +164,7 @@
             Incoming Emails
           </span>
 
-          <h3>
-            {{ totalEmails }}
-          </h3>
+          <h3>{{ totalEmails }}</h3>
 
           <span class="stat-change">
             +12.5% from last month
@@ -224,8 +174,7 @@
 
       </div>
 
-
-      <!-- Quotation Requests -->
+      <!-- QUOTATION REQUESTS -->
 
       <div class="stat-card">
 
@@ -239,9 +188,7 @@
             Quotation Requests
           </span>
 
-          <h3>
-            {{ quotationRequests }}
-          </h3>
+          <h3>{{ quotationRequests }}</h3>
 
           <span class="stat-change">
             +8.2% from last month
@@ -251,35 +198,7 @@
 
       </div>
 
-
-      <!-- Active Clients -->
-
-      <div class="stat-card">
-
-        <div class="stat-icon">
-          👥
-        </div>
-
-        <div class="stat-details">
-
-          <span class="stat-title">
-            Active Clients
-          </span>
-
-          <h3>
-            {{ activeClients }}
-          </h3>
-
-          <span class="stat-change">
-            +5.4% from last month
-          </span>
-
-        </div>
-
-      </div>
-
-
-      <!-- Pending Requests -->
+      <!-- PENDING REQUESTS -->
 
       <div class="stat-card">
 
@@ -293,9 +212,7 @@
             Pending Requests
           </span>
 
-          <h3>
-            {{ pendingDetails }}
-          </h3>
+          <h3>{{ pendingDetails }}</h3>
 
           <span class="stat-warning">
             Requires attention
@@ -305,8 +222,7 @@
 
       </div>
 
-
-      <!-- Quotations Sent -->
+      <!-- QUOTATIONS SENT -->
 
       <div class="stat-card">
 
@@ -320,9 +236,7 @@
             Quotations Sent
           </span>
 
-          <h3>
-            {{ quotationsGenerated }}
-          </h3>
+          <h3>{{ quotationsGenerated }}</h3>
 
           <span class="stat-change">
             +10.8% from last month
@@ -334,15 +248,11 @@
 
     </div>
 
-
-    <!-- =================================================
-         CHART + EMAIL CATEGORIES
-         ================================================= -->
+    <!-- ================= CHART + EMAIL CATEGORIES ================= -->
 
     <div class="dashboard-grid">
 
-
-      <!-- ================= ACTIVITY CHART ================= -->
+      <!-- ACTIVITY CHART -->
 
       <div class="chart-card">
 
@@ -351,7 +261,7 @@
           <div>
 
             <h3>
-              Insurance Email & Quotation Activity
+              Insurance Email &amp; Quotation Activity
             </h3>
 
             <p>
@@ -360,8 +270,7 @@
 
           </div>
 
-
-          <!-- Time Range -->
+          <!-- TIME RANGE -->
 
           <div class="time-range">
 
@@ -373,7 +282,6 @@
 
             </button>
 
-
             <button
               [class.active]="selectedTimeRange === '30 Days'"
               (click)="setTimeRange('30 Days')">
@@ -382,7 +290,6 @@
 
             </button>
 
-
             <button
               [class.active]="selectedTimeRange === '90 Days'"
               (click)="setTimeRange('90 Days')">
@@ -390,7 +297,6 @@
               90 Days
 
             </button>
-
 
             <button
               [class.active]="selectedTimeRange === 'Year to Date'"
@@ -404,8 +310,7 @@
 
         </div>
 
-
-        <!-- ================= GRAPH ================= -->
+        <!-- GRAPH -->
 
         <div class="chart-container">
 
@@ -413,68 +318,23 @@
             viewBox="0 0 900 350"
             class="activity-chart">
 
-            <!-- Horizontal Grid Lines -->
+            <!-- HORIZONTAL GRID LINES -->
 
-            <line
-              x1="60"
-              y1="50"
-              x2="850"
-              y2="50">
-            </line>
+            <line x1="60" y1="50" x2="850" y2="50"></line>
+            <line x1="60" y1="110" x2="850" y2="110"></line>
+            <line x1="60" y1="170" x2="850" y2="170"></line>
+            <line x1="60" y1="230" x2="850" y2="230"></line>
+            <line x1="60" y1="290" x2="850" y2="290"></line>
 
-            <line
-              x1="60"
-              y1="110"
-              x2="850"
-              y2="110">
-            </line>
+            <!-- Y AXIS -->
 
-            <line
-              x1="60"
-              y1="170"
-              x2="850"
-              y2="170">
-            </line>
+            <text x="25" y="55">100</text>
+            <text x="30" y="115">80</text>
+            <text x="30" y="175">60</text>
+            <text x="30" y="235">40</text>
+            <text x="30" y="295">20</text>
 
-            <line
-              x1="60"
-              y1="230"
-              x2="850"
-              y2="230">
-            </line>
-
-            <line
-              x1="60"
-              y1="290"
-              x2="850"
-              y2="290">
-            </line>
-
-
-            <!-- Y Axis -->
-
-            <text x="25" y="55">
-              100
-            </text>
-
-            <text x="30" y="115">
-              80
-            </text>
-
-            <text x="30" y="175">
-              60
-            </text>
-
-            <text x="30" y="235">
-              40
-            </text>
-
-            <text x="30" y="295">
-              20
-            </text>
-
-
-            <!-- Activity Line -->
+            <!-- ACTIVITY LINE -->
 
             <polyline
               points="
@@ -494,59 +354,28 @@
               stroke-width="3">
             </polyline>
 
-
-            <!-- Data Points -->
+            <!-- DATA POINTS -->
 
             <circle cx="60" cy="250" r="5"></circle>
-
             <circle cx="150" cy="210" r="5"></circle>
-
             <circle cx="240" cy="225" r="5"></circle>
-
             <circle cx="330" cy="170" r="5"></circle>
-
             <circle cx="420" cy="190" r="5"></circle>
-
             <circle cx="510" cy="130" r="5"></circle>
-
             <circle cx="600" cy="150" r="5"></circle>
-
             <circle cx="690" cy="100" r="5"></circle>
-
             <circle cx="780" cy="125" r="5"></circle>
-
             <circle cx="850" cy="75" r="5"></circle>
 
+            <!-- X AXIS -->
 
-            <!-- X Axis -->
-
-            <text x="55" y="325">
-              01
-            </text>
-
-            <text x="150" y="325">
-              05
-            </text>
-
-            <text x="240" y="325">
-              10
-            </text>
-
-            <text x="330" y="325">
-              15
-            </text>
-
-            <text x="420" y="325">
-              20
-            </text>
-
-            <text x="510" y="325">
-              25
-            </text>
-
-            <text x="600" y="325">
-              30
-            </text>
+            <text x="55" y="325">01</text>
+            <text x="150" y="325">05</text>
+            <text x="240" y="325">10</text>
+            <text x="330" y="325">15</text>
+            <text x="420" y="325">20</text>
+            <text x="510" y="325">25</text>
+            <text x="600" y="325">30</text>
 
           </svg>
 
@@ -554,8 +383,7 @@
 
       </div>
 
-
-      <!-- ================= EMAIL CATEGORIES ================= -->
+      <!-- EMAIL CATEGORIES -->
 
       <div class="category-card">
 
@@ -563,9 +391,7 @@
 
           <div>
 
-            <h3>
-              Email Categories
-            </h3>
+            <h3>Email Categories</h3>
 
             <p>
               Classification of incoming emails
@@ -575,7 +401,6 @@
 
         </div>
 
-
         <div class="category-list">
 
           <div
@@ -584,16 +409,11 @@
 
             <div class="category-top">
 
-              <span>
-                {{ category.name }}
-              </span>
+              <span>{{ category.name }}</span>
 
-              <strong>
-                {{ category.count }}
-              </strong>
+              <strong>{{ category.count }}</strong>
 
             </div>
-
 
             <div class="progress-bar">
 
@@ -603,7 +423,6 @@
               </div>
 
             </div>
-
 
             <span class="percentage">
               {{ category.percentage }}%

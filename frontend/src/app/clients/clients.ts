@@ -1,22 +1,19 @@
+
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { CommonModule, Location } from '@angular/common';
 
 @Component({
   selector: 'app-clients',
   standalone: true,
-  imports: [
-    CommonModule
-  ],
+  imports: [CommonModule],
   templateUrl: './clients.html',
   styleUrl: './clients.css'
 })
 export class Clients {
 
-  constructor(private router: Router) {}
+  constructor(private location: Location) {}
 
-  goToDashboard(): void {
-    this.router.navigate(['/dashboard']);
+  goBack(): void {
+    this.location.back();
   }
-
 }

@@ -1,19 +1,24 @@
+
 <div class="incoming-page">
 
   <!-- TOP HEADER -->
   <div class="top-header">
 
-    <div>
+    <button
+      class="back-btn"
+      type="button"
+      (click)="goBack()"
+      aria-label="Go to previous page"
+      title="Go back">
+      ←
+    </button>
+
+    <div class="header-content">
       <h1>Incoming Emails</h1>
       <p>Monitor and process client communication</p>
     </div>
 
-    <button class="back-btn" (click)="goToDashboard()">
-      ← Dashboard
-    </button>
-
   </div>
-
 
   <!-- SUMMARY CARDS -->
   <div class="summary-section">
@@ -22,7 +27,7 @@
       <div class="summary-icon">✉</div>
       <div>
         <span>Total Emails</span>
-        <strong>1,248</strong>
+        <strong>{{ totalEmails }}</strong>
       </div>
     </div>
 
@@ -30,7 +35,7 @@
       <div class="summary-icon pending-icon">◷</div>
       <div>
         <span>Pending</span>
-        <strong>47</strong>
+        <strong>{{ pendingEmails }}</strong>
       </div>
     </div>
 
@@ -38,7 +43,7 @@
       <div class="summary-icon processed-icon">✓</div>
       <div>
         <span>Processed</span>
-        <strong>1,201</strong>
+        <strong>{{ processedEmails }}</strong>
       </div>
     </div>
 
@@ -46,12 +51,11 @@
       <div class="summary-icon quotation-icon">▣</div>
       <div>
         <span>Quotations</span>
-        <strong>486</strong>
+        <strong>{{ quotationEmails }}</strong>
       </div>
     </div>
 
   </div>
-
 
   <!-- MAIN EMAIL SECTION -->
   <div class="email-container">
@@ -59,90 +63,124 @@
     <!-- LEFT EMAIL LIST -->
     <div class="email-list">
 
+      <!-- LIST HEADER -->
       <div class="list-header">
-
         <div>
           <h2>Client Emails</h2>
           <span>Recent incoming messages</span>
         </div>
 
-        <button class="refresh-btn">
+        <button
+          class="refresh-btn"
+          type="button"
+          title="Reset search and filters"
+          aria-label="Refresh emails"
+          (click)="refreshEmails()">
           ↻
         </button>
-
       </div>
-
 
       <!-- SEARCH -->
       <div class="search-box">
-
         <span>⌕</span>
 
         <input
           type="text"
+          [(ngModel)]="searchText"
           placeholder="Search emails..."
-        />
-
+          aria-label="Search emails" />
       </div>
 
-
-      <!-- FILTER -->
+      <!-- FILTERS -->
       <div class="filters">
 
-        <button class="filter active">
+        <button
+          class="filter"
+          [class.active]="activeFilter === 'All'"
+          type="button"
+          (click)="setFilter('All')">
           All
         </button>
 
-        <button class="filter">
+        <button
+          class="filter"
+          [class.active]="activeFilter === 'Quotation'"
+          type="button"
+          (click)="setFilter('Quotation')">
           Quotation
         </button>
 
-        <button class="filter">
+        <button
+          class="filter"
+          [class.active]="activeFilter === 'Renewal'"
+          type="button"
+          (click)="setFilter('Renewal')">
           Renewal
         </button>
 
-        <button class="filter">
+        <button
+          class="filter"
+          [class.active]="activeFilter === 'Pending'"
+          type="button"
+          (click)="setFilter('Pending')">
           Pending
         </button>
 
       </div>
 
+      <!-- EMAIL ITEMS -->
+      <div
+        class="email-item"
+        *ngFor="let email of filteredEmails"
+        [class.selected]="selectedEmail?.sender === email.sender"
+        role="button"
+        tabindex="0"
+        [attr.aria-label]="'Open email from ' + email.sender"
+        [attr.aria-pressed]="selectedEmail?.sender === email.sender"
+        (click)="selectEmail(email)"
+        (keydown.enter)="selectEmail(email)"
+        (keydown.space)="selectEmail(email); $event.preventDefault()">
 
-      <!-- EMAIL ITEM 1 -->
-      <div class="email-item selected">
-
-        <div class="email-avatar">
-          AK
+        <!-- AVATAR -->
+        <div class="email-avatar" [ngClass]="email.color">
+          {{ email.initials }}
         </div>
 
+        <!-- EMAIL INFORMATION -->
         <div class="email-details">
 
           <div class="email-top">
-
-            <strong>Arun Kumar</strong>
-
-            <span class="email-time">
-              10:42 AM
-            </span>
-
+            <strong>{{ email.sender }}</strong>
+            <span class="email-time">{{ email.time }}</span>
           </div>
 
           <div class="email-address">
-            arun@gmail.com
+            {{ email.email }}
           </div>
 
           <div class="email-subject">
-            Travel Insurance Quotation
+            {{ email.subject }}
           </div>
 
           <div class="email-bottom">
 
-            <span class="tag quotation">
-              Quotation
+            <span
+              class="tag"
+              [ngClass]="{
+                'quotation': email.category === 'Quotation',
+                'renewal': email.category === 'Policy Renewal',
+                'claim': email.category === 'Claim Enquiry'
+              }">
+              {{ email.category }}
             </span>
 
-            <span class="status processed">
-              Processed
+            <span
+              class="status"
+              [ngClass]="{
+                'processed': email.status === 'Processed',
+                'pending': email.status === 'Pending'
+              }">
+              {{ email.status }}
             </span>
 
           </div>
@@ -151,263 +189,110 @@
 
       </div>
 
-
-      <!-- EMAIL ITEM 2 -->
-      <div class="email-item">
-
-        <div class="email-avatar purple">
-          PS
-        </div>
-
-        <div class="email-details">
-
-          <div class="email-top">
-
-            <strong>Priya Sharma</strong>
-
-            <span class="email-time">
-              09:35 AM
-            </span>
-
-          </div>
-
-          <div class="email-address">
-            priya@gmail.com
-          </div>
-
-          <div class="email-subject">
-            Policy Renewal Request
-          </div>
-
-          <div class="email-bottom">
-
-            <span class="tag renewal">
-              Policy Renewal
-            </span>
-
-            <span class="status processed">
-              Processed
-            </span>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <!-- EMAIL ITEM 3 -->
-      <div class="email-item">
-
-        <div class="email-avatar orange">
-          RN
-        </div>
-
-        <div class="email-details">
-
-          <div class="email-top">
-
-            <strong>Rahul Nair</strong>
-
-            <span class="email-time">
-              Yesterday
-            </span>
-
-          </div>
-
-          <div class="email-address">
-            rahul@gmail.com
-          </div>
-
-          <div class="email-subject">
-            Travel Insurance Details
-          </div>
-
-          <div class="email-bottom">
-
-            <span class="tag quotation">
-              Quotation
-            </span>
-
-            <span class="status pending">
-              Pending
-            </span>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <!-- EMAIL ITEM 4 -->
-      <div class="email-item">
-
-        <div class="email-avatar green">
-          SK
-        </div>
-
-        <div class="email-details">
-
-          <div class="email-top">
-
-            <strong>Swetha Kumar</strong>
-
-            <span class="email-time">
-              Yesterday
-            </span>
-
-          </div>
-
-          <div class="email-address">
-            swetha@gmail.com
-          </div>
-
-          <div class="email-subject">
-            Claim Enquiry
-          </div>
-
-          <div class="email-bottom">
-
-            <span class="tag claim">
-              Claim Enquiry
-            </span>
-
-            <span class="status processed">
-              Processed
-            </span>
-
-          </div>
-
-        </div>
-
+      <!-- NO EMAILS FOUND -->
+      <div
+        *ngIf="filteredEmails.length === 0"
+        class="empty-emails">
+        No emails found.
       </div>
 
     </div>
 
-
     <!-- RIGHT EMAIL PREVIEW -->
-    <div class="email-preview">
+    <div class="email-preview" *ngIf="selectedEmail as email">
 
+      <!-- PREVIEW HEADER -->
       <div class="preview-header">
 
         <div>
-
-          <span class="preview-label">
-            EMAIL DETAILS
-          </span>
-
-          <h2>
-            Travel Insurance Quotation
-          </h2>
-
+          <span class="preview-label">EMAIL DETAILS</span>
+          <h2>{{ email.subject }}</h2>
         </div>
 
-        <span class="status processed">
-          Processed
+        <span
+          class="status"
+          [ngClass]="{
+            'processed': email.status === 'Processed',
+            'pending': email.status === 'Pending'
+          }">
+          {{ email.status }}
         </span>
 
       </div>
 
-
-      <!-- SENDER -->
+      <!-- SENDER DETAILS -->
       <div class="sender-section">
 
-        <div class="large-avatar">
-          AK
+        <div class="large-avatar" [ngClass]="email.color">
+          {{ email.initials }}
         </div>
 
         <div>
-
-          <strong>
-            Arun Kumar
-          </strong>
-
-          <span>
-            arun@gmail.com
-          </span>
-
+          <strong>{{ email.sender }}</strong>
+          <span>{{ email.email }}</span>
         </div>
 
       </div>
 
-
-      <!-- EMAIL CONTENT -->
+      <!-- EMAIL BODY -->
       <div class="email-body">
 
-        <p>
-          Hello Insurance Team,
-        </p>
-
-        <p>
-          I am planning a trip and would like to know
-          about your travel insurance options.
-        </p>
-
-        <p>
-          Please provide me with a quotation for travel
-          insurance coverage.
-        </p>
-
-        <p>
-          Thank you.
-        </p>
-
-        <p>
-          Regards,<br>
-          Arun Kumar
+        <p *ngFor="let paragraph of email.body">
+          {{ paragraph }}
         </p>
 
       </div>
-
 
       <!-- DETECTED INFORMATION -->
       <div class="detected-section">
 
-        <h3>
-          Detected Information
-        </h3>
+        <h3>Detected Information</h3>
 
         <div class="detected-grid">
 
           <div class="info-box">
             <span>Name</span>
-            <strong>Arun Kumar</strong>
+            <strong>{{ email.name }}</strong>
           </div>
 
           <div class="info-box">
             <span>Email</span>
-            <strong>arun@gmail.com</strong>
+            <strong>{{ email.detectedEmail }}</strong>
           </div>
 
           <div class="info-box">
             <span>Category</span>
-            <strong>Quotation</strong>
+            <strong>{{ email.category }}</strong>
           </div>
 
           <div class="info-box">
             <span>Status</span>
-            <strong>Processed</strong>
+            <strong>{{ email.status }}</strong>
           </div>
 
         </div>
 
       </div>
 
-
       <!-- ACTIONS -->
       <div class="action-section">
 
-        <button class="primary-btn">
-          Process Email
-        </button>
-
-        <button class="secondary-btn">
+        <button
+          class="secondary-btn"
+          type="button"
+          (click)="viewEmailDetails()">
           View Details
         </button>
 
       </div>
 
+    </div>
+
+    <!-- NO EMAIL SELECTED -->
+    <div
+      class="email-preview empty-preview"
+      *ngIf="!selectedEmail">
+      Select an email to view its details.
     </div>
 
   </div>

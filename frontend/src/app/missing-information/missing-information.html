@@ -1,18 +1,25 @@
 <div class="missing-page">
 
-  <!-- HEADER -->
+  <!-- PAGE HEADER -->
   <div class="page-header">
-    <div>
-      <div class="eyebrow">CLIENT FOLLOW-UP</div>
-      <h1>Missing Information</h1>
-      <p>Track information required from clients</p>
+    <div class="header-left">
+
+      <button
+        type="button"
+        class="back-arrow-btn"
+        (click)="goBack()"
+        aria-label="Go to previous page"
+        title="Go to previous page">
+        &larr;
+      </button>
+
+      <div class="header-content">
+        <h1>Missing Information</h1>
+        <p>Track information required from clients</p>
+      </div>
+
     </div>
-
-    <button type="button" class="dashboard-btn" (click)="goToDashboard()">
-      ← Dashboard
-    </button>
   </div>
-
 
   <!-- ATTENTION BANNER -->
   <div class="attention-banner">
@@ -27,7 +34,6 @@
 
     <div class="attention-count">03</div>
   </div>
-
 
   <!-- SUMMARY -->
   <div class="summary-row">
@@ -49,7 +55,6 @@
 
   </div>
 
-
   <!-- SECTION HEADER -->
   <div class="section-heading">
     <div>
@@ -58,23 +63,20 @@
     </div>
 
     <div class="request-filter">
-      <button class="filter-active">All Requests</button>
-      <button>Requested</button>
-      <button>Pending</button>
+      <button type="button" class="filter-active">All Requests</button>
+      <button type="button">Requested</button>
+      <button type="button">Pending</button>
     </div>
   </div>
 
-
-  <!-- REQUEST CARDS -->
-
+  <!-- REQUEST LIST -->
   <div class="request-list">
 
-    <!-- RAHUL -->
+    <!-- RAHUL NAIR -->
     <div class="request-card">
 
       <div class="client-block">
         <div class="client-avatar">RN</div>
-
         <div>
           <h3>Rahul Nair</h3>
           <span>rahul@gmail.com</span>
@@ -106,19 +108,17 @@
       </div>
 
       <div class="action-block">
-        <button class="view-btn">View</button>
-        <button class="remind-btn">Send Reminder</button>
+        <button type="button" class="view-btn">View</button>
+        <button type="button" class="remind-btn">Send Reminder</button>
       </div>
 
     </div>
 
-
-    <!-- DIVYA -->
+    <!-- DIVYA RAJ -->
     <div class="request-card">
 
       <div class="client-block">
         <div class="client-avatar purple">DR</div>
-
         <div>
           <h3>Divya Raj</h3>
           <span>divya@gmail.com</span>
@@ -150,19 +150,17 @@
       </div>
 
       <div class="action-block">
-        <button class="view-btn">View</button>
-        <button class="remind-btn">Send Reminder</button>
+        <button type="button" class="view-btn">View</button>
+        <button type="button" class="remind-btn">Send Reminder</button>
       </div>
 
     </div>
 
-
-    <!-- PRIYA -->
+    <!-- PRIYA SHARMA -->
     <div class="request-card">
 
       <div class="client-block">
         <div class="client-avatar orange">PS</div>
-
         <div>
           <h3>Priya Sharma</h3>
           <span>priya@gmail.com</span>
@@ -194,20 +192,19 @@
       </div>
 
       <div class="action-block">
-        <button class="view-btn">View</button>
-        <button class="remind-btn">Send Reminder</button>
+        <button type="button" class="view-btn">View</button>
+        <button type="button" class="remind-btn">Send Reminder</button>
       </div>
 
     </div>
 
   </div>
 
-
   <!-- FOOTER -->
   <div class="page-footer">
     <span>Showing 3 pending information requests</span>
 
-    <button class="load-btn">
+    <button type="button" class="load-btn">
       View Completed Requests →
     </button>
   </div>

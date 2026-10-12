@@ -1,181 +1,156 @@
-<div class="layout">
+<div class="app-layout">
 
-  <!-- LEFT SIDEBAR : EXACTLY 250px -->
-  <aside class="sidebar" [class.closed]="!sidebarOpen">
+  <!-- LEFT SIDEBAR -->
+  <aside
+    class="sidebar"
+    [class.sidebar-closed]="!sidebarOpen">
 
-    <!-- Logo + Menu Button -->
-    <div class="logo-section">
+    <!-- LOGO AND THREE-DASH BUTTON -->
+    <div class="logo">
 
-      <div class="logo-left">
-        <div class="logo-icon">
-          IQ
-        </div>
+      <div class="logo-icon">IQ</div>
 
-        <div class="logo-text" *ngIf="sidebarOpen">
-          <h2>Insurance</h2>
-          <span>Quotation</span>
-        </div>
+      <div class="logo-text">
+        <h2>Insurance</h2>
+        <p>Quotation</p>
       </div>
 
-      <!-- THREE DASH BUTTON -->
       <button
-        class="menu-button"
+        class="menu-toggle"
+        type="button"
         (click)="toggleSidebar()"
-        title="Toggle Menu">
-        ☰
+        [attr.aria-expanded]="sidebarOpen"
+        aria-label="Toggle sidebar"
+        title="Toggle sidebar">
+
+        <span></span>
+        <span></span>
+        <span></span>
+
       </button>
 
     </div>
 
+    <!-- SIDEBAR NAVIGATION -->
+    <nav class="sidebar-nav">
 
-    <!-- MENU -->
-    <nav class="menu">
-
+      <!-- DASHBOARD -->
       <a
         routerLink="/dashboard"
         routerLinkActive="active"
-        [routerLinkActiveOptions]="{ exact: true }"
-        class="menu-item">
+        [routerLinkActiveOptions]="{ exact: true }">
 
-        <span class="icon">📊</span>
-
-        <span class="menu-text" *ngIf="sidebarOpen">
-          Dashboard
-        </span>
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Dashboard</span>
 
       </a>
 
-
+      <!-- INCOMING EMAILS -->
       <a
         routerLink="/incoming-emails"
         routerLinkActive="active"
-        class="menu-item">
+        [routerLinkActiveOptions]="{ exact: true }">
 
-        <span class="icon">📧</span>
-
-        <span class="menu-text" *ngIf="sidebarOpen">
-          Incoming Emails
-        </span>
+        <span class="nav-icon">📧</span>
+        <span class="nav-label">Incoming Emails</span>
 
       </a>
 
-
+      <!-- QUOTATION REQUESTS -->
       <a
         routerLink="/quotation-requests"
         routerLinkActive="active"
-        class="menu-item">
+        [routerLinkActiveOptions]="{ exact: true }">
 
-        <span class="icon">📋</span>
-
-        <span class="menu-text" *ngIf="sidebarOpen">
-          Quotation Requests
-        </span>
+        <span class="nav-icon">📋</span>
+        <span class="nav-label">Quotation Requests</span>
 
       </a>
 
-
+      <!-- CLIENTS -->
       <a
         routerLink="/clients"
         routerLinkActive="active"
-        class="menu-item">
+        [routerLinkActiveOptions]="{ exact: true }">
 
-        <span class="icon">👥</span>
-
-        <span class="menu-text" *ngIf="sidebarOpen">
-          Clients
-        </span>
+        <span class="nav-icon">👥</span>
+        <span class="nav-label">Clients</span>
 
       </a>
 
-
+      <!-- QUOTATIONS -->
       <a
         routerLink="/quotations"
         routerLinkActive="active"
-        class="menu-item">
+        [routerLinkActiveOptions]="{ exact: true }">
 
-        <span class="icon">📄</span>
-
-        <span class="menu-text" *ngIf="sidebarOpen">
-          Quotations
-        </span>
+        <span class="nav-icon">📄</span>
+        <span class="nav-label">Quotations</span>
 
       </a>
 
-
+      <!-- MISSING INFORMATION -->
       <a
         routerLink="/missing-information"
         routerLinkActive="active"
-        class="menu-item">
+        [routerLinkActiveOptions]="{ exact: true }">
 
-        <span class="icon">⚠️</span>
-
-        <span class="menu-text" *ngIf="sidebarOpen">
-          Missing Information
-        </span>
+        <span class="nav-icon">⚠️</span>
+        <span class="nav-label">Missing Information</span>
 
       </a>
 
-
+      <!-- REPORTS -->
       <a
         routerLink="/reports"
         routerLinkActive="active"
-        class="menu-item">
+        [routerLinkActiveOptions]="{ exact: true }">
 
-        <span class="icon">📈</span>
-
-        <span class="menu-text" *ngIf="sidebarOpen">
-          Reports
-        </span>
+        <span class="nav-icon">📈</span>
+        <span class="nav-label">Reports</span>
 
       </a>
 
-
+      <!-- SETTINGS -->
       <a
         routerLink="/settings"
         routerLinkActive="active"
-        class="menu-item">
+        [routerLinkActiveOptions]="{ exact: true }">
 
-        <span class="icon">⚙️</span>
-
-        <span class="menu-text" *ngIf="sidebarOpen">
-          Settings
-        </span>
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">Settings</span>
 
       </a>
 
     </nav>
 
-
-    <!-- BOTTOM -->
-    <div class="sidebar-bottom">
-
-      <div class="status" *ngIf="sidebarOpen">
-        <span class="status-dot"></span>
-        System Active
-      </div>
-
-      <button
-        class="logout"
-        (click)="logout()">
-
-        <span class="icon">↪</span>
-
-        <span *ngIf="sidebarOpen">
-          Logout
-        </span>
-
-      </button>
-
+    <!-- SIDEBAR FOOTER -->
+    <div class="sidebar-footer">
+      <span class="status-dot"></span>
+      <span class="footer-label">System Active</span>
     </div>
 
   </aside>
 
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
 
-  <!-- RIGHT SIDE : REMAINING SCREEN -->
-  <main class="main-area">
-
+    <!-- PAGE CONTENT -->
     <section class="page-content">
 
+      <!-- LOGOUT AT TOP-RIGHT ON ALL PAGES -->
+      <button
+        type="button"
+        class="logout-button"
+        (click)="logout()"
+        aria-label="Logout">
+
+        <span class="logout-icon">🚪</span>
+        <span>Logout</span>
+
+      </button>
+
+      <!-- CURRENT PAGE -->
       <router-outlet></router-outlet>
 
     </section>

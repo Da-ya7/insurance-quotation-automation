@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { Router } from '@angular/router';
+import { Location } from '@angular/common';
 
 @Component({
   selector: 'app-settings',
@@ -9,11 +9,10 @@ import { Router } from '@angular/router';
   styleUrl: './settings.css'
 })
 export class Settings {
+  constructor(private location: Location) {}
 
-  constructor(private router: Router) {}
-
-  goToDashboard(): void {
-    this.router.navigate(['/dashboard']);
+  goBack(): void {
+    this.location.back();
   }
 
   saveSettings(): void {

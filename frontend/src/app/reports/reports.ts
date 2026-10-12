@@ -1,6 +1,6 @@
+
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { CommonModule, Location } from '@angular/common';
 
 @Component({
   selector: 'app-reports',
@@ -11,10 +11,10 @@ import { Router } from '@angular/router';
 })
 export class Reports {
 
-  constructor(private router: Router) {}
+  constructor(private location: Location) {}
 
-  goToDashboard(): void {
-    this.router.navigate(['/dashboard']);
+  goBack(): void {
+    this.location.back();
   }
 
   totalEmails = 1248;

@@ -1,62 +1,79 @@
+
 /* =====================================
    PAGE
 ===================================== */
 
+:host {
+  display: block;
+  min-width: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 .quotation-page {
   min-height: 100vh;
+  width: 100%;
   background: #f4f6fa;
   padding: 30px 34px;
   font-family: Arial, Helvetica, sans-serif;
   color: #202938;
-  box-sizing: border-box;
 }
 
-
 /* =====================================
-   HEADER
+   PAGE HEADER
 ===================================== */
 
 .quotation-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 25px;
+  align-items: center;
+  margin-bottom: 28px;
 }
 
-.breadcrumb {
-  font-size: 11px;
-  color: #98a1b2;
-  margin-bottom: 10px;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .header-content h1 {
   margin: 0;
-  font-size: 29px;
+  font-size: 28px;
   font-weight: 700;
   color: #172033;
 }
 
 .header-content p {
-  margin: 7px 0 0;
+  margin: 8px 0 0;
   font-size: 14px;
   color: #7d8797;
 }
 
-.dashboard-btn {
+/* BACK ARROW */
+
+.back-arrow-btn {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   background: #ffffff;
-  border: 1px solid #dce1e9;
-  border-radius: 7px;
-  padding: 10px 17px;
-  color: #465164;
-  font-size: 13px;
-  font-weight: 600;
+  border: 1px solid #e1e6ef;
+  border-radius: 9px;
+  color: #374151;
+  font-size: 27px;
+  line-height: 1;
   cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
 }
 
-.dashboard-btn:hover {
-  background: #f8f9fb;
+.back-arrow-btn:hover {
+  background: #f1f4f9;
+  border-color: #cbd5e1;
 }
-
 
 /* =====================================
    OVERVIEW
@@ -65,14 +82,10 @@
 .overview {
   display: grid;
   grid-template-columns: 1.6fr 1fr 1fr 1fr;
-
   background: #ffffff;
-
   border: 1px solid #e3e7ee;
   border-radius: 12px;
-
   margin-bottom: 25px;
-
   overflow: hidden;
 }
 
@@ -128,13 +141,11 @@
 .overview-icon {
   width: 40px;
   height: 40px;
-
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-
   border-radius: 9px;
-
   font-size: 18px;
   font-weight: 700;
 }
@@ -154,32 +165,27 @@
   color: #d05252;
 }
 
-
 /* =====================================
    WORKSPACE
 ===================================== */
 
 .quotation-workspace {
   display: grid;
-  grid-template-columns: 245px 1fr;
+  grid-template-columns: 245px minmax(0, 1fr);
   gap: 22px;
   align-items: start;
 }
-
 
 /* =====================================
    FILTER PANEL
 ===================================== */
 
 .filter-panel {
+  min-width: 0;
   background: #ffffff;
-
   border: 1px solid #e3e7ee;
   border-radius: 11px;
-
   padding: 21px;
-
-  box-sizing: border-box;
 }
 
 .filter-panel h3 {
@@ -201,11 +207,9 @@
 .filter-section label {
   display: block;
   margin-bottom: 9px;
-
   font-size: 10px;
   font-weight: 700;
   color: #7d8797;
-
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -214,11 +218,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
-
   border: 1px solid #dfe4eb;
   border-radius: 7px;
-
   padding: 9px 10px;
+}
+
+.search-field:focus-within {
+  border-color: #5267d8;
 }
 
 .search-field span {
@@ -228,6 +234,7 @@
 
 .search-field input {
   width: 100%;
+  min-width: 0;
   border: none;
   outline: none;
   font-size: 11px;
@@ -240,24 +247,17 @@
 
 .filter-option {
   width: 100%;
-
   display: flex;
   justify-content: space-between;
-
+  gap: 8px;
   border: none;
   background: transparent;
-
   padding: 10px 9px;
-
   border-radius: 6px;
-
   font-size: 12px;
   color: #596273;
-
   cursor: pointer;
-
   margin-bottom: 3px;
-
   text-align: left;
 }
 
@@ -283,32 +283,26 @@
 
 .destination-select {
   width: 100%;
-
   padding: 10px;
-
   border: 1px solid #dfe4eb;
   border-radius: 7px;
-
   background: #ffffff;
-
   color: #596273;
   font-size: 11px;
-
   outline: none;
+}
+
+.destination-select:focus {
+  border-color: #5267d8;
 }
 
 .clear-filter {
   width: 100%;
-
   padding: 9px;
-
   background: #ffffff;
-
   border: 1px solid #dfe3ea;
   border-radius: 6px;
-
   color: #7b8493;
-
   font-size: 11px;
   cursor: pointer;
 }
@@ -317,9 +311,8 @@
   background: #f6f7fa;
 }
 
-
 /* =====================================
-   CONTENT
+   QUOTATION CONTENT
 ===================================== */
 
 .quotation-content {
@@ -330,7 +323,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-
+  gap: 12px;
   margin-bottom: 14px;
 }
 
@@ -350,42 +343,37 @@
 .refresh-btn {
   width: 35px;
   height: 35px;
-
+  flex-shrink: 0;
   border: 1px solid #dfe4eb;
   border-radius: 7px;
-
   background: #ffffff;
-
   color: #657082;
-
   font-size: 17px;
-
   cursor: pointer;
 }
 
+.refresh-btn:hover {
+  background: #f5f7fb;
+}
 
 /* =====================================
    QUOTATION CARD
 ===================================== */
 
 .quotation-card {
+  min-width: 0;
   background: #ffffff;
-
   border: 1px solid #e1e6ed;
   border-radius: 10px;
-
   margin-bottom: 12px;
-
   overflow: hidden;
-
-  transition: 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .quotation-card:hover {
   border-color: #cfd6e4;
   box-shadow: 0 4px 12px rgba(30, 40, 60, 0.05);
 }
-
 
 /* =====================================
    QUOTATION TOP
@@ -395,9 +383,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-
+  gap: 10px;
   padding: 14px 18px;
-
   border-bottom: 1px solid #edf0f4;
 }
 
@@ -408,10 +395,12 @@
 }
 
 .status {
+  flex-shrink: 0;
   font-size: 10px;
   font-weight: 600;
   padding: 5px 9px;
   border-radius: 15px;
+  white-space: nowrap;
 }
 
 .generated-status {
@@ -424,16 +413,15 @@
   background: #fff6e4;
 }
 
-
 /* =====================================
-   DETAILS
+   CUSTOMER AND TRIP DETAILS
 ===================================== */
 
 .quotation-details {
   display: grid;
-  grid-template-columns: 1fr 1.5fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
   align-items: center;
-
+  gap: 15px;
   padding: 18px;
 }
 
@@ -441,21 +429,19 @@
   display: flex;
   align-items: center;
   gap: 11px;
+  min-width: 0;
 }
 
 .customer-avatar {
   width: 39px;
   height: 39px;
-
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-
   border-radius: 50%;
-
   background: #e9edff;
   color: #5267d8;
-
   font-size: 12px;
   font-weight: 700;
 }
@@ -486,8 +472,8 @@
   margin-top: 4px;
   font-size: 10px;
   color: #929baa;
+  overflow-wrap: anywhere;
 }
-
 
 /* =====================================
    TRIP INFORMATION
@@ -495,21 +481,20 @@
 
 .trip-info {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .trip-info div {
-  padding-left: 20px;
+  min-width: 0;
+  padding-left: 15px;
   border-left: 1px solid #edf0f4;
 }
 
 .trip-info small {
   display: block;
   margin-bottom: 6px;
-
   font-size: 9px;
   color: #9aa2af;
-
   text-transform: uppercase;
   letter-spacing: 0.4px;
 }
@@ -517,6 +502,7 @@
 .trip-info strong {
   font-size: 12px;
   color: #3d4758;
+  overflow-wrap: anywhere;
 }
 
 .trip-info .premium {
@@ -524,20 +510,17 @@
   color: #273142;
 }
 
-
 /* =====================================
-   FOOTER
+   QUOTATION FOOTER
 ===================================== */
 
 .quotation-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-
+  gap: 12px;
   padding: 12px 18px;
-
   background: #fafbfc;
-
   border-top: 1px solid #edf0f4;
 }
 
@@ -548,18 +531,16 @@
 
 .quotation-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 7px;
 }
 
 .outline-btn,
 .pdf-btn {
   padding: 7px 11px;
-
   border-radius: 6px;
-
   font-size: 10px;
   font-weight: 600;
-
   cursor: pointer;
 }
 
@@ -569,19 +550,27 @@
   color: #5267d8;
 }
 
+.outline-btn:hover {
+  background: #f1f4ff;
+}
+
 .pdf-btn {
   background: #5267d8;
   border: 1px solid #5267d8;
   color: #ffffff;
 }
 
-.pdf-btn.disabled {
+.pdf-btn:hover:not(:disabled) {
+  background: #4357c5;
+}
+
+.pdf-btn.disabled,
+.pdf-btn:disabled {
   background: #e8eaf0;
   border-color: #e8eaf0;
   color: #a4a9b3;
   cursor: not-allowed;
 }
-
 
 /* =====================================
    PAGINATION
@@ -591,31 +580,26 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-
+  gap: 12px;
   padding: 13px 3px;
-
   font-size: 10px;
   color: #8c95a4;
 }
 
 .pagination div {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
 .pagination button {
   width: 29px;
   height: 29px;
-
   border: 1px solid #dfe3ea;
   border-radius: 5px;
-
   background: #ffffff;
-
   color: #687284;
-
   font-size: 10px;
-
   cursor: pointer;
 }
 
@@ -634,19 +618,42 @@
   cursor: not-allowed;
 }
 
-
 /* =====================================
-   RESPONSIVE
+   RESPONSIVE DESIGN
 ===================================== */
 
-@media (max-width: 1000px) {
-
+@media (max-width: 1100px) {
   .overview {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .overview-main {
     border-bottom: 1px solid #edf0f4;
+  }
+
+  .overview-item:nth-child(3) {
+    border-right: none;
+  }
+
+  .quotation-workspace {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .quotation-details {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .trip-info div:first-child {
+    padding-left: 0;
+    border-left: none;
+  }
+}
+
+@media (max-width: 800px) {
+  .quotation-page {
+    padding: 22px 20px;
   }
 
   .quotation-workspace {
@@ -655,31 +662,57 @@
 
   .filter-panel {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
   }
 
+  .filter-panel h3,
+  .filter-description,
+  .clear-filter {
+    grid-column: 1 / -1;
+  }
+
+  .filter-description {
+    margin-bottom: 10px;
+  }
 }
 
-
-@media (max-width: 700px) {
-
+@media (max-width: 600px) {
   .quotation-page {
-    padding: 20px;
+    padding: 20px 14px;
   }
 
-  .quotation-header {
-    align-items: flex-start;
-    gap: 15px;
+  .header-left {
+    gap: 11px;
+  }
+
+  .header-content h1 {
+    font-size: 24px;
+  }
+
+  .header-content p {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .back-arrow-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 24px;
   }
 
   .overview {
     grid-template-columns: 1fr;
   }
 
+  .overview-main,
   .overview-item {
     border-right: none;
-    border-top: 1px solid #edf0f4;
+    border-bottom: 1px solid #edf0f4;
+  }
+
+  .overview-item:last-child {
+    border-bottom: none;
   }
 
   .filter-panel {
@@ -687,30 +720,45 @@
   }
 
   .quotation-details {
-    grid-template-columns: 1fr;
-    gap: 18px;
+    padding: 15px;
   }
 
   .trip-info {
-    grid-template-columns: 1fr;
     gap: 12px;
   }
 
   .trip-info div {
-    padding-left: 0;
-    border-left: none;
+    padding-left: 8px;
+  }
+
+  .trip-info strong {
+    font-size: 11px;
   }
 
   .quotation-footer {
     align-items: flex-start;
     flex-direction: column;
-    gap: 10px;
   }
 
   .pagination {
-    flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 380px) {
+  .trip-info {
+    grid-template-columns: 1fr;
   }
 
+  .trip-info div,
+  .trip-info div:first-child {
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .quotation-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
