@@ -72,6 +72,11 @@ public class SecurityConfig {
                         ).permitAll()
 
                         .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/public/quotation-requests"
+                        ).permitAll()
+
+                        .requestMatchers(
                                 "/api/clients/**",
                                 "/api/requests/**"
                         ).hasAnyRole("ADMIN", "OPERATIONS")

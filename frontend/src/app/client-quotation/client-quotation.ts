@@ -1,4 +1,5 @@
-
+import { finalize } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -24,6 +25,7 @@ interface Traveller {
   styleUrl: './client-quotation.css',
 })
 export class ClientQuotation {
+  constructor(private http: HttpClient) {}
 
   today = this.getTodayDate();
 
@@ -135,14 +137,14 @@ export class ClientQuotation {
     return age;
   }
 
+  
   submitForm(form: NgForm): void {
     this.errorMessage = '';
     this.successMessage = '';
 
     if (form.invalid) {
       form.control.markAllAsTouched();
-      this.errorMessage =
-        'Please fill in all required fields correctly.';
+      this.errorMessage = 'Please fill in all required fields correctly.';
       return;
     }
 
@@ -161,9 +163,7 @@ export class ClientQuotation {
       return;
     }
 
-    if (
-      this.formData.travelEndDate < this.formData.travelStartDate
-    ) {
+    if (this.formData.travelEndDate < this.formData.travelStartDate) {
       this.errorMessage =
         'Travel end date must be on or after the travel start date.';
       return;
@@ -171,7 +171,55 @@ export class ClientQuotation {
 
     this.formData.travellers = 1 + this.additionalTravellers.length;
 
-    this.errorMessage =
-      'Validation successful! Backend submission is not connected yet.';
+    // Send the complete form, including additional travellers.
+    const payload = {
+      ...this.formData,
+      additionalTravellers: this.additionalTravellers
+    };
+
+    this.isSubmitting = true;
+
+    this.http.post<{
+      requestId: number;
+      status: string;
+      message: string;
+      quotationNumber: string | null;
+      missingFields: string[];
+      invalidFields: string[];
+    }>(
+      'http://localhost:8080/api/public/quotation-requests',
+      payload
+    )
+    .pipe(
+      finalize(() => {
+        this.isSubmitting = false;
+      })
+    )
+    .subscribe({
+      next: (response) => {
+        this.successMessage =
+          `${response.message} Request ID: ${response.requestId}. ` +
+          `Status: ${response.status}.` +
+          (response.quotationNumber
+            ? ` Quotation: ${response.quotationNumber}.`
+            : '') +
+          (response.missingFields?.length
+            ? ` Missing: ${response.missingFields.join(', ')}.`
+            : '') +
+          (response.invalidFields?.length
+            ? ` Please correct: ${response.invalidFields.join(', ')}.`
+            : '');
+      },
+      error: (error) => {
+        this.errorMessage =
+          error.error?.detail ||
+          error.error?.message ||
+          (typeof error.error === 'string' ? error.error : '') ||
+          (error.status === 0
+            ? 'Cannot connect to the backend. Check that Spring Boot is running.'
+            : 'Submission failed. Please check your details and try again.');
+      }
+    });
   }
+
 }

@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.entity;
 
 import java.time.LocalDateTime;
@@ -26,49 +27,53 @@ public class QuotationRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // client_id
+    // Customer who submitted the quotation request
     @ManyToOne
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
-    // policy_type
+    // Insurance policy type
     @Column(name = "policy_type", length = 60)
     private String policyType;
 
-    // status
+    // Purpose of travel from the client quotation form
+    @Column(name = "purpose_of_travel", length = 60)
+    private String purposeOfTravel;
+
+    // Current processing status
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private RequestStatus status = RequestStatus.EMAIL_RECEIVED;
 
-    // assigned_to
+    // Staff member assigned to the request
     @ManyToOne
     @JoinColumn(name = "assigned_to")
     private User assignedTo;
 
-    // created_at
+    // Timestamps
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // updated_at
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Relationship with RequestFieldValue
+    // Configured request field values
     @OneToMany(mappedBy = "quotationRequest")
     private List<RequestFieldValue> fieldValues;
 
-    // Relationship with MissingField
+    // Missing or invalid required fields
     @OneToMany(mappedBy = "quotationRequest")
     private List<MissingField> missingFields;
 
-    // Relationship with Quotation
+    // All travellers associated with this request
+    @OneToMany(mappedBy = "quotationRequest")
+    private List<QuotationRequestTraveller> travellers;
+
+    // Generated quotation
     @OneToOne(mappedBy = "quotationRequest")
     private Quotation quotation;
 
-
-    // =========================
-    // Getters and Setters
-    // =========================
+    // Getters and setters
 
     public Long getId() {
         return id;
@@ -92,6 +97,14 @@ public class QuotationRequest {
 
     public void setPolicyType(String policyType) {
         this.policyType = policyType;
+    }
+
+    public String getPurposeOfTravel() {
+        return purposeOfTravel;
+    }
+
+    public void setPurposeOfTravel(String purposeOfTravel) {
+        this.purposeOfTravel = purposeOfTravel;
     }
 
     public RequestStatus getStatus() {
@@ -136,10 +149,19 @@ public class QuotationRequest {
 
     public List<MissingField> getMissingFields() {
         return missingFields;
-    }
+    } 
 
     public void setMissingFields(List<MissingField> missingFields) {
         this.missingFields = missingFields;
+    }
+
+    public List<QuotationRequestTraveller> getTravellers() {
+        return travellers;
+    }
+
+    public void setTravellers(
+            List<QuotationRequestTraveller> travellers) {
+        this.travellers = travellers;
     }
 
     public Quotation getQuotation() {
