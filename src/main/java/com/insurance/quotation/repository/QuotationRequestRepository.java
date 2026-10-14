@@ -11,4 +11,6 @@ public interface QuotationRequestRepository
         extends JpaRepository<QuotationRequest, Long> {
 
     List<QuotationRequest> findByStatus(RequestStatus status);
+
+    List<QuotationRequest> findAllByOrderByCreatedAtDesc();
 }

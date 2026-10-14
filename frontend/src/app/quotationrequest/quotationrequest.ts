@@ -1,7 +1,8 @@
-
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ApiService, RequestDto } from '../core/api.service';
+import { avatarColor, initials, statusLabel } from '../core/format';
 
 @Component({
   selector: 'app-quotationrequest',
@@ -10,73 +11,86 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './quotationrequest.html',
   styleUrl: './quotationrequest.css'
 })
-export class Quotationrequest {
+export class Quotationrequest implements OnInit {
+
+  private api = inject(ApiService);
+  private cdr = inject(ChangeDetectorRef);
 
   constructor(private location: Location) {}
 
-  goBack(): void {
-    this.location.back();
-  }
-
+  requests: RequestDto[] = [];
   searchText = '';
   selectedStatus = 'All Status';
+  loading = true;
+  errorMessage = '';
 
-  requests = [
-    {
-      id: 'REQ-2026-0042',
-      client: 'Arun Kumar',
-      email: 'arun@gmail.com',
-      initials: 'AK',
-      avatarClass: '',
-      destination: 'Singapore',
-      travellers: 2,
-      status: 'Quotation Generated'
-    },
-    {
-      id: 'REQ-2026-0041',
-      client: 'Priya Sharma',
-      email: 'priya@gmail.com',
-      initials: 'PS',
-      avatarClass: 'purple',
-      destination: 'Dubai',
-      travellers: 3,
-      status: 'Processing'
-    },
-    {
-      id: 'REQ-2026-0040',
-      client: 'Rahul Nair',
-      email: 'rahul@gmail.com',
-      initials: 'RN',
-      avatarClass: 'orange',
-      destination: 'Malaysia',
-      travellers: 4,
-      status: 'Missing Details'
-    },
-    {
-      id: 'REQ-2026-0039',
-      client: 'Swetha Kumar',
-      email: 'swetha@gmail.com',
-      initials: 'SK',
-      avatarClass: 'green',
-      destination: 'Thailand',
-      travellers: 2,
-      status: 'Quotation Generated'
+  readonly initials = initials;
+  readonly avatarColor = avatarColor;
+  readonly statusLabel = statusLabel;
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  load(): void {
+    this.loading = true;
+    this.errorMessage = '';
+
+    this.api.requests().subscribe({
+      next: data => {
+        this.requests = data;
+        this.loading = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.errorMessage = 'Could not load quotation requests.';
+        this.loading = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  // Group the many backend statuses into the four filter choices.
+  group(status: string): string {
+    if (status === 'QUOTATION_SENT' || status === 'QUOTATION_GENERATED' || status === 'COMPLETED') {
+      return 'Quotation Generated';
     }
-  ];
+    if (status === 'MISSING_INFORMATION' || status === 'WAITING_FOR_CLIENT') {
+      return 'Missing Details';
+    }
+    if (status.endsWith('_FAILED') || status === 'MANUAL_REVIEW_REQUIRED') {
+      return 'Needs Attention';
+    }
+    return 'Processing';
+  }
 
-  get filteredRequests() {
+  statusClass(status: string): string {
+    switch (this.group(status)) {
+      case 'Quotation Generated': return 'generated';
+      case 'Missing Details': return 'missing';
+      case 'Needs Attention': return 'missing';
+      default: return 'processing';
+    }
+  }
+
+  count(group: string): number {
+    return this.requests.filter(r => this.group(r.status) === group).length;
+  }
+
+  get filteredRequests(): RequestDto[] {
     const search = this.searchText.trim().toLowerCase();
 
-    return this.requests.filter(request => {
+    return this.requests.filter(r => {
       const matchesSearch =
-        request.id.toLowerCase().includes(search) ||
-        request.client.toLowerCase().includes(search) ||
-        request.destination.toLowerCase().includes(search) ||
-        request.email.toLowerCase().includes(search);
+        !search ||
+        r.reference.toLowerCase().includes(search) ||
+        (r.clientName ?? '').toLowerCase().includes(search) ||
+        (r.destination ?? '').toLowerCase().includes(search) ||
+        r.clientEmail.toLowerCase().includes(search);
 
       const matchesStatus =
         this.selectedStatus === 'All Status' ||
-        request.status === this.selectedStatus;
+        this.group(r.status) === this.selectedStatus;
 
       return matchesSearch && matchesStatus;
     });
@@ -85,15 +99,22 @@ export class Quotationrequest {
   refreshRequests(): void {
     this.searchText = '';
     this.selectedStatus = 'All Status';
+    this.load();
   }
 
-  viewRequest(request: typeof this.requests[number]): void {
+  viewRequest(r: RequestDto): void {
     alert(
-      `Request ID: ${request.id}\n` +
-      `Client: ${request.client}\n` +
-      `Destination: ${request.destination}\n` +
-      `Travellers: ${request.travellers}\n` +
-      `Status: ${request.status}`
+      `Request: ${r.reference}\n` +
+      `Client: ${r.clientName ?? r.clientEmail}\n` +
+      `Route: ${r.origin ?? '-'} to ${r.destination ?? '-'}\n` +
+      `Dates: ${r.travelStartDate ?? '-'} to ${r.travelEndDate ?? '-'}\n` +
+      `Purpose: ${r.purposeOfTravel ?? '-'}\n` +
+      `Travellers: ${r.travellers ?? '-'}\n` +
+      `Status: ${statusLabel(r.status)}`
     );
+  }
+
+  goBack(): void {
+    this.location.back();
   }
 }

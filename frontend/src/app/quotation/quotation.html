@@ -27,7 +27,7 @@
 
     <div class="overview-main">
       <div class="overview-label">TOTAL QUOTATIONS</div>
-      <div class="overview-number">301</div>
+      <div class="overview-number">{{ quotations.length }}</div>
       <div class="overview-description">
         Insurance quotations generated
       </div>
@@ -36,24 +36,16 @@
     <div class="overview-item">
       <span class="overview-icon generated">✓</span>
       <div>
-        <small>Generated</small>
-        <strong>245</strong>
+        <small>Sent to client</small>
+        <strong>{{ sentCount }}</strong>
       </div>
     </div>
 
     <div class="overview-item">
       <span class="overview-icon processing">◷</span>
       <div>
-        <small>Processing</small>
-        <strong>38</strong>
-      </div>
-    </div>
-
-    <div class="overview-item">
-      <span class="overview-icon expired">!</span>
-      <div>
-        <small>Expired</small>
-        <strong>18</strong>
+        <small>Not sent yet</small>
+        <strong>{{ notSentCount }}</strong>
       </div>
     </div>
 
@@ -75,48 +67,35 @@
           <span>⌕</span>
           <input
             type="text"
-            placeholder="Quotation number..."
-            aria-label="Search quotation number">
+            placeholder="Number, client or email..."
+            aria-label="Search quotations"
+            [(ngModel)]="searchText">
         </div>
       </div>
 
       <div class="filter-section">
         <label>Status</label>
 
-        <button type="button" class="filter-option selected">
+        <button type="button" class="filter-option"
+          [class.selected]="statusFilter === 'ALL'" (click)="setStatus('ALL')">
           <span>All Quotations</span>
-          <b>301</b>
+          <b>{{ quotations.length }}</b>
         </button>
 
-        <button type="button" class="filter-option">
-          <span>Generated</span>
-          <b>245</b>
+        <button type="button" class="filter-option"
+          [class.selected]="statusFilter === 'SENT'" (click)="setStatus('SENT')">
+          <span>Sent</span>
+          <b>{{ sentCount }}</b>
         </button>
 
-        <button type="button" class="filter-option">
-          <span>Processing</span>
-          <b>38</b>
-        </button>
-
-        <button type="button" class="filter-option">
-          <span>Expired</span>
-          <b>18</b>
+        <button type="button" class="filter-option"
+          [class.selected]="statusFilter === 'NOT_SENT'" (click)="setStatus('NOT_SENT')">
+          <span>Not sent</span>
+          <b>{{ notSentCount }}</b>
         </button>
       </div>
 
-      <div class="filter-section">
-        <label>Destination</label>
-
-        <select class="destination-select" aria-label="Filter destination">
-          <option>All Destinations</option>
-          <option>Singapore</option>
-          <option>Dubai</option>
-          <option>Thailand</option>
-          <option>Malaysia</option>
-        </select>
-      </div>
-
-      <button type="button" class="clear-filter">
+      <button type="button" class="clear-filter" (click)="clearFilters()">
         Clear Filters
       </button>
 
@@ -135,212 +114,78 @@
           type="button"
           class="refresh-btn"
           aria-label="Refresh quotations"
-          title="Refresh quotations">
+          title="Refresh quotations"
+          (click)="load()">
           ↻
         </button>
       </div>
 
-      <!-- QUOTATION 1 -->
-      <div class="quotation-card">
+      <div class="quotation-card" *ngFor="let q of filteredQuotations">
 
         <div class="quotation-top">
-          <div class="quotation-number">QTN-2026-0042</div>
-          <span class="status generated-status">● Generated</span>
+          <div class="quotation-number">{{ q.quotationNumber }}</div>
+          <span class="status"
+            [ngClass]="q.status === 'SENT' ? 'generated-status' : 'processing-status'">
+            ● {{ q.status === 'SENT' ? 'Sent' : 'Not sent' }}
+          </span>
         </div>
 
         <div class="quotation-details">
 
           <div class="customer">
-            <div class="customer-avatar">AK</div>
+            <div class="customer-avatar" [ngClass]="avatarColor(q.requestId)">
+              {{ initials(q.clientName, q.clientEmail) }}
+            </div>
             <div>
-              <strong>Arun Kumar</strong>
-              <span>arun@gmail.com</span>
+              <strong>{{ q.clientName || 'Name not provided' }}</strong>
+              <span>{{ q.clientEmail }}</span>
             </div>
           </div>
 
           <div class="trip-info">
             <div>
-              <small>Destination</small>
-              <strong>Singapore</strong>
-            </div>
-            <div>
-              <small>Travellers</small>
-              <strong>2 Persons</strong>
-            </div>
-            <div>
               <small>Premium</small>
-              <strong class="premium">₹4,500</strong>
+              <strong>{{ money(q.premium, q.currency) }}</strong>
+            </div>
+            <div>
+              <small>Tax</small>
+              <strong>{{ money(q.tax, q.currency) }}</strong>
+            </div>
+            <div>
+              <small>Total</small>
+              <strong class="premium">{{ money(q.total, q.currency) }}</strong>
             </div>
           </div>
 
         </div>
 
         <div class="quotation-footer">
-          <span>Generated on 30 Sep 2026</span>
+          <span>
+            Created {{ shortDate(q.createdAt) }}
+            <ng-container *ngIf="q.sentAt"> · Sent {{ shortDate(q.sentAt) }}</ng-container>
+          </span>
 
           <div class="quotation-actions">
-            <button type="button" class="outline-btn">View</button>
-            <button type="button" class="pdf-btn">↓ Download PDF</button>
+            <button type="button" class="outline-btn"
+              [disabled]="!q.hasPdf" (click)="openPdf(q)">View</button>
+            <button type="button" class="pdf-btn"
+              [class.disabled]="!q.hasPdf" [disabled]="!q.hasPdf"
+              (click)="downloadPdf(q)">↓ Download PDF</button>
           </div>
         </div>
 
       </div>
 
-      <!-- QUOTATION 2 -->
-      <div class="quotation-card">
+      <p *ngIf="loading">Loading quotations...</p>
+      <p *ngIf="errorMessage">{{ errorMessage }}</p>
+      <p *ngIf="!loading && !errorMessage && filteredQuotations.length === 0">
+        No quotations found.
+      </p>
 
-        <div class="quotation-top">
-          <div class="quotation-number">QTN-2026-0041</div>
-          <span class="status processing-status">● Processing</span>
-        </div>
-
-        <div class="quotation-details">
-
-          <div class="customer">
-            <div class="customer-avatar purple">PS</div>
-            <div>
-              <strong>Priya Sharma</strong>
-              <span>priya@gmail.com</span>
-            </div>
-          </div>
-
-          <div class="trip-info">
-            <div>
-              <small>Destination</small>
-              <strong>Dubai</strong>
-            </div>
-            <div>
-              <small>Travellers</small>
-              <strong>3 Persons</strong>
-            </div>
-            <div>
-              <small>Premium</small>
-              <strong class="premium">₹6,200</strong>
-            </div>
-          </div>
-
-        </div>
-
-        <div class="quotation-footer">
-          <span>Updated today</span>
-
-          <div class="quotation-actions">
-            <button type="button" class="outline-btn">View</button>
-            <button type="button" class="pdf-btn disabled" disabled>
-              ↓ Download PDF
-            </button>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- QUOTATION 3 -->
-      <div class="quotation-card">
-
-        <div class="quotation-top">
-          <div class="quotation-number">QTN-2026-0039</div>
-          <span class="status generated-status">● Generated</span>
-        </div>
-
-        <div class="quotation-details">
-
-          <div class="customer">
-            <div class="customer-avatar orange">DR</div>
-            <div>
-              <strong>Divya Raj</strong>
-              <span>divya@gmail.com</span>
-            </div>
-          </div>
-
-          <div class="trip-info">
-            <div>
-              <small>Destination</small>
-              <strong>Thailand</strong>
-            </div>
-            <div>
-              <small>Travellers</small>
-              <strong>2 Persons</strong>
-            </div>
-            <div>
-              <small>Premium</small>
-              <strong class="premium">₹5,100</strong>
-            </div>
-          </div>
-
-        </div>
-
-        <div class="quotation-footer">
-          <span>Generated on 29 Sep 2026</span>
-
-          <div class="quotation-actions">
-            <button type="button" class="outline-btn">View</button>
-            <button type="button" class="pdf-btn">↓ Download PDF</button>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- QUOTATION 4 -->
-      <div class="quotation-card">
-
-        <div class="quotation-top">
-          <div class="quotation-number">QTN-2026-0038</div>
-          <span class="status generated-status">● Generated</span>
-        </div>
-
-        <div class="quotation-details">
-
-          <div class="customer">
-            <div class="customer-avatar green">RN</div>
-            <div>
-              <strong>Rahul Nair</strong>
-              <span>rahul@gmail.com</span>
-            </div>
-          </div>
-
-          <div class="trip-info">
-            <div>
-              <small>Destination</small>
-              <strong>Malaysia</strong>
-            </div>
-            <div>
-              <small>Travellers</small>
-              <strong>4 Persons</strong>
-            </div>
-            <div>
-              <small>Premium</small>
-              <strong class="premium">₹5,800</strong>
-            </div>
-          </div>
-
-        </div>
-
-        <div class="quotation-footer">
-          <span>Generated on 28 Sep 2026</span>
-
-          <div class="quotation-actions">
-            <button type="button" class="outline-btn">View</button>
-            <button type="button" class="pdf-btn">↓ Download PDF</button>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- PAGINATION -->
       <div class="pagination">
-
-        <span>Showing 1–4 of 301 quotations</span>
-
-        <div>
-          <button type="button" disabled aria-label="Previous page">‹</button>
-          <button type="button" class="current">1</button>
-          <button type="button">2</button>
-          <button type="button">3</button>
-          <button type="button">4</button>
-          <button type="button">5</button>
-          <button type="button" aria-label="Next page">›</button>
-        </div>
-
+        <span>
+          Showing {{ filteredQuotations.length }} of {{ quotations.length }} quotations
+        </span>
       </div>
 
     </main>

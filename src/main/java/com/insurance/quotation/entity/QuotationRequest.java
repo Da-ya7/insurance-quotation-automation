@@ -1,4 +1,3 @@
-
 package com.insurance.quotation.entity;
 
 import java.time.LocalDateTime;
@@ -27,53 +26,53 @@ public class QuotationRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Customer who submitted the quotation request
+    // client_id
     @ManyToOne
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
-    // Insurance policy type
+    // policy_type
     @Column(name = "policy_type", length = 60)
     private String policyType;
 
-    // Purpose of travel from the client quotation form
+    // purpose_of_travel
     @Column(name = "purpose_of_travel", length = 60)
     private String purposeOfTravel;
 
-    // Current processing status
+    // status
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private RequestStatus status = RequestStatus.EMAIL_RECEIVED;
 
-    // Staff member assigned to the request
+    // assigned_to
     @ManyToOne
     @JoinColumn(name = "assigned_to")
     private User assignedTo;
 
-    // Timestamps
+    // created_at
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    // updated_at
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Configured request field values
+    // Relationship with RequestFieldValue
     @OneToMany(mappedBy = "quotationRequest")
     private List<RequestFieldValue> fieldValues;
 
-    // Missing or invalid required fields
+    // Relationship with MissingField
     @OneToMany(mappedBy = "quotationRequest")
     private List<MissingField> missingFields;
 
-    // All travellers associated with this request
-    @OneToMany(mappedBy = "quotationRequest")
-    private List<QuotationRequestTraveller> travellers;
-
-    // Generated quotation
+    // Relationship with Quotation
     @OneToOne(mappedBy = "quotationRequest")
     private Quotation quotation;
 
-    // Getters and setters
+
+    // =========================
+    // Getters and Setters
+    // =========================
 
     public Long getId() {
         return id;
@@ -149,19 +148,10 @@ public class QuotationRequest {
 
     public List<MissingField> getMissingFields() {
         return missingFields;
-    } 
+    }
 
     public void setMissingFields(List<MissingField> missingFields) {
         this.missingFields = missingFields;
-    }
-
-    public List<QuotationRequestTraveller> getTravellers() {
-        return travellers;
-    }
-
-    public void setTravellers(
-            List<QuotationRequestTraveller> travellers) {
-        this.travellers = travellers;
     }
 
     public Quotation getQuotation() {

@@ -15,18 +15,28 @@ public class QuotationEmailService {
 
     private final GmailMailboxClient gmailMailboxClient;
     private final QuotationRepository quotationRepository;
+    private final boolean demoMode;
 
     public QuotationEmailService(
             GmailMailboxClient gmailMailboxClient,
-            QuotationRepository quotationRepository) {
+            QuotationRepository quotationRepository,
+            @org.springframework.beans.factory.annotation.Value("${mailbox.mode:demo}") String mailboxMode) {
         this.gmailMailboxClient = gmailMailboxClient;
         this.quotationRepository = quotationRepository;
+        this.demoMode = !"gmail".equalsIgnoreCase(mailboxMode);
     }
 
     public void sendMissingInformationEmail(
             String recipient,
             List<String> missingFields,
             List<String> invalidFields) {
+
+        if (demoMode) {
+            System.out.println("[DEMO MAIL] Missing-information email to "
+                    + recipient + " missing=" + missingFields
+                    + " invalid=" + invalidFields);
+            return;
+        }
 
         gmailMailboxClient.sendMissingInformationEmail(
                 recipient,
@@ -59,12 +69,18 @@ public class QuotationEmailService {
                     "Cannot send quotation: client email is missing.");
         }
 
-        // Gmail API sends the PDF and throws an exception if sending fails.
-        gmailMailboxClient.sendQuotationEmail(
-                recipient,
-                quotation.getQuotationNumber(),
-                quotation.getPdfPath()
-        );
+        if (demoMode) {
+            System.out.println("[DEMO MAIL] Quotation "
+                    + quotation.getQuotationNumber() + " would be sent to "
+                    + recipient + " with " + quotation.getPdfPath());
+        } else {
+            // Gmail API sends the PDF and throws an exception if sending fails.
+            gmailMailboxClient.sendQuotationEmail(
+                    recipient,
+                    quotation.getQuotationNumber(),
+                    quotation.getPdfPath()
+            );
+        }
 
         // Update the database only after Gmail accepts the send request.
         quotation.setStatus("SENT");

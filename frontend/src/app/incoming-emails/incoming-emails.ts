@@ -1,6 +1,8 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ApiService, EmailDto } from '../core/api.service';
+import { avatarColor, initials, shortDate } from '../core/format';
 
 interface IncomingEmail {
   sender: string;
@@ -23,74 +25,60 @@ interface IncomingEmail {
   templateUrl: './incoming-emails.html',
   styleUrl: './incoming-emails.css'
 })
-export class IncomingEmails {
+export class IncomingEmails implements OnInit {
+
+  private api = inject(ApiService);
+  private cdr = inject(ChangeDetectorRef);
 
   constructor(private location: Location) {}
 
   searchText = '';
   activeFilter = 'All';
   selectedEmailId = 1;
-  private selectedSender = 'Arun Kumar';
+  private selectedSender = '';
 
-  emails: IncomingEmail[] = [
-    {
-      sender: 'Arun Kumar',
-      email: 'arun@gmail.com',
-      subject: 'Travel Insurance Quotation',
+  emails: IncomingEmail[] = [];
+
+  ngOnInit(): void {
+    this.loadEmails();
+  }
+
+  loadEmails(): void {
+    this.api.emails().subscribe({
+      next: rows => {
+        this.emails = rows.map(r => this.toView(r));
+        if (this.emails.length > 0 && !this.selectedEmail) {
+          this.selectedSender = this.emails[0].sender;
+        }
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.emails = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  private toView(r: EmailDto): IncomingEmail {
+    const name = r.senderEmail.split('@')[0];
+    const waiting = r.requestStatus === 'MISSING_INFORMATION'
+      || r.requestStatus === 'WAITING_FOR_CLIENT';
+    const status = r.status === 'PROCESSED' && !waiting ? 'Processed' : 'Pending';
+
+    return {
+      sender: r.senderEmail,
+      email: r.senderEmail,
+      subject: r.subject,
       category: 'Quotation',
-      status: 'Processed',
-      time: '10:42 AM',
-      initials: 'AK',
-      color: '',
-      body: [
-        'Hello Insurance Team,',
-        'I am planning a trip and would like to know about your travel insurance options.',
-        'Please provide me with a quotation for travel insurance coverage.',
-        'Thank you.',
-        'Regards,\nArun Kumar'
-      ],
-      name: 'Arun Kumar',
-      detectedEmail: 'arun@gmail.com'
-    },
-    {
-      sender: 'Priya Sharma',
-      email: 'priya@gmail.com',
-      subject: 'Policy Renewal Request',
-      category: 'Policy Renewal',
-      status: 'Processed',
-      time: '09:35 AM',
-      initials: 'PS',
-      color: 'purple',
-      body: [
-        'Hello Insurance Team,',
-        'I would like to renew my existing travel insurance policy.',
-        'Please share the renewal details and available options.',
-        'Thank you.',
-        'Regards,\nPriya Sharma'
-      ],
-      name: 'Priya Sharma',
-      detectedEmail: 'priya@gmail.com'
-    },
-    {
-      sender: 'Rahul Nair',
-      email: 'rahul@gmail.com',
-      subject: 'Travel Insurance Details',
-      category: 'Quotation',
-      status: 'Pending',
-      time: 'Yesterday',
-      initials: 'RN',
-      color: 'orange',
-      body: [
-        'Hello Insurance Team,',
-        'I need travel insurance for my upcoming trip.',
-        'Please let me know the available plans and coverage.',
-        'Thank you.',
-        'Regards,\nRahul Nair'
-      ],
-      name: 'Rahul Nair',
-      detectedEmail: 'rahul@gmail.com'
-    }
-  ];
+      status,
+      time: shortDate(r.receivedAt),
+      initials: initials(name, r.senderEmail),
+      color: avatarColor(r.id),
+      body: (r.body ?? '').split(/\r?\n/).filter(line => line.trim().length > 0),
+      name,
+      detectedEmail: r.senderEmail
+    };
+  }
 
   get filteredEmails(): IncomingEmail[] {
     const search = this.searchText.trim().toLowerCase();
@@ -157,6 +145,7 @@ export class IncomingEmails {
   refreshEmails(): void {
     this.searchText = '';
     this.activeFilter = 'All';
+    this.loadEmails();
   }
 
   get totalEmails(): number {

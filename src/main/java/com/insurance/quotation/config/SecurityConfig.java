@@ -24,6 +24,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @org.springframework.beans.factory.annotation.Value("${app.cors-origin:http://localhost:4200}")
+    private String corsOrigin;
+
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
@@ -68,18 +71,11 @@ public class SecurityConfig {
                                 "/error",
                                 "/api/auth/**",
                                 "/actuator/health",
-                                "/api/automation/process"
+                                "/api/public/**"
                         ).permitAll()
 
-                        .requestMatchers(
-                                HttpMethod.POST,
-                                "/api/public/quotation-requests"
-                        ).permitAll()
-
-                        .requestMatchers(
-                                "/api/clients/**",
-                                "/api/requests/**"
-                        ).hasAnyRole("ADMIN", "OPERATIONS")
+                        .requestMatchers("/api/**")
+                        .hasAnyRole("ADMIN", "OPERATIONS")
 
                         .anyRequest().authenticated()
                 )
@@ -99,7 +95,7 @@ public class SecurityConfig {
                 new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                List.of("http://localhost:4200")
+                List.of(corsOrigin)
         );
 
         configuration.setAllowedMethods(

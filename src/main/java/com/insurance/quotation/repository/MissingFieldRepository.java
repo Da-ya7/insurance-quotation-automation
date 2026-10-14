@@ -12,4 +12,7 @@ public interface MissingFieldRepository extends JpaRepository<MissingField, Long
     List<MissingField> findByQuotationRequestIdAndStatus(
             Long quotationRequestId,
             MissingFieldStatus status);
+
+    java.util.List<com.insurance.quotation.entity.MissingField> findByStatusOrderByCreatedAtDesc(
+            String status);
 }

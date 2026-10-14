@@ -1,6 +1,7 @@
-import { finalize } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
-import { Component } from '@angular/core';
+
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ApiService } from '../core/api.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 
@@ -25,7 +26,9 @@ interface Traveller {
   styleUrl: './client-quotation.css',
 })
 export class ClientQuotation {
-  constructor(private http: HttpClient) {}
+
+  private api = inject(ApiService);
+  private cdr = inject(ChangeDetectorRef);
 
   today = this.getTodayDate();
 
@@ -137,14 +140,14 @@ export class ClientQuotation {
     return age;
   }
 
-  
   submitForm(form: NgForm): void {
     this.errorMessage = '';
     this.successMessage = '';
 
     if (form.invalid) {
       form.control.markAllAsTouched();
-      this.errorMessage = 'Please fill in all required fields correctly.';
+      this.errorMessage =
+        'Please fill in all required fields correctly.';
       return;
     }
 
@@ -163,7 +166,9 @@ export class ClientQuotation {
       return;
     }
 
-    if (this.formData.travelEndDate < this.formData.travelStartDate) {
+    if (
+      this.formData.travelEndDate < this.formData.travelStartDate
+    ) {
       this.errorMessage =
         'Travel end date must be on or after the travel start date.';
       return;
@@ -171,55 +176,95 @@ export class ClientQuotation {
 
     this.formData.travellers = 1 + this.additionalTravellers.length;
 
-    // Send the complete form, including additional travellers.
-    const payload = {
-      ...this.formData,
-      additionalTravellers: this.additionalTravellers
-    };
-
     this.isSubmitting = true;
 
-    this.http.post<{
-      requestId: number;
-      status: string;
-      message: string;
-      quotationNumber: string | null;
-      missingFields: string[];
-      invalidFields: string[];
-    }>(
-      'http://localhost:8080/api/public/quotation-requests',
-      payload
-    )
-    .pipe(
-      finalize(() => {
+    const payload = {
+      applicant: this.toTravellerPayload(this.formData),
+      additionalTravellers: this.additionalTravellers.map(t =>
+        this.toTravellerPayload(t)
+      ),
+      departureCountry: this.formData.departureCountry,
+      destinationCountry: this.formData.destinationCountry,
+      travelStartDate: this.formData.travelStartDate,
+      travelEndDate: this.formData.travelEndDate,
+      purposeOfTravel: this.formData.purposeOfTravel
+    };
+
+    this.api.submitQuotationForm(payload).subscribe({
+      next: result => {
         this.isSubmitting = false;
-      })
-    )
-    .subscribe({
-      next: (response) => {
         this.successMessage =
-          `${response.message} Request ID: ${response.requestId}. ` +
-          `Status: ${response.status}.` +
-          (response.quotationNumber
-            ? ` Quotation: ${response.quotationNumber}.`
+          result.message +
+          (result.quotationNumber
+            ? ` Quotation number: ${result.quotationNumber}.`
             : '') +
-          (response.missingFields?.length
-            ? ` Missing: ${response.missingFields.join(', ')}.`
-            : '') +
-          (response.invalidFields?.length
-            ? ` Please correct: ${response.invalidFields.join(', ')}.`
-            : '');
+          ` Reference: ${result.requestId}.`;
+        this.resetForm(form);
+        this.cdr.markForCheck();
       },
-      error: (error) => {
+      error: (error: HttpErrorResponse) => {
+        this.isSubmitting = false;
+        this.cdr.markForCheck();
+
+        if (error.status === 0) {
+          this.errorMessage =
+            'Cannot reach the server. Please try again in a moment.';
+          return;
+        }
+
+        const details: string[] = error.error?.errors ?? [];
         this.errorMessage =
-          error.error?.detail ||
-          error.error?.message ||
-          (typeof error.error === 'string' ? error.error : '') ||
-          (error.status === 0
-            ? 'Cannot connect to the backend. Check that Spring Boot is running.'
-            : 'Submission failed. Please check your details and try again.');
+          (error.error?.message ?? 'Submission failed. Please try again.') +
+          (details.length ? ' ' + details.join('; ') : '');
+        this.cdr.markForCheck();
       }
     });
   }
 
+  private toTravellerPayload(t: {
+    name: string;
+    dateOfBirth: string;
+    passportNumber: string;
+    gender: string;
+    nationality: string;
+    countryOfResidence: string;
+    email: string;
+    phone: string;
+    preExistingMedicalConditions: string;
+  }) {
+    return {
+      name: t.name,
+      dateOfBirth: t.dateOfBirth,
+      passportNumber: t.passportNumber,
+      gender: t.gender || null,
+      nationality: t.nationality,
+      countryOfResidence: t.countryOfResidence,
+      email: t.email,
+      phone: t.phone,
+      preExistingMedicalConditions: t.preExistingMedicalConditions || null
+    };
+  }
+
+  private resetForm(form: NgForm): void {
+    this.additionalTravellers = [];
+    this.formData = {
+      name: '',
+      dateOfBirth: '',
+      age: null,
+      passportNumber: '',
+      gender: '',
+      nationality: '',
+      countryOfResidence: '',
+      email: '',
+      phone: '',
+      preExistingMedicalConditions: '',
+      departureCountry: '',
+      destinationCountry: '',
+      travelStartDate: '',
+      travelEndDate: '',
+      purposeOfTravel: '',
+      travellers: 1,
+    };
+    form.resetForm();
+  }
 }

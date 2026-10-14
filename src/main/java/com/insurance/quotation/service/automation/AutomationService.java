@@ -66,7 +66,7 @@ public class AutomationService {
         this.requestFieldValueRepository = requestFieldValueRepository;
     }
 
-    @Transactional
+    // Not one big transaction: a failure on one email must not undo or block others.
     public void processIncomingEmails() {
 
         List<EmailMessage> emails =
@@ -83,7 +83,37 @@ public class AutomationService {
                 continue;
             }
 
-            processEmail(email);
+            try {
+                processEmail(email);
+            } catch (Exception e) {
+                handleProcessingFailure(email, e);
+            }
+        }
+    }
+
+    private void handleProcessingFailure(EmailMessage email, Exception e) {
+        System.err.println("Failed to process email "
+                + email.getMessageId() + ": " + e.getMessage());
+        e.printStackTrace();
+
+        incomingEmailRepository.findByMessageId(email.getMessageId())
+                .ifPresent(saved -> {
+                    saved.setProcessingStatus("FAILED");
+                    incomingEmailRepository.save(saved);
+
+                    QuotationRequest req = saved.getQuotationRequest();
+                    if (req != null) {
+                        req.setStatus(RequestStatus.EMAIL_PROCESSING_FAILED);
+                        req.setUpdatedAt(LocalDateTime.now());
+                        quotationRequestRepository.save(req);
+                    }
+                });
+
+        // Mark as processed so a broken email is not retried every minute.
+        try {
+            emailIngestionService.markEmailAsProcessed(email.getMessageId());
+        } catch (Exception ignored) {
+            // nothing more we can do
         }
     }
 
@@ -142,6 +172,24 @@ public class AutomationService {
         // 4. Extract fields from the latest email.
         List<ExtractedFieldData> extractedFields =
                 emailExtractionService.extractFields(email);
+
+        // 4b. Unrelated email: nothing usable found and not a reply.
+        boolean nothingExtracted = extractedFields.stream().noneMatch(f ->
+                !f.isMissing()
+                        && f.getFieldValue() != null
+                        && !f.getFieldValue().isBlank());
+
+        if (!isReply && nothingExtracted) {
+            quotationRequest.setStatus(RequestStatus.MANUAL_REVIEW_REQUIRED);
+            quotationRequest.setUpdatedAt(LocalDateTime.now());
+            quotationRequestRepository.save(quotationRequest);
+
+            incomingEmail.setProcessingStatus("PROCESSED");
+            incomingEmailRepository.save(incomingEmail);
+
+            emailIngestionService.markEmailAsProcessed(email.getMessageId());
+            return;
+        }
 
         // 5. For a reply, combine new details with previous valid values.
         if (isReply) {
@@ -211,7 +259,19 @@ public class AutomationService {
                         quotationRequest);
 
         // 11. Send the actual PDF to the customer.
-        quotationEmailService.sendQuotation(quotation);
+        try {
+            quotationEmailService.sendQuotation(quotation);
+        } catch (Exception sendError) {
+            quotationRequest.setStatus(RequestStatus.EMAIL_SEND_FAILED);
+            quotationRequest.setUpdatedAt(LocalDateTime.now());
+            quotationRequestRepository.save(quotationRequest);
+
+            incomingEmail.setProcessingStatus("FAILED");
+            incomingEmailRepository.save(incomingEmail);
+
+            emailIngestionService.markEmailAsProcessed(email.getMessageId());
+            throw sendError;
+        }
 
         // 12. Mark the request as sent only after successful sending.
         quotationRequest.setStatus(RequestStatus.QUOTATION_SENT);

@@ -1,7 +1,8 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { ApiService } from '../core/api.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -13,15 +14,18 @@ import { Router } from '@angular/router';
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css'
 })
-export class Dashboard {
+export class Dashboard implements OnInit {
+
+  private api = inject(ApiService);
+  private cdr = inject(ChangeDetectorRef);
 
   activeMenu: string = 'Dashboard';
 
-  totalEmails = 1248;
-  quotationRequests = 486;
-  // activeClients = 842;
-  pendingDetails = 47;
-  quotationsGenerated = 301;
+  totalEmails = 0;
+  quotationRequests = 0;
+  pendingDetails = 0;
+  quotationsGenerated = 0;
+  quotationsSent = 0;
 
   selectedTimeRange: string = '30 Days';
 
@@ -58,12 +62,36 @@ export class Dashboard {
 
   // ================= EMAIL CATEGORIES =================
 
-  emailCategories = [
-    { name: 'Incoming Emails', count: 1248, percentage: 33 },
-    { name: 'Quotation Requests', count: 486, percentage: 24 },
-    { name: 'Pending Requests', count: 47, percentage: 19 },
-    { name: 'Quotations Sent', count: 301, percentage: 24 }
-  ];
+  emailCategories: { name: string; count: number; percentage: number }[] = [];
+
+  ngOnInit(): void {
+    this.api.dashboardStats().subscribe({
+      next: stats => {
+        this.totalEmails = stats.totalEmails;
+        this.quotationRequests = stats.quotationRequests;
+        this.pendingDetails = stats.pendingDetails;
+        this.quotationsGenerated = stats.quotationsGenerated;
+        this.quotationsSent = stats.quotationsSent;
+
+        const rows = [
+          { name: 'Incoming Emails', count: stats.totalEmails },
+          { name: 'Quotation Requests', count: stats.quotationRequests },
+          { name: 'Pending Requests', count: stats.pendingDetails },
+          { name: 'Quotations Sent', count: stats.quotationsSent }
+        ];
+        const max = Math.max(1, ...rows.map(r => r.count));
+        this.emailCategories = rows.map(r => ({
+          ...r,
+          percentage: Math.round((r.count / max) * 100)
+        }));
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.emailCategories = [];
+        this.cdr.markForCheck();
+      }
+    });
+  }
 
   // ================= ACTIVITIES =================
 

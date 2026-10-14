@@ -29,7 +29,7 @@
       <div class="card-icon total-icon">▣</div>
       <div class="card-info">
         <span>Total Requests</span>
-        <strong>486</strong>
+        <strong>{{ requests.length }}</strong>
         <small>All quotation requests</small>
       </div>
     </div>
@@ -38,7 +38,7 @@
       <div class="card-icon processing-icon">◷</div>
       <div class="card-info">
         <span>Processing</span>
-        <strong>38</strong>
+        <strong>{{ count('Processing') }}</strong>
         <small>Currently processing</small>
       </div>
     </div>
@@ -47,7 +47,7 @@
       <div class="card-icon missing-icon">!</div>
       <div class="card-info">
         <span>Missing Details</span>
-        <strong>47</strong>
+        <strong>{{ count('Missing Details') }}</strong>
         <small>Awaiting client information</small>
       </div>
     </div>
@@ -56,7 +56,7 @@
       <div class="card-icon generated-icon">✓</div>
       <div class="card-info">
         <span>Generated</span>
-        <strong>301</strong>
+        <strong>{{ count('Quotation Generated') }}</strong>
         <small>Quotations completed</small>
       </div>
     </div>
@@ -104,6 +104,7 @@
           <option value="Quotation Generated">Quotation Generated</option>
           <option value="Processing">Processing</option>
           <option value="Missing Details">Missing Details</option>
+          <option value="Needs Attention">Needs Attention</option>
         </select>
       </div>
 
@@ -129,69 +130,58 @@
           <tr *ngFor="let request of filteredRequests">
 
             <td>
-              <span class="request-id">
-                {{ request.id }}
-              </span>
+              <span class="request-id">{{ request.reference }}</span>
             </td>
 
             <td>
               <div class="client-cell">
-
-                <div
-                  class="client-avatar"
-                  [ngClass]="request.avatarClass">
-                  {{ request.initials }}
+                <div class="client-avatar" [ngClass]="avatarColor(request.clientId)">
+                  {{ initials(request.clientName, request.clientEmail) }}
                 </div>
-
                 <div class="client-details">
-                  <strong>{{ request.client }}</strong>
-                  <span>{{ request.email }}</span>
+                  <strong>{{ request.clientName || 'Name not provided' }}</strong>
+                  <span>{{ request.clientEmail }}</span>
                 </div>
-
               </div>
             </td>
 
             <td>
               <div class="destination">
                 <span>✈</span>
-                {{ request.destination }}
+                {{ request.destination || '-' }}
               </div>
             </td>
 
             <td>
               <span class="traveller-count">
-                {{ request.travellers }}
+                {{ request.travellers ?? '-' }}
                 {{ request.travellers === 1 ? 'Traveller' : 'Travellers' }}
               </span>
             </td>
 
             <td>
-              <span
-                class="status"
-                [ngClass]="{
-                  'generated': request.status === 'Quotation Generated',
-                  'processing': request.status === 'Processing',
-                  'missing': request.status === 'Missing Details'
-                }">
-
+              <span class="status" [ngClass]="statusClass(request.status)">
                 <span class="status-dot"></span>
-                {{ request.status }}
-
+                {{ statusLabel(request.status) }}
               </span>
             </td>
 
             <td>
-              <button
-                type="button"
-                class="view-btn"
-                (click)="viewRequest(request)">
+              <button type="button" class="view-btn" (click)="viewRequest(request)">
                 View
               </button>
             </td>
 
           </tr>
 
-          <tr *ngIf="filteredRequests.length === 0">
+          <tr *ngIf="loading">
+            <td colspan="6" class="empty-state">Loading requests...</td>
+          </tr>
+          <tr *ngIf="errorMessage">
+            <td colspan="6" class="empty-state">{{ errorMessage }}</td>
+          </tr>
+
+          <tr *ngIf="!loading && !errorMessage && filteredRequests.length === 0">
             <td colspan="6" class="empty-state">
               <span class="empty-icon">⌕</span>
               <strong>No quotation requests found</strong>
@@ -211,8 +201,8 @@
         Showing
         <strong>{{ filteredRequests.length }}</strong>
         of
-        <strong>{{ filteredRequests.length }}</strong>
-        displayed requests
+        <strong>{{ requests.length }}</strong>
+        requests
       </span>
 
       <div class="pagination">

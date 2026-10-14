@@ -29,20 +29,13 @@
   <div class="report-toolbar">
 
     <div class="toolbar-title">
-      <span>REPORT PERIOD</span>
-      <strong>September 2026</strong>
+      <span>REPORT</span>
+      <strong>All activity to date</strong>
     </div>
 
     <div class="toolbar-actions">
-      <select aria-label="Select report period">
-        <option>Last 30 Days</option>
-        <option>Last 7 Days</option>
-        <option>Last 3 Months</option>
-        <option>This Year</option>
-      </select>
-
-      <button class="export-btn" type="button">
-        ↓ Export Report
+      <button class="export-btn" type="button" (click)="load()">
+        ↻ Refresh
       </button>
     </div>
 
@@ -58,11 +51,10 @@
         <span class="metric-icon">✉</span>
       </div>
 
-      <strong class="metric-number">1,248</strong>
+      <strong class="metric-number">{{ stats?.totalEmails ?? 0 }}</strong>
 
       <div class="metric-bottom">
-        <span class="positive">↑ 12.4%</span>
-        <span>vs last month</span>
+        <span>Emails received</span>
       </div>
     </div>
 
@@ -72,11 +64,10 @@
         <span class="metric-icon">◫</span>
       </div>
 
-      <strong class="metric-number">486</strong>
+      <strong class="metric-number">{{ stats?.quotationRequests ?? 0 }}</strong>
 
       <div class="metric-bottom">
-        <span class="positive">↑ 8.7%</span>
-        <span>vs last month</span>
+        <span>Email and form requests</span>
       </div>
     </div>
 
@@ -86,11 +77,10 @@
         <span class="metric-icon">▣</span>
       </div>
 
-      <strong class="metric-number">301</strong>
+      <strong class="metric-number">{{ stats?.quotationsGenerated ?? 0 }}</strong>
 
       <div class="metric-bottom">
-        <span class="positive">↑ 15.2%</span>
-        <span>vs last month</span>
+        <span>Sent: {{ stats?.quotationsSent ?? 0 }}</span>
       </div>
     </div>
 
@@ -100,10 +90,10 @@
         <span class="metric-icon">◷</span>
       </div>
 
-      <strong class="metric-number">47</strong>
+      <strong class="metric-number">{{ stats?.pendingDetails ?? 0 }}</strong>
 
       <div class="metric-bottom">
-        <span class="attention">12 need follow-up</span>
+        <span>Needs attention: {{ stats?.needsAttention ?? 0 }}</span>
       </div>
     </div>
 
@@ -118,8 +108,8 @@
 
       <div class="analytics-header">
         <div>
-          <h2>Email Processing</h2>
-          <p>Incoming email activity over the selected period</p>
+          <h2>Request Status</h2>
+          <p>Quotation requests grouped by status</p>
         </div>
 
         <button class="more-btn" type="button" aria-label="More email processing options">
@@ -129,13 +119,7 @@
 
       <div class="chart-area">
 
-        <div class="y-axis">
-          <span>400</span>
-          <span>300</span>
-          <span>200</span>
-          <span>100</span>
-          <span>0</span>
-        </div>
+        <div class="y-axis"></div>
 
         <div class="chart">
 
@@ -145,34 +129,17 @@
           <div class="grid-line line-4"></div>
 
           <div class="bars">
-
-            <div class="bar-group">
-              <div class="bar" style="height: 48%;"></div>
-              <span>W1</span>
+            <div class="bar-group" *ngFor="let row of statusRows">
+              <div class="bar" [style.height.%]="row.width"></div>
+              <span [title]="row.label">{{ row.count }}</span>
             </div>
-
-            <div class="bar-group">
-              <div class="bar" style="height: 64%;"></div>
-              <span>W2</span>
-            </div>
-
-            <div class="bar-group">
-              <div class="bar" style="height: 57%;"></div>
-              <span>W3</span>
-            </div>
-
-            <div class="bar-group">
-              <div class="bar" style="height: 78%;"></div>
-              <span>W4</span>
-            </div>
-
           </div>
         </div>
       </div>
 
       <div class="chart-legend">
-        <span><i class="legend-dot"></i> Processed Emails</span>
-        <strong>1,201 processed</strong>
+        <span><i class="legend-dot"></i> Requests by status</span>
+        <strong>Total value {{ money(summary?.totalQuotationValue) }}</strong>
       </div>
 
     </div>
@@ -194,51 +161,15 @@
 
       <div class="category-list">
 
-        <div class="category-row">
+        <div class="category-row" *ngFor="let row of summaryRows">
           <div class="category-info">
             <span class="category-marker quotation-marker"></span>
-            <span>Total Emails</span>
-            <strong>1,248</strong>
+            <span>{{ row.label }}</span>
+            <strong>{{ row.count }}</strong>
           </div>
 
           <div class="progress">
-            <span style="width: 78%;"></span>
-          </div>
-        </div>
-
-        <div class="category-row">
-          <div class="category-info">
-            <span class="category-marker renewal-marker"></span>
-            <span>Quotation Requests</span>
-            <strong>486</strong>
-          </div>
-
-          <div class="progress">
-            <span style="width: 55%;"></span>
-          </div>
-        </div>
-
-        <div class="category-row">
-          <div class="category-info">
-            <span class="category-marker claim-marker"></span>
-            <span>Quotations Generated</span>
-            <strong>301</strong>
-          </div>
-
-          <div class="progress">
-            <span style="width: 43%;"></span>
-          </div>
-        </div>
-
-        <div class="category-row">
-          <div class="category-info">
-            <span class="category-marker general-marker"></span>
-            <span>Pending Details</span>
-            <strong>47</strong>
-          </div>
-
-          <div class="progress">
-            <span style="width: 49%;"></span>
+            <span [style.width.%]="row.width"></span>
           </div>
         </div>
 
@@ -250,11 +181,7 @@
 
   <!-- FOOTER -->
   <div class="reports-footer">
-    <span>Report updated: 30 September 2026</span>
-
-    <button type="button">
-      View Detailed Reports →
-    </button>
+    <span>Report updated: {{ shortDate(summary?.generatedAt) }}</span>
   </div>
 
 </div>

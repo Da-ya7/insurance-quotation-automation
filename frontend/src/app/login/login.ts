@@ -59,7 +59,7 @@ export class Login {
   showPassword = false;
 
   // Spring Boot login API
-  private apiUrl = 'http://localhost:8080/api/auth/login';
+  private apiUrl = '/api/auth/login';
 
   constructor(
     private http: HttpClient,
@@ -120,7 +120,7 @@ export class Login {
         } else if (error.status === 403) {
           alert('Access denied.');
         } else if (error.status === 0) {
-          alert('Cannot connect to the backend. Make sure Spring Boot is running on port 8080.');
+          alert('Cannot connect to the server. Make sure the backend is running.');
         } else {
           alert('Login failed. Please try again.');
         }
