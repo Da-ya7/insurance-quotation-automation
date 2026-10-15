@@ -16,14 +16,17 @@ public class QuotationEmailService {
     private final GmailMailboxClient gmailMailboxClient;
     private final QuotationRepository quotationRepository;
     private final boolean demoMode;
+    private final String formUrl;
 
     public QuotationEmailService(
             GmailMailboxClient gmailMailboxClient,
             QuotationRepository quotationRepository,
-            @org.springframework.beans.factory.annotation.Value("${mailbox.mode:demo}") String mailboxMode) {
+            @org.springframework.beans.factory.annotation.Value("${mailbox.mode:demo}") String mailboxMode,
+            @org.springframework.beans.factory.annotation.Value("${app.public-form-url:http://localhost:4200/client-quotation}") String formUrl) {
         this.gmailMailboxClient = gmailMailboxClient;
         this.quotationRepository = quotationRepository;
         this.demoMode = !"gmail".equalsIgnoreCase(mailboxMode);
+        this.formUrl = formUrl;
     }
 
     public void sendMissingInformationEmail(
@@ -43,6 +46,18 @@ public class QuotationEmailService {
                 missingFields,
                 invalidFields
         );
+    }
+
+    /** Reply to an email that was not a quotation request: point to the web form. */
+    public void sendFormLinkEmail(String recipient) {
+
+        if (demoMode) {
+            System.out.println("[DEMO MAIL] Form link " + formUrl
+                    + " would be sent to " + recipient);
+            return;
+        }
+
+        gmailMailboxClient.sendFormLinkEmail(recipient, formUrl);
     }
 
     @Transactional

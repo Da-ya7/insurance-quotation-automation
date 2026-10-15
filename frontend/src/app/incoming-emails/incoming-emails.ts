@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService, EmailDto } from '../core/api.service';
@@ -25,7 +25,7 @@ interface IncomingEmail {
   templateUrl: './incoming-emails.html',
   styleUrl: './incoming-emails.css'
 })
-export class IncomingEmails implements OnInit {
+export class IncomingEmails implements OnInit, OnDestroy {
 
   private api = inject(ApiService);
   private cdr = inject(ChangeDetectorRef);
@@ -39,8 +39,18 @@ export class IncomingEmails implements OnInit {
 
   emails: IncomingEmail[] = [];
 
+  private timer: ReturnType<typeof setInterval> | undefined;
+
   ngOnInit(): void {
     this.loadEmails();
+    // New mail arrives in the background: refresh the list every 30 seconds.
+    this.timer = setInterval(() => this.loadEmails(), 30000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+    }
   }
 
   loadEmails(): void {
@@ -69,7 +79,7 @@ export class IncomingEmails implements OnInit {
       sender: r.senderEmail,
       email: r.senderEmail,
       subject: r.subject,
-      category: 'Quotation',
+      category: r.requestId ? 'Quotation' : 'Other',
       status,
       time: shortDate(r.receivedAt),
       initials: initials(name, r.senderEmail),
@@ -97,8 +107,8 @@ export class IncomingEmails implements OnInit {
           matchesFilter = email.category === 'Quotation';
           break;
 
-        case 'Renewal':
-          matchesFilter = email.category === 'Policy Renewal';
+        case 'Other':
+          matchesFilter = email.category === 'Other';
           break;
 
         case 'Pending':

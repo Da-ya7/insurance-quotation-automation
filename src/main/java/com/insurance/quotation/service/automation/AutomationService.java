@@ -119,6 +119,26 @@ public class AutomationService {
 
     private void processEmail(EmailMessage email) {
 
+        // 0. Is this really a quotation request? Real customers often write
+        // free text. If nothing usable is found and the sender has no pending
+        // request, do NOT create a client/request. Store the email and point
+        // the sender to the web form instead.
+        boolean nothingUseful = emailExtractionService.extractFields(email)
+                .stream()
+                .noneMatch(f -> !f.isMissing()
+                        && f.getFieldValue() != null
+                        && !f.getFieldValue().isBlank());
+
+        boolean senderHasPendingRequest = clientRepository
+                .findByEmail(email.getSenderEmail())
+                .flatMap(this::findPendingRequest)
+                .isPresent();
+
+        if (nothingUseful && !senderHasPendingRequest) {
+            handleNonQuotationEmail(email);
+            return;
+        }
+
         // 1. Find or create the customer.
         Client client = findOrCreateClient(email);
 
@@ -172,24 +192,6 @@ public class AutomationService {
         // 4. Extract fields from the latest email.
         List<ExtractedFieldData> extractedFields =
                 emailExtractionService.extractFields(email);
-
-        // 4b. Unrelated email: nothing usable found and not a reply.
-        boolean nothingExtracted = extractedFields.stream().noneMatch(f ->
-                !f.isMissing()
-                        && f.getFieldValue() != null
-                        && !f.getFieldValue().isBlank());
-
-        if (!isReply && nothingExtracted) {
-            quotationRequest.setStatus(RequestStatus.MANUAL_REVIEW_REQUIRED);
-            quotationRequest.setUpdatedAt(LocalDateTime.now());
-            quotationRequestRepository.save(quotationRequest);
-
-            incomingEmail.setProcessingStatus("PROCESSED");
-            incomingEmailRepository.save(incomingEmail);
-
-            emailIngestionService.markEmailAsProcessed(email.getMessageId());
-            return;
-        }
 
         // 5. For a reply, combine new details with previous valid values.
         if (isReply) {
@@ -289,6 +291,51 @@ public class AutomationService {
         System.out.println(
                 "Quotation generated and sent: "
                         + quotation.getQuotationNumber());
+    }
+
+    /** Email that is not a quotation request: keep it, reply once with the form link. */
+    private void handleNonQuotationEmail(EmailMessage email) {
+
+        String sender = email.getSenderEmail();
+
+        // Only the first such email from a sender gets an automatic reply.
+        boolean alreadyNotified = incomingEmailRepository
+                .existsBySenderEmailAndQuotationRequestIsNull(sender);
+
+        IncomingEmail stored = new IncomingEmail();
+        stored.setQuotationRequest(null);
+        stored.setMessageId(email.getMessageId());
+        stored.setInReplyTo(email.getInReplyTo());
+        stored.setSenderEmail(sender);
+        stored.setSubject(email.getSubject());
+        stored.setBody(email.getBody());
+        stored.setProcessingStatus("PROCESSED");
+        stored.setReceivedAt(email.getReceivedAt());
+        incomingEmailRepository.save(stored);
+
+        if (!alreadyNotified && isHumanSender(sender)) {
+            try {
+                quotationEmailService.sendFormLinkEmail(sender);
+            } catch (Exception e) {
+                System.err.println("Could not send form link to "
+                        + sender + ": " + e.getMessage());
+            }
+        }
+
+        emailIngestionService.markEmailAsProcessed(email.getMessageId());
+
+        System.out.println("Non-quotation email stored from " + sender);
+    }
+
+    // Never auto-reply to robots or bounce messages (avoids mail loops).
+    private boolean isHumanSender(String sender) {
+        if (sender == null || sender.isBlank()) {
+            return false;
+        }
+        String s = sender.toLowerCase();
+        return !(s.contains("no-reply") || s.contains("noreply")
+                || s.contains("donotreply") || s.contains("do-not-reply")
+                || s.contains("mailer-daemon") || s.contains("postmaster"));
     }
 
     private Optional<QuotationRequest> findPendingRequest(

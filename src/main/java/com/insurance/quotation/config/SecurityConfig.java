@@ -77,7 +77,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/**")
                         .hasAnyRole("ADMIN", "OPERATIONS")
 
-                        .anyRequest().authenticated()
+                        .requestMatchers("/actuator/**")
+                        .hasAnyRole("ADMIN", "OPERATIONS")
+
+                        // Anything else is just the Angular app files.
+                        .anyRequest().permitAll()
                 )
 
                 .addFilterBefore(

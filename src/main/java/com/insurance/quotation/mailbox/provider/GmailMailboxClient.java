@@ -364,6 +364,66 @@ public class GmailMailboxClient implements MailboxClient {
         }
     }
 
+    public void sendFormLinkEmail(String recipient, String formUrl) {
+
+        try {
+            if (recipient == null
+                    || !recipient.matches(
+                    "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+                throw new IllegalArgumentException(
+                        "Invalid recipient email address.");
+            }
+
+            String subject = "How to request your insurance quotation";
+
+            String body = "Dear Client,\r\n\r\n"
+                    + "Thank you for contacting us. To prepare your travel "
+                    + "insurance quotation we need a few details about you "
+                    + "and your trip.\r\n\r\n"
+                    + "Please fill in our quotation form:\r\n"
+                    + formUrl + "\r\n\r\n"
+                    + "Your quotation will be emailed to you as soon as the "
+                    + "form is submitted.\r\n\r\n"
+                    + "Regards,\r\n"
+                    + "Insurance Quotation Team";
+
+            String encodedSubject = "=?UTF-8?B?"
+                    + Base64.getEncoder().encodeToString(
+                            subject.getBytes(StandardCharsets.UTF_8))
+                    + "?=";
+
+            String mime =
+                    "To: " + recipient + "\r\n"
+                    + "Subject: " + encodedSubject + "\r\n"
+                    + "MIME-Version: 1.0\r\n"
+                    + "Content-Type: text/plain; charset=UTF-8\r\n"
+                    + "Content-Transfer-Encoding: 8bit\r\n\r\n"
+                    + body;
+
+            String raw = Base64.getUrlEncoder()
+                    .withoutPadding()
+                    .encodeToString(
+                            mime.getBytes(StandardCharsets.UTF_8));
+
+            Message outgoing = new Message();
+            outgoing.setRaw(raw);
+
+            Message sent = getGmailService()
+                    .users()
+                    .messages()
+                    .send("me", outgoing)
+                    .execute();
+
+            System.out.println(
+                    "Form-link email accepted by Gmail. Message ID: "
+                            + sent.getId());
+
+        } catch (Exception e) {
+            throw new MailboxException(
+                    "Failed to send form-link email to " + recipient, e);
+        }
+    }
+
     private synchronized Gmail getGmailService() throws Exception {
         if (gmailService != null) {
             return gmailService;
