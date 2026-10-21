@@ -53,4 +53,5 @@ public class AuthController {
 
         return new LoginResponse(token);
     }
+    
 }
