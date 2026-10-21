@@ -46,7 +46,7 @@ public class GmailMailboxClient implements MailboxClient {
 
 
     private static final String GMAIL_QUERY =
-        "in:inbox is:unread {subject:quotation subject:insurance subject:policy} -in:spam -in:trash";
+        "in:inbox is:unread -in:spam -in:trash";
 
     private static final int MAX_EMAILS_PER_CHECK = 20;
 
