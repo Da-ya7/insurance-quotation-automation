@@ -1,4 +1,3 @@
-
 <div class="quotation-request-page">
 
   <!-- TOP HEADER -->
@@ -110,7 +109,7 @@
 
     </div>
 
-    <!-- REQUEST TABLE -->
+    <!-- SCROLLABLE TABLE AREA -->
     <div class="table-wrapper">
 
       <table>
@@ -135,9 +134,12 @@
 
             <td>
               <div class="client-cell">
-                <div class="client-avatar" [ngClass]="avatarColor(request.clientId)">
+                <div
+                  class="client-avatar"
+                  [ngClass]="avatarColor(request.clientId)">
                   {{ initials(request.clientName, request.clientEmail) }}
                 </div>
+
                 <div class="client-details">
                   <strong>{{ request.clientName || 'Name not provided' }}</strong>
                   <span>{{ request.clientEmail }}</span>
@@ -160,14 +162,19 @@
             </td>
 
             <td>
-              <span class="status" [ngClass]="statusClass(request.status)">
+              <span
+                class="status"
+                [ngClass]="statusClass(request.status)">
                 <span class="status-dot"></span>
                 {{ statusLabel(request.status) }}
               </span>
             </td>
 
             <td>
-              <button type="button" class="view-btn" (click)="viewRequest(request)">
+              <button
+                type="button"
+                class="view-btn"
+                (click)="viewRequest(request)">
                 View
               </button>
             </td>
@@ -175,10 +182,15 @@
           </tr>
 
           <tr *ngIf="loading">
-            <td colspan="6" class="empty-state">Loading requests...</td>
+            <td colspan="6" class="empty-state">
+              Loading requests...
+            </td>
           </tr>
+
           <tr *ngIf="errorMessage">
-            <td colspan="6" class="empty-state">{{ errorMessage }}</td>
+            <td colspan="6" class="empty-state">
+              {{ errorMessage }}
+            </td>
           </tr>
 
           <tr *ngIf="!loading && !errorMessage && filteredRequests.length === 0">

@@ -1,9 +1,8 @@
 
 <div class="incoming-page">
 
-  <!-- TOP HEADER -->
-  <div class="top-header">
-
+  <!-- FIXED PAGE HEADER -->
+  <header class="top-header">
     <button
       class="back-btn"
       type="button"
@@ -17,11 +16,10 @@
       <h1>Incoming Emails</h1>
       <p>Monitor and process client communication</p>
     </div>
-
-  </div>
+  </header>
 
   <!-- SUMMARY CARDS -->
-  <div class="summary-section">
+  <section class="summary-section">
 
     <div class="summary-card">
       <div class="summary-icon">✉</div>
@@ -55,25 +53,25 @@
       </div>
     </div>
 
-  </div>
+  </section>
 
-  <!-- MAIN EMAIL SECTION -->
-  <div class="email-container">
+  <!-- EMAIL WORKSPACE -->
+  <section class="email-container">
 
-    <!-- LEFT EMAIL LIST -->
+    <!-- LEFT: EMAIL LIST -->
     <div class="email-list">
 
       <!-- LIST HEADER -->
       <div class="list-header">
         <div>
           <h2>Client Emails</h2>
-          <span>Recent incoming messages</span>
+          <span>{{ filteredEmails.length }} messages displayed</span>
         </div>
 
         <button
           class="refresh-btn"
           type="button"
-          title="Reset search and filters"
+          title="Reset search and filters and reload emails"
           aria-label="Refresh emails"
           (click)="refreshEmails()">
           ↻
@@ -126,84 +124,93 @@
           Pending
         </button>
 
+        <button
+          class="filter"
+          [class.active]="activeFilter === 'Processed'"
+          type="button"
+          (click)="setFilter('Processed')">
+          Processed
+        </button>
+
       </div>
 
-      <!-- EMAIL ITEMS -->
-      <div
-        class="email-item"
-        *ngFor="let email of filteredEmails"
-        [class.selected]="selectedEmail?.sender === email.sender"
-        role="button"
-        tabindex="0"
-        [attr.aria-label]="'Open email from ' + email.sender"
-        [attr.aria-pressed]="selectedEmail?.sender === email.sender"
-        (click)="selectEmail(email)"
-        (keydown.enter)="selectEmail(email)"
-        (keydown.space)="selectEmail(email); $event.preventDefault()">
+      <!-- SCROLLABLE EMAIL ITEMS -->
+      <div class="email-items-scroll">
 
-        <!-- AVATAR -->
-        <div class="email-avatar" [ngClass]="email.color">
-          {{ email.initials }}
+        <button
+          class="email-item"
+          *ngFor="let email of filteredEmails"
+          [class.selected]="selectedEmail?.id === email.id"
+          type="button"
+          [attr.aria-label]="'Open email from ' + email.sender"
+          [attr.aria-pressed]="selectedEmail?.id === email.id"
+          (click)="selectEmail(email)">
+
+          <!-- AVATAR -->
+          <div class="email-avatar" [ngClass]="email.color">
+            {{ email.initials }}
+          </div>
+
+          <!-- EMAIL INFORMATION -->
+          <div class="email-details">
+
+            <div class="email-top">
+              <strong>{{ email.sender }}</strong>
+              <span class="email-time">{{ email.time }}</span>
+            </div>
+
+            <div class="email-address">
+              {{ email.email }}
+            </div>
+
+            <div class="email-subject">
+              {{ email.subject }}
+            </div>
+
+            <div class="email-bottom">
+
+              <span
+                class="tag"
+                [ngClass]="{
+                  'quotation': email.category === 'Quotation',
+                  'renewal': email.category === 'Policy Renewal',
+                  'claim': email.category === 'Claim Enquiry'
+                }">
+                {{ email.category }}
+              </span>
+
+              <span
+                class="status"
+                [ngClass]="{
+                  'processed': email.status === 'Processed',
+                  'pending': email.status === 'Pending'
+                }">
+                {{ email.status }}
+              </span>
+
+            </div>
+
+          </div>
+
+        </button>
+
+        <!-- NO EMAILS FOUND -->
+        <div
+          *ngIf="filteredEmails.length === 0"
+          class="empty-emails">
+          No emails found. Try changing your search or filter.
         </div>
 
-        <!-- EMAIL INFORMATION -->
-        <div class="email-details">
-
-          <div class="email-top">
-            <strong>{{ email.sender }}</strong>
-            <span class="email-time">{{ email.time }}</span>
-          </div>
-
-          <div class="email-address">
-            {{ email.email }}
-          </div>
-
-          <div class="email-subject">
-            {{ email.subject }}
-          </div>
-
-          <div class="email-bottom">
-
-            <span
-              class="tag"
-              [ngClass]="{
-                'quotation': email.category === 'Quotation',
-                'renewal': email.category === 'Policy Renewal',
-                'claim': email.category === 'Claim Enquiry'
-              }">
-              {{ email.category }}
-            </span>
-
-            <span
-              class="status"
-              [ngClass]="{
-                'processed': email.status === 'Processed',
-                'pending': email.status === 'Pending'
-              }">
-              {{ email.status }}
-            </span>
-
-          </div>
-
-        </div>
-
       </div>
-
-      <!-- NO EMAILS FOUND -->
-      <div
-        *ngIf="filteredEmails.length === 0"
-        class="empty-emails">
-        No emails found.
-      </div>
-
     </div>
 
-    <!-- RIGHT EMAIL PREVIEW -->
-    <div class="email-preview" *ngIf="selectedEmail as email">
+    <!-- RIGHT: EMAIL PREVIEW -->
+    <div
+      class="email-preview"
+      *ngIf="selectedEmail as email">
 
       <!-- PREVIEW HEADER -->
       <div class="preview-header">
-
         <div>
           <span class="preview-label">EMAIL DETAILS</span>
           <h2>{{ email.subject }}</h2>
@@ -217,73 +224,110 @@
           }">
           {{ email.status }}
         </span>
-
       </div>
 
-      <!-- SENDER DETAILS -->
-      <div class="sender-section">
+      <!-- SCROLLABLE PREVIEW CONTENT -->
+      <div class="preview-scroll">
 
-        <div class="large-avatar" [ngClass]="email.color">
-          {{ email.initials }}
-        </div>
+        <!-- SENDER DETAILS -->
+        <div class="sender-section">
 
-        <div>
-          <strong>{{ email.sender }}</strong>
-          <span>{{ email.email }}</span>
-        </div>
+          <div class="large-avatar" [ngClass]="email.color">
+            {{ email.initials }}
+          </div>
 
-      </div>
-
-      <!-- EMAIL BODY -->
-      <div class="email-body">
-
-        <p *ngFor="let paragraph of email.body">
-          {{ paragraph }}
-        </p>
-
-      </div>
-
-      <!-- DETECTED INFORMATION -->
-      <div class="detected-section">
-
-        <h3>Detected Information</h3>
-
-        <div class="detected-grid">
-
-          <div class="info-box">
-            <span>Name</span>
+          <div>
             <strong>{{ email.name }}</strong>
+            <span>{{ email.email }}</span>
           </div>
 
-          <div class="info-box">
-            <span>Email</span>
-            <strong>{{ email.detectedEmail }}</strong>
+        </div>
+
+        <!-- MESSAGE METADATA -->
+        <div class="message-metadata">
+
+          <div class="metadata-row">
+            <span>From</span>
+            <strong>{{ email.sender }}</strong>
           </div>
 
-          <div class="info-box">
+          <div class="metadata-row">
+            <span>Received</span>
+            <strong>{{ email.time }}</strong>
+          </div>
+
+          <div class="metadata-row">
             <span>Category</span>
             <strong>{{ email.category }}</strong>
           </div>
 
-          <div class="info-box">
-            <span>Status</span>
+          <div class="metadata-row">
+            <span>Processing Status</span>
             <strong>{{ email.status }}</strong>
           </div>
 
+        </div>
+
+        <!-- EMAIL BODY -->
+        <div class="email-body">
+          <h3>Message</h3>
+
+          <ng-container
+            *ngIf="email.body.length > 0; else emptyBody">
+
+            <p *ngFor="let paragraph of email.body">
+              {{ paragraph }}
+            </p>
+
+          </ng-container>
+
+          <ng-template #emptyBody>
+            <p class="empty-message">
+              No message body is available for this email.
+            </p>
+          </ng-template>
+        </div>
+
+        <!-- DETECTED INFORMATION -->
+        <div class="detected-section">
+
+          <h3>Detected Information</h3>
+
+          <div class="detected-grid">
+
+            <div class="info-box">
+              <span>Name</span>
+              <strong>{{ email.name }}</strong>
+            </div>
+
+            <div class="info-box">
+              <span>Email</span>
+              <strong>{{ email.detectedEmail }}</strong>
+            </div>
+
+            <div class="info-box">
+              <span>Category</span>
+              <strong>{{ email.category }}</strong>
+            </div>
+
+            <div class="info-box">
+              <span>Status</span>
+              <strong>{{ email.status }}</strong>
+            </div>
+
+          </div>
         </div>
 
       </div>
 
       <!-- ACTIONS -->
       <div class="action-section">
-
         <button
           class="secondary-btn"
           type="button"
           (click)="viewEmailDetails()">
           View Details
         </button>
-
       </div>
 
     </div>
@@ -292,9 +336,15 @@
     <div
       class="email-preview empty-preview"
       *ngIf="!selectedEmail">
-      Select an email to view its details.
+
+      <div class="empty-preview-content">
+        <span class="empty-preview-icon">✉</span>
+        <h2>No email selected</h2>
+        <p>Select an email from the list to view its details.</p>
+      </div>
+
     </div>
 
-  </div>
+  </section>
 
 </div>

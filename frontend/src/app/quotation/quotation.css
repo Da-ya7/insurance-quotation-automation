@@ -1,22 +1,39 @@
 
 /* =====================================
-   PAGE
+   PAGE - INTERNAL SCROLLING
 ===================================== */
 
 :host {
-  display: block;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 .quotation-page {
-  min-height: 100vh;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
   width: 100%;
-  background: #f4f6fa;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: 100%;
+  margin: 0;
   padding: 30px 34px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #f4f6fa;
   font-family: Arial, Helvetica, sans-serif;
   color: #202938;
 }
@@ -28,6 +45,7 @@
 .quotation-header {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   margin-bottom: 28px;
 }
 
@@ -81,6 +99,7 @@
 
 .overview {
   display: grid;
+  flex-shrink: 0;
   grid-template-columns: 1.6fr 1fr 1fr 1fr;
   background: #ffffff;
   border: 1px solid #e3e7ee;
@@ -171,9 +190,12 @@
 
 .quotation-workspace {
   display: grid;
+  flex: 1 1 auto;
   grid-template-columns: 245px minmax(0, 1fr);
   gap: 22px;
-  align-items: start;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
 }
 
 /* =====================================
@@ -316,11 +338,16 @@
 ===================================== */
 
 .quotation-content {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .content-header {
   display: flex;
+  flex-shrink: 0;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
@@ -357,10 +384,44 @@
 }
 
 /* =====================================
+   RECENT QUOTATIONS LIST
+   SCROLL INSIDE THIS AREA
+===================================== */
+
+.quotation-list {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 8px 8px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #c5ccda transparent;
+}
+
+.quotation-list::-webkit-scrollbar {
+  width: 7px;
+}
+
+.quotation-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.quotation-list::-webkit-scrollbar-thumb {
+  background: #c5ccda;
+  border-radius: 10px;
+}
+
+.quotation-list::-webkit-scrollbar-thumb:hover {
+  background: #9ba6bb;
+}
+
+/* =====================================
    QUOTATION CARD
 ===================================== */
 
 .quotation-card {
+  flex-shrink: 0;
   min-width: 0;
   background: #ffffff;
   border: 1px solid #e1e6ed;
@@ -578,6 +639,7 @@
 
 .pagination {
   display: flex;
+  flex-shrink: 0;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
@@ -658,6 +720,11 @@
 
   .quotation-workspace {
     grid-template-columns: 1fr;
+    flex: 0 0 auto;
+  }
+
+  .quotation-content {
+    min-height: 500px;
   }
 
   .filter-panel {
@@ -674,6 +741,12 @@
 
   .filter-description {
     margin-bottom: 10px;
+  }
+
+  .quotation-list {
+    flex: 0 0 auto;
+    max-height: 65vh;
+    min-height: 250px;
   }
 }
 
