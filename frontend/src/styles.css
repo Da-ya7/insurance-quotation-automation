@@ -1,17 +1,268 @@
-@layer base {
-  html, body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background-color: #f8f9ff;
-    color: #0b1c30;
-  }
-  body {
-    overscroll-behavior: none;
-  }
+/* ========================================
+   GLOBAL BASE STYLES
+======================================== */
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0;
+  padding: 0;
+
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+
+  background-color: #f8f9ff;
+  color: #0b1c30;
+
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
-/* Material Symbols styling */
+/* ========================================
+   GLOBAL BOX SIZING
+======================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* ========================================
+   ANGULAR ROOT LAYOUT
+======================================== */
+
+app-root {
+  display: flex;
+  flex-direction: column;
+
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+app-layout {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* ========================================
+   MAIN APPLICATION LAYOUT
+======================================== */
+
+.app-layout {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: row;
+
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
+}
+
+/* ========================================
+   SIDEBAR
+   Keep the sidebar stationary.
+======================================== */
+
+.sidebar {
+  flex: 0 0 250px;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* ========================================
+   MAIN CONTENT AREA
+======================================== */
+
+.main-content {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+
+  width: 0;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
+}
+
+/* ========================================
+   TOP HEADER
+   Remains outside the scrolling area.
+======================================== */
+
+.layout-header {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+
+  width: 100%;
+  min-width: 0;
+
+  overflow: visible;
+}
+
+/* ========================================
+   ROUTED PAGE CONTENT AREA
+   Occupies the remaining height.
+======================================== */
+
+.page-content {
+  position: relative;
+
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+
+  width: 100%;
+  height: 0;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
+  overscroll-behavior: none;
+  isolation: isolate;
+
+  box-sizing: border-box;
+}
+
+/* ========================================
+   ANGULAR ROUTER OUTLET
+======================================== */
+
+.page-content > router-outlet {
+  display: none;
+}
+
+
+/* ========================================
+   ACTIVE ROUTED PAGE COMPONENT
+   Default internal scrolling
+======================================== */
+
+.page-content > router-outlet + *,
+.page-content > *:last-child:not(router-outlet) {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+
+  width: 100%;
+  height: 0;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+
+  margin: 0;
+  padding: 0;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+
+  box-sizing: border-box;
+}
+
+/* ========================================
+   QUOTATION REQUEST
+   The page content owns vertical scrolling.
+======================================== */
+
+.page-content > router-outlet + *:has(.quotation-request-page),
+.page-content > *:last-child:not(router-outlet):has(.quotation-request-page) {
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The inner page becomes the scrollable box. */
+.quotation-request-page {
+  flex: 1 1 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ========================================
+   INCOMING EMAILS
+   Preserve its existing internal scrolling.
+======================================== */
+
+.page-content > router-outlet + app-incoming-emails,
+.page-content > app-incoming-emails {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+
+  width: 100%;
+  height: 0;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
+
+  box-sizing: border-box;
+}
+
+/* ========================================
+   MATERIAL SYMBOLS
+======================================== */
+
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined' !important;
   font-weight: normal;
@@ -20,19 +271,77 @@
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
+
   display: inline-block;
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
+
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
 }
 
-::-webkit-scrollbar {
-  display: none;
+/* ========================================
+   SCROLLBARS
+   Keep scrolling enabled and visible.
+======================================== */
+
+html,
+body,
+app-root,
+app-layout {
+  scrollbar-width: auto;
 }
 
-* {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ========================================
+   PREVENT PAGE-LEVEL OVERSCROLL
+======================================== */
+
+html,
+body,
+app-root,
+app-layout {
+  overscroll-behavior: none;
+}
+
+/* ========================================
+   MEDIA ELEMENTS
+======================================== */
+
+img,
+video,
+iframe,
+svg {
+  max-width: 100%;
+}
+
+/* ========================================
+   RESPONSIVE SAFETY
+======================================== */
+
+@media (max-width: 768px) {
+  .main-content,
+  .page-content {
+    min-width: 0;
+    max-width: 100%;
+  }
+  
 }

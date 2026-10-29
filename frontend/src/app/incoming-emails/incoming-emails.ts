@@ -1,10 +1,23 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
+
+import {
+  ChangeDetectorRef,
+  Component,
+  OnDestroy,
+  OnInit,
+  inject
+} from '@angular/core';
+
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService, EmailDto } from '../core/api.service';
-import { avatarColor, initials, shortDate } from '../core/format';
+import {
+  avatarColor,
+  initials,
+  shortDate
+} from '../core/format';
 
 interface IncomingEmail {
+  id: number;
   sender: string;
   email: string;
   subject: string;
@@ -34,8 +47,12 @@ export class IncomingEmails implements OnInit, OnDestroy {
 
   searchText = '';
   activeFilter = 'All';
+
+  // Keep this property for compatibility with the existing HTML.
   selectedEmailId = 1;
-  private selectedSender = '';
+
+  // Use the database email ID to identify the selected email.
+  private selectedEmailKey: number | null = null;
 
   emails: IncomingEmail[] = [];
 
@@ -43,8 +60,11 @@ export class IncomingEmails implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadEmails();
-    // New mail arrives in the background: refresh the list every 30 seconds.
-    this.timer = setInterval(() => this.loadEmails(), 30000);
+
+    // Refresh incoming emails every 30 seconds.
+    this.timer = setInterval(() => {
+      this.loadEmails();
+    }, 30000);
   }
 
   ngOnDestroy(): void {
@@ -55,38 +75,63 @@ export class IncomingEmails implements OnInit, OnDestroy {
 
   loadEmails(): void {
     this.api.emails().subscribe({
-      next: rows => {
-        this.emails = rows.map(r => this.toView(r));
-        if (this.emails.length > 0 && !this.selectedEmail) {
-          this.selectedSender = this.emails[0].sender;
+      next: (rows: EmailDto[]) => {
+        const updatedEmails = rows.map(row => this.toView(row));
+
+        this.emails = updatedEmails;
+
+        // Preserve the selected email after refreshing.
+        const selectedIndex = this.emails.findIndex(
+          email => email.id === this.selectedEmailKey
+        );
+
+        if (selectedIndex >= 0) {
+          this.selectedEmailId = selectedIndex + 1;
+        } else if (this.emails.length > 0) {
+          // Select the first email if the previous selection disappeared.
+          this.selectedEmailKey = this.emails[0].id;
+          this.selectedEmailId = 1;
+        } else {
+          this.selectedEmailKey = null;
+          this.selectedEmailId = 0;
         }
+
         this.cdr.markForCheck();
       },
-      error: () => {
-        this.emails = [];
+
+      error: error => {
+        // Keep the previous data if the API temporarily fails.
+        console.error('Failed to load incoming emails:', error);
         this.cdr.markForCheck();
       }
     });
   }
 
   private toView(r: EmailDto): IncomingEmail {
-    const name = r.senderEmail.split('@')[0];
-    const waiting = r.requestStatus === 'MISSING_INFORMATION'
-      || r.requestStatus === 'WAITING_FOR_CLIENT';
-    const status = r.status === 'PROCESSED' && !waiting ? 'Processed' : 'Pending';
+    const senderEmail = r.senderEmail ?? '';
+    const name = senderEmail.split('@')[0] || 'Unknown';
+
+    // Email processing status is separate from quotation request status.
+    const status =
+      r.status === 'PROCESSED'
+        ? 'Processed'
+        : 'Pending';
 
     return {
-      sender: r.senderEmail,
-      email: r.senderEmail,
-      subject: r.subject,
+      id: r.id,
+      sender: senderEmail,
+      email: senderEmail,
+      subject: r.subject ?? '(No subject)',
       category: r.requestId ? 'Quotation' : 'Other',
       status,
       time: shortDate(r.receivedAt),
-      initials: initials(name, r.senderEmail),
+      initials: initials(name, senderEmail),
       color: avatarColor(r.id),
-      body: (r.body ?? '').split(/\r?\n/).filter(line => line.trim().length > 0),
+      body: (r.body ?? '')
+        .split(/\r?\n/)
+        .filter(line => line.trim().length > 0),
       name,
-      detectedEmail: r.senderEmail
+      detectedEmail: senderEmail
     };
   }
 
@@ -114,6 +159,10 @@ export class IncomingEmails implements OnInit, OnDestroy {
         case 'Pending':
           matchesFilter = email.status === 'Pending';
           break;
+
+        case 'Processed':
+          matchesFilter = email.status === 'Processed';
+          break;
       }
 
       return matchesSearch && matchesFilter;
@@ -122,12 +171,12 @@ export class IncomingEmails implements OnInit, OnDestroy {
 
   get selectedEmail(): IncomingEmail | undefined {
     return this.emails.find(
-      email => email.sender === this.selectedSender
+      email => email.id === this.selectedEmailKey
     );
   }
 
   selectEmail(email: IncomingEmail): void {
-    this.selectedSender = email.sender;
+    this.selectedEmailKey = email.id;
     this.selectedEmailId = this.emails.indexOf(email) + 1;
   }
 
@@ -157,6 +206,8 @@ export class IncomingEmails implements OnInit, OnDestroy {
     this.activeFilter = 'All';
     this.loadEmails();
   }
+
+  // Counts are calculated from the records returned by the backend API.
 
   get totalEmails(): number {
     return this.emails.length;

@@ -25,6 +25,7 @@
   <div class="summary-cards">
     <div class="summary-card">
       <div class="summary-icon clients-icon">👥</div>
+
       <div class="summary-info">
         <span>Total Clients</span>
         <strong>{{ clients.length }}</strong>
@@ -42,14 +43,13 @@
         <h2>Client Management</h2>
         <p>View and manage your insurance clients</p>
       </div>
-
-
     </div>
 
     <!-- TOOLBAR -->
     <div class="toolbar">
       <div class="search-box">
         <span>⌕</span>
+
         <input
           type="text"
           placeholder="Search by name, email or phone..."
@@ -73,11 +73,16 @@
           <tr *ngFor="let client of filteredClients">
             <td>
               <div class="client-cell">
-                <div class="client-avatar" [ngClass]="avatarColor(client.id)">
+                <div
+                  class="client-avatar"
+                  [ngClass]="avatarColor(client.id)">
                   {{ initials(client.name, client.email) }}
                 </div>
+
                 <div class="client-info">
-                  <strong>{{ client.name || 'Name not provided' }}</strong>
+                  <strong>
+                    {{ client.name || 'Name not provided' }}
+                  </strong>
                 </div>
               </div>
             </td>
@@ -95,10 +100,17 @@
           <tr *ngIf="loading">
             <td colspan="3">Loading clients...</td>
           </tr>
+
           <tr *ngIf="errorMessage">
             <td colspan="3">{{ errorMessage }}</td>
           </tr>
-          <tr *ngIf="!loading && !errorMessage && filteredClients.length === 0">
+
+          <tr
+            *ngIf="
+              !loading &&
+              !errorMessage &&
+              filteredClients.length === 0
+            ">
             <td colspan="3">No clients found.</td>
           </tr>
         </tbody>

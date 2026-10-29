@@ -1,3 +1,4 @@
+
 <div class="app-layout">
 
   <!-- LEFT SIDEBAR -->
@@ -34,92 +35,68 @@
     <!-- SIDEBAR NAVIGATION -->
     <nav class="sidebar-nav">
 
-      <!-- DASHBOARD -->
       <a
         routerLink="/dashboard"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }">
-
         <span class="nav-icon">🏠</span>
         <span class="nav-label">Dashboard</span>
-
       </a>
 
-      <!-- INCOMING EMAILS -->
       <a
         routerLink="/incoming-emails"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }">
-
         <span class="nav-icon">📧</span>
         <span class="nav-label">Incoming Emails</span>
-
       </a>
 
-      <!-- QUOTATION REQUESTS -->
       <a
         routerLink="/quotation-requests"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }">
-
         <span class="nav-icon">📋</span>
         <span class="nav-label">Quotation Requests</span>
-
       </a>
 
-      <!-- CLIENTS -->
       <a
         routerLink="/clients"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }">
-
         <span class="nav-icon">👥</span>
         <span class="nav-label">Clients</span>
-
       </a>
 
-      <!-- QUOTATIONS -->
       <a
         routerLink="/quotations"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }">
-
         <span class="nav-icon">📄</span>
         <span class="nav-label">Quotations</span>
-
       </a>
 
-      <!-- MISSING INFORMATION -->
       <a
         routerLink="/missing-information"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }">
-
         <span class="nav-icon">⚠️</span>
         <span class="nav-label">Missing Information</span>
-
       </a>
 
-      <!-- REPORTS -->
       <a
         routerLink="/reports"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }">
-
         <span class="nav-icon">📈</span>
         <span class="nav-label">Reports</span>
-
       </a>
 
-      <!-- SETTINGS -->
       <a
         routerLink="/settings"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }">
-
         <span class="nav-icon">⚙️</span>
         <span class="nav-label">Settings</span>
-
       </a>
 
     </nav>
@@ -135,10 +112,9 @@
   <!-- MAIN CONTENT -->
   <main class="main-content">
 
-    <!-- PAGE CONTENT -->
-    <section class="page-content">
+    <!-- LOGOUT OVERLAY -->
+    <div class="layout-header">
 
-      <!-- LOGOUT AT TOP-RIGHT ON ALL PAGES -->
       <button
         type="button"
         class="logout-button"
@@ -150,7 +126,12 @@
 
       </button>
 
-      <!-- CURRENT PAGE -->
+    </div>
+
+    <!-- PAGE CONTENT -->
+    <section class="page-content">
+
+      <!-- CURRENT ROUTED PAGE -->
       <router-outlet></router-outlet>
 
     </section>

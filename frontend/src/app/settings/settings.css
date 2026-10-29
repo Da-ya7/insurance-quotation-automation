@@ -1,34 +1,67 @@
 
 /* =========================================
-   SETTINGS PAGE
+   SETTINGS PAGE - INTERNAL SCROLLING
 ========================================= */
 
 :host {
-  display: block;
-  min-width: 0;
-}
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
 
-* {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: hidden;
   box-sizing: border-box;
 }
 
-.settings-page {
-  min-height: 100vh;
-  width: 100%;
-  background: #f4f6f9;
-  padding: 32px 40px;
-  font-family: Arial, Helvetica, sans-serif;
-  color: #182230;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
+/* =========================================
+   MAIN PAGE
+========================================= */
+
+.settings-page {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  margin: 0;
+  padding: 32px 40px;
+
+  background: #f4f6f9;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #182230;
+
+  overflow: hidden;
+}
 
 /* =========================================
    HEADER
+   Header remains fixed while content scrolls
 ========================================= */
 
 .settings-header {
   display: flex;
   align-items: center;
+
+  flex: 0 0 auto;
+  min-width: 0;
+
   margin-bottom: 25px;
 }
 
@@ -43,16 +76,21 @@
   width: 42px;
   height: 42px;
   flex-shrink: 0;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   background: #ffffff;
   border: 1px solid #d9dee7;
   border-radius: 9px;
+
   color: #344054;
   font-size: 24px;
   line-height: 1;
+
   cursor: pointer;
+
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
@@ -72,44 +110,63 @@
 
 .header-content h1 {
   margin: 0;
+
   font-size: 30px;
   font-weight: 700;
   line-height: 1.25;
+
   color: #182230;
 }
 
 .header-content p {
   margin: 7px 0 0;
+
   color: #7b8594;
   font-size: 13px;
   line-height: 1.5;
 }
 
-
 /* =========================================
    MAIN LAYOUT
+   Sidebar stays in place.
+   Layout fills the available height.
 ========================================= */
 
 .settings-layout {
   display: grid;
   grid-template-columns: 245px minmax(0, 1fr);
   gap: 18px;
-  align-items: start;
-}
 
+  flex: 1 1 0;
+
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  align-items: stretch;
+
+  overflow: hidden;
+}
 
 /* =========================================
    SIDEBAR
 ========================================= */
 
 .settings-sidebar {
+  min-width: 0;
+  min-height: 0;
+
   background: #ffffff;
   border: 1px solid #e0e5ec;
   border-radius: 11px;
+
   padding: 15px;
-  min-height: 540px;
+
   display: flex;
   flex-direction: column;
+
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar-title {
@@ -117,20 +174,29 @@
   font-weight: 700;
   letter-spacing: 1.3px;
   color: #9aa2af;
+
   padding: 9px 12px 13px;
+
+  flex-shrink: 0;
 }
 
 .settings-nav {
   width: 100%;
+  flex-shrink: 0;
+
   border: none;
   background: transparent;
+
   display: flex;
   align-items: center;
   gap: 11px;
+
   text-align: left;
   padding: 12px;
+
   border-radius: 8px;
   margin-bottom: 4px;
+
   cursor: pointer;
   color: #596577;
 }
@@ -148,10 +214,13 @@
   width: 31px;
   height: 31px;
   border-radius: 7px;
+
   background: #f1f3f6;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   font-size: 13px;
   flex-shrink: 0;
 }
@@ -177,10 +246,14 @@
 
 .sidebar-footer {
   margin-top: auto;
+  flex-shrink: 0;
+
   border-top: 1px solid #edf0f4;
   padding: 16px 10px 5px;
+
   color: #697586;
   font-size: 10px;
+
   display: flex;
   align-items: center;
   gap: 7px;
@@ -189,28 +262,96 @@
 .status-circle {
   width: 7px;
   height: 7px;
+
   border-radius: 50%;
   background: #5f9479;
 }
 
-
 /* =========================================
-   MAIN CONTENT
+   MAIN CONTENT CONTAINER
+   Prevent the outer content from scrolling
 ========================================= */
 
 .settings-content {
+  display: flex;
+  flex-direction: column;
+
+  flex: 1 1 0;
+
+  width: 100%;
   min-width: 0;
+  min-height: 0;
+
+  overflow: hidden;
 }
+
+/* =========================================
+   SYSTEM SETTINGS INTERNAL SCROLL AREA
+   Requires .system-settings-scroll wrapper
+   around the content inside <main>.
+========================================= */
+
+.system-settings-scroll {
+  flex: 1 1 0;
+
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+
+  padding: 0;
+  margin: 0;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Scrollbar styling */
+
+.system-settings-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.system-settings-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.system-settings-scroll::-webkit-scrollbar-thumb {
+  background: #cbd3de;
+  border-radius: 8px;
+}
+
+.system-settings-scroll::-webkit-scrollbar-thumb:hover {
+  background: #9ca9ba;
+}
+
+/* Firefox */
+
+.system-settings-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd3de transparent;
+}
+
+/* =========================================
+   CONTENT TITLE
+========================================= */
 
 .content-title {
   background: #ffffff;
   border: 1px solid #e0e5ec;
   border-radius: 11px;
+
   padding: 20px 23px;
+
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 15px;
+
   margin-bottom: 14px;
 }
 
@@ -221,19 +362,22 @@
 
 .content-title p {
   margin: 5px 0 0;
+
   font-size: 11px;
   color: #8a94a3;
 }
 
 .saved-status {
   flex-shrink: 0;
+
   font-size: 10px;
   color: #4c8066;
+
   background: #eef7f1;
   padding: 7px 10px;
+
   border-radius: 6px;
 }
-
 
 /* =========================================
    SETTING SECTIONS
@@ -243,7 +387,9 @@
   background: #ffffff;
   border: 1px solid #e0e5ec;
   border-radius: 11px;
+
   margin-bottom: 14px;
+
   overflow: hidden;
 }
 
@@ -251,20 +397,26 @@
   display: flex;
   align-items: center;
   gap: 13px;
+
   padding: 20px 23px;
+
   border-bottom: 1px solid #edf0f4;
 }
 
 .section-icon {
   width: 35px;
   height: 35px;
+
   flex-shrink: 0;
+
   border-radius: 8px;
   background: #edf2f7;
   color: #536a88;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   font-size: 14px;
 }
 
@@ -285,11 +437,11 @@
 
 .section-heading p {
   margin: 4px 0 0;
+
   color: #8b94a2;
   font-size: 10px;
   line-height: 1.5;
 }
-
 
 /* =========================================
    SETTING ROWS
@@ -300,7 +452,9 @@
   justify-content: space-between;
   align-items: center;
   gap: 15px;
+
   padding: 18px 23px;
+
   border-bottom: 1px solid #edf0f4;
 }
 
@@ -312,6 +466,7 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
+
   padding-right: 15px;
 }
 
@@ -326,44 +481,56 @@
   line-height: 1.5;
 }
 
-
 /* =========================================
    TOGGLE SWITCH
 ========================================= */
 
 .switch {
   position: relative;
+
   width: 42px;
   height: 23px;
+
   flex-shrink: 0;
 }
 
 .switch input {
   position: absolute;
+
   width: 1px;
   height: 1px;
+
   opacity: 0;
 }
 
 .slider {
   position: absolute;
   inset: 0;
+
   background: #cbd1d9;
   border-radius: 20px;
+
   cursor: pointer;
+
   transition: background 0.2s ease;
 }
 
 .slider::before {
   content: "";
+
   position: absolute;
+
   width: 17px;
   height: 17px;
+
   left: 3px;
   top: 3px;
+
   background: #ffffff;
   border-radius: 50%;
+
   transition: transform 0.2s ease;
+
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
@@ -380,7 +547,6 @@
   outline-offset: 3px;
 }
 
-
 /* =========================================
    FORM
 ========================================= */
@@ -389,6 +555,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+
   padding: 21px 23px 5px;
 }
 
@@ -396,6 +563,7 @@
   display: flex;
   flex-direction: column;
   gap: 7px;
+
   min-width: 0;
 }
 
@@ -409,11 +577,15 @@
 .form-field select {
   width: 100%;
   height: 38px;
+
   border: 1px solid #d9dee6;
   border-radius: 7px;
+
   padding: 0 11px;
+
   font-size: 11px;
   color: #344054;
+
   background: #ffffff;
   outline: none;
 }
@@ -433,7 +605,6 @@
   color: #969eaa;
 }
 
-
 /* =========================================
    SAVE AREA
 ========================================= */
@@ -441,12 +612,17 @@
 .save-area {
   background: #263a56;
   border-radius: 10px;
+
   padding: 17px 20px;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 15px;
+
   margin-top: 17px;
+  margin-bottom: 4px;
+
   color: #ffffff;
 }
 
@@ -474,9 +650,12 @@
 .cancel-btn,
 .save-btn {
   padding: 9px 14px;
+
   border-radius: 6px;
+
   font-size: 11px;
   font-weight: 600;
+
   cursor: pointer;
 }
 
@@ -499,7 +678,6 @@
 .save-btn:hover {
   background: #edf2f7;
 }
-
 
 /* =========================================
    RESPONSIVE
@@ -527,14 +705,21 @@
 @media (max-width: 850px) {
   .settings-layout {
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 12px;
   }
 
   .settings-sidebar {
     min-height: auto;
+    max-height: 180px;
   }
 
   .sidebar-footer {
     margin-top: 15px;
+  }
+
+  .settings-content {
+    min-height: 0;
   }
 
   .form-grid {

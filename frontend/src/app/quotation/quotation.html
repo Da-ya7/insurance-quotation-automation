@@ -76,26 +76,38 @@
       <div class="filter-section">
         <label>Status</label>
 
-        <button type="button" class="filter-option"
-          [class.selected]="statusFilter === 'ALL'" (click)="setStatus('ALL')">
+        <button
+          type="button"
+          class="filter-option"
+          [class.selected]="statusFilter === 'ALL'"
+          (click)="setStatus('ALL')">
           <span>All Quotations</span>
           <b>{{ quotations.length }}</b>
         </button>
 
-        <button type="button" class="filter-option"
-          [class.selected]="statusFilter === 'SENT'" (click)="setStatus('SENT')">
+        <button
+          type="button"
+          class="filter-option"
+          [class.selected]="statusFilter === 'SENT'"
+          (click)="setStatus('SENT')">
           <span>Sent</span>
           <b>{{ sentCount }}</b>
         </button>
 
-        <button type="button" class="filter-option"
-          [class.selected]="statusFilter === 'NOT_SENT'" (click)="setStatus('NOT_SENT')">
+        <button
+          type="button"
+          class="filter-option"
+          [class.selected]="statusFilter === 'NOT_SENT'"
+          (click)="setStatus('NOT_SENT')">
           <span>Not sent</span>
           <b>{{ notSentCount }}</b>
         </button>
       </div>
 
-      <button type="button" class="clear-filter" (click)="clearFilters()">
+      <button
+        type="button"
+        class="clear-filter"
+        (click)="clearFilters()">
         Clear Filters
       </button>
 
@@ -104,6 +116,7 @@
     <!-- QUOTATION CONTENT -->
     <main class="quotation-content">
 
+      <!-- FIXED SECTION HEADER -->
       <div class="content-header">
         <div>
           <h2>Recent Quotations</h2>
@@ -120,71 +133,126 @@
         </button>
       </div>
 
-      <div class="quotation-card" *ngFor="let q of filteredQuotations">
+      <!-- SCROLLABLE QUOTATION LIST -->
+      <div class="quotation-list">
 
-        <div class="quotation-top">
-          <div class="quotation-number">{{ q.quotationNumber }}</div>
-          <span class="status"
-            [ngClass]="q.status === 'SENT' ? 'generated-status' : 'processing-status'">
-            ● {{ q.status === 'SENT' ? 'Sent' : 'Not sent' }}
-          </span>
-        </div>
+        <!-- QUOTATION CARDS -->
+        <div
+          class="quotation-card"
+          *ngFor="let q of filteredQuotations">
 
-        <div class="quotation-details">
-
-          <div class="customer">
-            <div class="customer-avatar" [ngClass]="avatarColor(q.requestId)">
-              {{ initials(q.clientName, q.clientEmail) }}
+          <div class="quotation-top">
+            <div class="quotation-number">
+              {{ q.quotationNumber }}
             </div>
-            <div>
-              <strong>{{ q.clientName || 'Name not provided' }}</strong>
-              <span>{{ q.clientEmail }}</span>
-            </div>
+
+            <span
+              class="status"
+              [ngClass]="q.status === 'SENT'
+                ? 'generated-status'
+                : 'processing-status'">
+              ● {{ q.status === 'SENT' ? 'Sent' : 'Not sent' }}
+            </span>
           </div>
 
-          <div class="trip-info">
-            <div>
-              <small>Premium</small>
-              <strong>{{ money(q.premium, q.currency) }}</strong>
+          <!-- CUSTOMER AND TRIP DETAILS -->
+          <div class="quotation-details">
+
+            <div class="customer">
+              <div
+                class="customer-avatar"
+                [ngClass]="avatarColor(q.requestId)">
+                {{ initials(q.clientName, q.clientEmail) }}
+              </div>
+
+              <div>
+                <strong>
+                  {{ q.clientName || 'Name not provided' }}
+                </strong>
+                <span>{{ q.clientEmail }}</span>
+              </div>
             </div>
-            <div>
-              <small>Tax</small>
-              <strong>{{ money(q.tax, q.currency) }}</strong>
+
+            <div class="trip-info">
+
+              <div>
+                <small>Premium</small>
+                <strong>{{ money(q.premium, q.currency) }}</strong>
+              </div>
+
+              <div>
+                <small>Tax</small>
+                <strong>{{ money(q.tax, q.currency) }}</strong>
+              </div>
+
+              <div>
+                <small>Total</small>
+                <strong class="premium">
+                  {{ money(q.total, q.currency) }}
+                </strong>
+              </div>
+
             </div>
-            <div>
-              <small>Total</small>
-              <strong class="premium">{{ money(q.total, q.currency) }}</strong>
+
+          </div>
+
+          <!-- QUOTATION FOOTER -->
+          <div class="quotation-footer">
+
+            <span>
+              Created {{ shortDate(q.createdAt) }}
+              <ng-container *ngIf="q.sentAt">
+                · Sent {{ shortDate(q.sentAt) }}
+              </ng-container>
+            </span>
+
+            <div class="quotation-actions">
+
+              <button
+                type="button"
+                class="outline-btn"
+                [disabled]="!q.hasPdf"
+                (click)="openPdf(q)">
+                View
+              </button>
+
+              <button
+                type="button"
+                class="pdf-btn"
+                [class.disabled]="!q.hasPdf"
+                [disabled]="!q.hasPdf"
+                (click)="downloadPdf(q)">
+                ↓ Download PDF
+              </button>
+
             </div>
+
           </div>
 
         </div>
 
-        <div class="quotation-footer">
-          <span>
-            Created {{ shortDate(q.createdAt) }}
-            <ng-container *ngIf="q.sentAt"> · Sent {{ shortDate(q.sentAt) }}</ng-container>
-          </span>
+        <!-- LOADING MESSAGE -->
+        <p *ngIf="loading">Loading quotations...</p>
 
-          <div class="quotation-actions">
-            <button type="button" class="outline-btn"
-              [disabled]="!q.hasPdf" (click)="openPdf(q)">View</button>
-            <button type="button" class="pdf-btn"
-              [class.disabled]="!q.hasPdf" [disabled]="!q.hasPdf"
-              (click)="downloadPdf(q)">↓ Download PDF</button>
-          </div>
-        </div>
+        <!-- ERROR MESSAGE -->
+        <p *ngIf="errorMessage">{{ errorMessage }}</p>
+
+        <!-- EMPTY STATE -->
+        <p
+          *ngIf="!loading &&
+                 !errorMessage &&
+                 filteredQuotations.length === 0">
+          No quotations found.
+        </p>
 
       </div>
+      <!-- END SCROLLABLE QUOTATION LIST -->
 
-      <p *ngIf="loading">Loading quotations...</p>
-      <p *ngIf="errorMessage">{{ errorMessage }}</p>
-      <p *ngIf="!loading && !errorMessage && filteredQuotations.length === 0">
-        No quotations found.
-      </p>
-
+      <!-- PAGINATION OUTSIDE THE SCROLLABLE LIST -->
       <div class="pagination">
         <span>
-          Showing {{ filteredQuotations.length }} of {{ quotations.length }} quotations
+          Showing {{ filteredQuotations.length }}
+          of {{ quotations.length }} quotations
         </span>
       </div>
 
