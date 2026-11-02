@@ -69,6 +69,12 @@ public class PublicFormController {
     public record IdentityOption(String code, String label, String example) {
     }
 
+    public record NewCustomerOtpSendRequest(String phone) {
+    }
+
+    public record NewCustomerOtpVerifyRequest(String challengeId, String code) {
+    }
+
     @GetMapping("/master/insurance-types")
     public List<TypeOption> insuranceTypes() {
         return masterData.insuranceTypes(true).stream()
@@ -110,6 +116,76 @@ public class PublicFormController {
                         f.getSortOrder() == null ? 0 : f.getSortOrder()))
                 .toList();
         return new FormDefinition(def.code(), def.label(), fields);
+    }
+
+    // ---------------- new customer phone verification ----------------
+
+    @PostMapping("/phone-otp/send")
+    public ResponseEntity<?> sendNewCustomerOtp(
+            @RequestBody NewCustomerOtpSendRequest body) {
+
+        if (body == null || body.phone() == null || body.phone().isBlank()) {
+            return ResponseEntity.badRequest().body(
+                    Map.of("sent", false, "message", "Please enter your phone number."));
+        }
+
+        try {
+            OtpService.NewCustomerSendResult result =
+                    otp.sendNewCustomerOtp(body.phone());
+
+            return ResponseEntity.ok(Map.of(
+                    "sent", true,
+                    "challengeId", result.challengeId(),
+                    "phoneMasked", result.phoneMasked(),
+                    "expiresInSeconds", result.expiresInSeconds()
+            ));
+
+        } catch (OtpService.OtpException e) {
+            HttpStatus status = switch (e.getReason()) {
+                case NO_PHONE, INVALID_CHALLENGE -> HttpStatus.BAD_REQUEST;
+                case TOO_MANY_REQUESTS -> HttpStatus.TOO_MANY_REQUESTS;
+                case SEND_FAILED -> HttpStatus.BAD_GATEWAY;
+            };
+
+            return ResponseEntity.status(status).body(
+                    Map.of("sent", false, "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/phone-otp/verify")
+    public ResponseEntity<?> verifyNewCustomerOtp(
+            @RequestBody NewCustomerOtpVerifyRequest body) {
+
+        if (body == null || body.challengeId() == null || body.code() == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "verified", false,
+                    "message", "Challenge ID and OTP are required."
+            ));
+        }
+
+        try {
+            OtpService.NewCustomerVerifyResult result =
+                    otp.verifyNewCustomerOtp(body.challengeId(), body.code());
+
+            if (!result.verified()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "verified", false,
+                        "attemptsLeft", result.attemptsLeft(),
+                        "message", result.message()
+                ));
+            }
+
+            return ResponseEntity.ok(Map.of(
+                    "verified", true,
+                    "verificationToken", result.verificationToken()
+            ));
+
+        } catch (OtpService.OtpException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "verified", false,
+                    "message", e.getMessage()
+            ));
+        }
     }
 
     // ---------------- personal form links ----------------
@@ -182,6 +258,7 @@ public class PublicFormController {
                 case NO_PHONE -> HttpStatus.BAD_REQUEST;
                 case TOO_MANY_REQUESTS -> HttpStatus.TOO_MANY_REQUESTS;
                 case SEND_FAILED -> HttpStatus.BAD_GATEWAY;
+                default -> HttpStatus.BAD_REQUEST;
             };
             return ResponseEntity.status(status).body(Map.of("message", e.getMessage()));
         }
