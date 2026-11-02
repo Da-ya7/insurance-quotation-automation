@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
+import { clearSession, currentRole, currentUserName } from '../core/auth';
 import {
   RouterOutlet,
   RouterLink,
@@ -22,6 +23,8 @@ import {
 export class Layout {
 
   sidebarOpen = true;
+  readonly userName = currentUserName;
+  readonly role = currentRole;
 
   constructor(
     public router: Router,
@@ -42,8 +45,7 @@ export class Layout {
     );
 
     if (confirmed) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('authToken');
+      clearSession();
 
       this.router.navigate(['/login']);
     }

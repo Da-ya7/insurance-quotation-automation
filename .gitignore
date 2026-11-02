@@ -68,3 +68,9 @@ replay_pid*
 credentials/
 tokens/
 token.json
+# Backups of OAuth tokens (never commit)
+tokens_backup*/
+**/StoredCredential
+
+# Generated customer PDFs (contain personal data)
+generated/

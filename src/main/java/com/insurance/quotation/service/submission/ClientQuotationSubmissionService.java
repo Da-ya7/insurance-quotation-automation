@@ -26,7 +26,7 @@ import com.insurance.quotation.entity.enums.FieldDataType;
 import com.insurance.quotation.entity.enums.FieldSource;
 import com.insurance.quotation.entity.enums.RequestStatus;
 import com.insurance.quotation.repository.AuditLogRepository;
-import com.insurance.quotation.repository.ClientRepository;
+import com.insurance.quotation.service.client.ClientMasterService;
 import com.insurance.quotation.repository.QuotationRequestRepository;
 import com.insurance.quotation.repository.QuotationRequestTravellerRepository;
 import com.insurance.quotation.service.extraction.ExtractedFieldData;
@@ -41,7 +41,7 @@ public class ClientQuotationSubmissionService {
             "HOLIDAY", "BUSINESS", "STUDY", "FAMILY_VISIT", "OTHER"
     );
 
-    private final ClientRepository clientRepository;
+    private final ClientMasterService clientMasterService;
     private final QuotationRequestRepository requestRepository;
     private final QuotationRequestTravellerRepository travellerRepository;
     private final AuditLogRepository auditLogRepository;
@@ -50,7 +50,7 @@ public class ClientQuotationSubmissionService {
     private final QuotationEmailService quotationEmailService;
 
     public ClientQuotationSubmissionService(
-            ClientRepository clientRepository,
+            ClientMasterService clientMasterService,
             QuotationRequestRepository requestRepository,
             QuotationRequestTravellerRepository travellerRepository,
             AuditLogRepository auditLogRepository,
@@ -58,7 +58,7 @@ public class ClientQuotationSubmissionService {
             QuotationGenerationService quotationGenerationService,
             QuotationEmailService quotationEmailService) {
 
-        this.clientRepository = clientRepository;
+        this.clientMasterService = clientMasterService;
         this.requestRepository = requestRepository;
         this.travellerRepository = travellerRepository;
         this.auditLogRepository = auditLogRepository;
@@ -94,18 +94,15 @@ public class ClientQuotationSubmissionService {
         LocalDateTime now = LocalDateTime.now();
         String email = form.email().trim().toLowerCase(Locale.ROOT);
 
-        Client client = clientRepository.findByEmail(email)
-                .orElseGet(Client::new);
-
-        if (client.getId() == null) {
-            client.setEmail(email);
-            client.setCreatedAt(now);
-        }
-
-        client.setName(form.name().trim());
-        client.setPhone(form.phone().trim());
-        client.setUpdatedAt(now);
-        client = clientRepository.save(client);
+        // Separate record per person; an existing client's saved details are
+        // never silently overwritten (changes need OTP).
+        Client client = clientMasterService.findOrCreateAndApply(
+                new ClientMasterService.ClientDetails(
+                        form.name(), email, digitsOnly(form.phone()),
+                        form.dateOfBirth(), form.gender(), form.nationality(),
+                        form.countryOfResidence(), form.nationality(),
+                        "PASSPORT", form.passportNumber()),
+                "FORM", "CUSTOMER_FORM", false).client();
 
         QuotationRequest request = new QuotationRequest();
         request.setClient(client);

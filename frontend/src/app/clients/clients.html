@@ -25,7 +25,6 @@
   <div class="summary-cards">
     <div class="summary-card">
       <div class="summary-icon clients-icon">👥</div>
-
       <div class="summary-info">
         <span>Total Clients</span>
         <strong>{{ clients.length }}</strong>
@@ -37,52 +36,50 @@
   <!-- CLIENT MANAGEMENT CONTAINER -->
   <div class="client-container">
 
-    <!-- SECTION HEADER -->
     <div class="section-header">
       <div>
         <h2>Client Management</h2>
         <p>View and manage your insurance clients</p>
       </div>
+      <button type="button" class="x-btn" (click)="load()">↻ Refresh</button>
     </div>
 
-    <!-- TOOLBAR -->
     <div class="toolbar">
       <div class="search-box">
         <span>⌕</span>
-
         <input
           type="text"
-          placeholder="Search by name, email or phone..."
+          placeholder="Search by name, code, email or phone..."
           aria-label="Search clients"
           [(ngModel)]="searchText" />
       </div>
     </div>
 
-    <!-- CLIENT TABLE -->
     <div class="table-wrapper">
       <table>
         <thead>
           <tr>
             <th>CLIENT</th>
             <th>CONTACT</th>
-            <th>CLIENT ID</th>
+            <th>IDENTITY</th>
+            <th>PHONE</th>
+            <th>VERSION</th>
+            <th>REQUESTS</th>
           </tr>
         </thead>
 
         <tbody>
-          <tr *ngFor="let client of filteredClients">
+          <tr *ngFor="let client of filteredClients" class="x-row-click"
+              [class.x-row-selected]="selected?.id === client.id"
+              (click)="select(client)">
             <td>
               <div class="client-cell">
-                <div
-                  class="client-avatar"
-                  [ngClass]="avatarColor(client.id)">
+                <div class="client-avatar" [ngClass]="avatarColor(client.id)">
                   {{ initials(client.name, client.email) }}
                 </div>
-
                 <div class="client-info">
-                  <strong>
-                    {{ client.name || 'Name not provided' }}
-                  </strong>
+                  <strong>{{ client.name || 'Name not provided' }}</strong>
+                  <small class="code">{{ client.clientCode }}</small>
                 </div>
               </div>
             </td>
@@ -94,35 +91,136 @@
               </div>
             </td>
 
-            <td>CL-{{ client.id }}</td>
+            <td>
+              <span *ngIf="client.identityType">{{ client.identityType }} · {{ client.identityNumberMasked }}</span>
+              <span *ngIf="!client.identityType" class="x-muted">-</span>
+            </td>
+
+            <td>
+              <span class="x-badge" [ngClass]="client.phoneVerified ? 'x-green' : 'x-grey'">
+                {{ client.phoneVerified ? 'Phone verified' : 'Not verified' }}
+              </span>
+            </td>
+
+            <td>v{{ client.versionNo }}</td>
+            <td>{{ client.requestCount }}</td>
           </tr>
 
-          <tr *ngIf="loading">
-            <td colspan="3">Loading clients...</td>
-          </tr>
-
-          <tr *ngIf="errorMessage">
-            <td colspan="3">{{ errorMessage }}</td>
-          </tr>
-
-          <tr
-            *ngIf="
-              !loading &&
-              !errorMessage &&
-              filteredClients.length === 0
-            ">
-            <td colspan="3">No clients found.</td>
+          <tr *ngIf="loading"><td colspan="6">Loading clients...</td></tr>
+          <tr *ngIf="errorMessage"><td colspan="6" class="err">{{ errorMessage }}</td></tr>
+          <tr *ngIf="!loading && !errorMessage && filteredClients.length === 0">
+            <td colspan="6">No clients found.</td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <!-- TABLE FOOTER -->
     <div class="table-footer">
       <span>
         Showing <strong>{{ filteredClients.length }}</strong>
         of <strong>{{ clients.length }}</strong> clients
       </span>
+    </div>
+
+  </div>
+
+  <!-- CLIENT DETAILS -->
+  <div class="x-panel detail-panel" id="client-detail" *ngIf="selected as c">
+
+    <div class="detail-head">
+      <h3>{{ c.clientCode }} · {{ c.name || 'Name not provided' }} <span class="x-badge x-blue">v{{ c.versionNo }}</span></h3>
+      <div>
+        <button type="button" class="x-btn x-primary x-sm" *ngIf="!editing" (click)="startEdit()">Edit</button>
+        <button type="button" class="x-btn x-sm" (click)="closeDetail()">Close</button>
+      </div>
+    </div>
+
+    <p class="x-banner x-ok" *ngIf="editOk">{{ editOk }}</p>
+
+    <dl class="x-kv" *ngIf="!editing">
+      <dt>Client code</dt><dd>{{ c.clientCode }}</dd>
+      <dt>Name</dt><dd>{{ c.name || '-' }}</dd>
+      <dt>Email</dt><dd>{{ c.email }}</dd>
+      <dt>Phone</dt>
+      <dd>{{ c.phone || '-' }}
+        <span class="x-badge" [ngClass]="c.phoneVerified ? 'x-green' : 'x-grey'">{{ c.phoneVerified ? 'Verified' : 'Not verified' }}</span></dd>
+      <dt>Date of birth</dt><dd>{{ c.dateOfBirth || '-' }}</dd>
+      <dt>Gender</dt><dd>{{ c.gender ? statusLabel(c.gender) : '-' }}</dd>
+      <dt>Nationality</dt><dd>{{ c.nationality || '-' }}</dd>
+      <dt>Country of residence</dt><dd>{{ c.countryOfResidence || '-' }}</dd>
+      <dt>Identity</dt>
+      <dd>{{ c.identityType || '-' }} {{ c.identityNumberMasked }} <span class="x-muted" *ngIf="c.identityCountry">({{ c.identityCountry }})</span></dd>
+      <dt>Quotation requests</dt>
+      <dd>{{ c.requestCount }}</dd>
+      <dt>Created</dt><dd>{{ shortDate(c.createdAt) }}</dd>
+      <dt>Last updated</dt><dd>{{ c.updatedAt ? shortDate(c.updatedAt) : '-' }}</dd>
+    </dl>
+
+    <!-- EDIT FORM -->
+    <form *ngIf="editing" class="edit-grid" (ngSubmit)="save()">
+      <label>Name<input class="x-input" name="name" [(ngModel)]="form.name" /></label>
+      <label>Email<input class="x-input" type="email" name="email" [(ngModel)]="form.email" /></label>
+      <label>Phone<input class="x-input" name="phone" [(ngModel)]="form.phone" /></label>
+      <label>Date of birth<input class="x-input" type="date" name="dob" [(ngModel)]="form.dateOfBirth" /></label>
+      <label>Gender
+        <select class="x-select" name="gender" [(ngModel)]="form.gender">
+          <option value="">-</option>
+          <option value="MALE">Male</option>
+          <option value="FEMALE">Female</option>
+          <option value="OTHER">Other</option>
+          <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+        </select>
+      </label>
+      <label>Nationality<input class="x-input" name="nationality" [(ngModel)]="form.nationality" /></label>
+      <label>Country of residence<input class="x-input" name="residence" [(ngModel)]="form.countryOfResidence" /></label>
+      <label>Identity country
+        <select class="x-select" name="idCountry" [(ngModel)]="form.identityCountry" (ngModelChange)="loadIdentityTypes(true)">
+          <option value="">-</option>
+          <option *ngFor="let k of countries" [value]="k.code">{{ k.name }} ({{ k.code }})</option>
+        </select>
+      </label>
+      <label>Identity type
+        <select class="x-select" name="idType" [(ngModel)]="form.identityType">
+          <option value="">-</option>
+          <option *ngFor="let t of identityTypes" [value]="t.code">{{ t.label }}</option>
+        </select>
+      </label>
+      <label>Identity number (write-only, leave empty to keep)
+        <input class="x-input" name="idNumber" [(ngModel)]="form.identityNumber" autocomplete="off"
+               [placeholder]="c.identityNumberMasked || ''" />
+      </label>
+
+      <p class="x-banner x-error wide" *ngIf="editError">{{ editError }}</p>
+
+      <div class="wide">
+        <button type="submit" class="x-btn x-primary" [disabled]="saving">{{ saving ? 'Saving...' : 'Save changes' }}</button>
+        <button type="button" class="x-btn" (click)="cancelEdit()" [disabled]="saving">Cancel</button>
+      </div>
+    </form>
+
+    <h4>Version history (newest first)</h4>
+    <p class="x-banner x-error" *ngIf="detailError">{{ detailError }}</p>
+    <p class="x-muted" *ngIf="!versions.length && !detailError">No version history.</p>
+    <div class="scroll-x" *ngIf="versions.length">
+      <table class="x-table">
+        <thead>
+          <tr><th>Ver.</th><th>Time</th><th>Changed fields</th><th>Changed by</th><th>Source</th><th>OTP</th><th>Snapshot</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let v of versions">
+            <td>v{{ v.versionNo }}</td>
+            <td>{{ shortDate(v.createdAt) }}</td>
+            <td>{{ v.changedFields || '-' }}</td>
+            <td>{{ v.changedBy || '-' }}</td>
+            <td>{{ v.changeSource ? statusLabel(v.changeSource) : '-' }}</td>
+            <td><span class="x-badge" [ngClass]="v.otpVerified ? 'x-green' : 'x-grey'">{{ v.otpVerified ? 'Verified' : 'No' }}</span></td>
+            <td class="x-muted">
+              {{ v.name }} · {{ v.email }} · {{ v.phone }}
+              <ng-container *ngIf="v.identityType"> · {{ v.identityType }} {{ v.identityNumberMasked }}</ng-container>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
   </div>

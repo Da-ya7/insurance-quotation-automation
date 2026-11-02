@@ -12,9 +12,17 @@ public class Quotation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
-    @JoinColumn(name = "quotation_request_id", nullable = false, unique = true)
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "quotation_request_id", nullable = false)
     private QuotationRequest quotationRequest;
+
+    // Version of this quotation for the request (1 = first, 2 = re-quote ...).
+    @Column(name = "version_no", nullable = false)
+    private Integer versionNo = 1;
+
+    // Client record version that was used when the quotation was made.
+    @Column(name = "client_version_no")
+    private Integer clientVersionNo;
 
     @Column(name = "quotation_number", nullable = false, unique = true, length = 30)
     private String quotationNumber;
@@ -52,6 +60,22 @@ public class Quotation {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Integer getVersionNo() {
+        return versionNo;
+    }
+
+    public void setVersionNo(Integer versionNo) {
+        this.versionNo = versionNo;
+    }
+
+    public Integer getClientVersionNo() {
+        return clientVersionNo;
+    }
+
+    public void setClientVersionNo(Integer clientVersionNo) {
+        this.clientVersionNo = clientVersionNo;
     }
 
     public QuotationRequest getQuotationRequest() {

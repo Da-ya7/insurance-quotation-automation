@@ -1,0 +1,183 @@
+<div class="md-page">
+
+  <div class="md-header">
+    <button type="button" class="md-back" (click)="goBack()" aria-label="Go back" title="Go back">&larr;</button>
+    <div>
+      <h1>Master Data</h1>
+      <p>Insurance types, required fields, identity documents, countries and email keywords</p>
+    </div>
+  </div>
+
+  <p class="x-banner x-info" *ngIf="!admin">View only. Only administrators can change master data.</p>
+  <p class="x-banner x-error" *ngIf="error">{{ error }}</p>
+  <p class="x-banner x-ok" *ngIf="ok">{{ ok }}</p>
+
+  <div class="md-tabs" role="tablist">
+    <button type="button" *ngFor="let t of tabs" role="tab"
+      [class.active]="tab === t.id" (click)="open(t.id)">{{ t.label }}</button>
+  </div>
+
+  <div class="x-panel md-body">
+
+    <p class="x-muted" *ngIf="loading">Loading...</p>
+
+    <!-- INSURANCE TYPES -->
+    <ng-container *ngIf="tab === 'types'">
+      <div class="scroll-x">
+        <table class="x-table">
+          <thead>
+            <tr><th>Code</th><th>Label</th><th>Keywords</th><th>Base premium</th><th>Rate %</th><th>Rate basis field</th><th>Order</th><th>Active</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of types">
+              <td><strong>{{ t.code }}</strong></td>
+              <td><input class="x-input" [(ngModel)]="t.label" [disabled]="!admin" /></td>
+              <td><input class="x-input" [(ngModel)]="t.keywords" [disabled]="!admin" /></td>
+              <td><input class="x-input narrow" type="number" [(ngModel)]="t.basePremium" [disabled]="!admin" /></td>
+              <td><input class="x-input narrow" type="number" [(ngModel)]="t.ratePercent" [disabled]="!admin" /></td>
+              <td><input class="x-input" [(ngModel)]="t.rateBasisField" [disabled]="!admin" /></td>
+              <td><input class="x-input narrow" type="number" [(ngModel)]="t.sortOrder" [disabled]="!admin" /></td>
+              <td><input type="checkbox" [(ngModel)]="t.active" [disabled]="!admin" /></td>
+              <td><button type="button" class="x-btn x-sm x-primary" *ngIf="admin" (click)="saveType(t)">Save</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="x-empty" *ngIf="!loading && !types.length">No insurance types.</p>
+
+      <div class="md-add" *ngIf="admin">
+        <h4>Add insurance type</h4>
+        <input class="x-input" placeholder="Code (e.g. HEALTH)" [(ngModel)]="newType.code" />
+        <input class="x-input" placeholder="Label" [(ngModel)]="newType.label" />
+        <button type="button" class="x-btn x-primary" (click)="addType()">Add</button>
+      </div>
+    </ng-container>
+
+    <!-- REQUIRED FIELDS -->
+    <ng-container *ngIf="tab === 'fields'">
+      <div class="x-toolbar">
+        <label>Insurance type
+          <select class="x-select" [(ngModel)]="fieldType" (ngModelChange)="loadFields()">
+            <option *ngFor="let t of types" [value]="t.code">{{ t.label }} ({{ t.code }})</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="scroll-x">
+        <table class="x-table">
+          <thead>
+            <tr><th>Field name</th><th>Label</th><th>Type</th><th>Regex</th><th>Help text</th><th>Order</th><th>Mandatory</th><th>Active</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let f of fields">
+              <td><strong>{{ f.fieldName }}</strong><div class="x-muted" *ngIf="f.policyType">{{ f.policyType }}</div></td>
+              <td><input class="x-input" [(ngModel)]="f.displayLabel" [disabled]="!admin" /></td>
+              <td>
+                <select class="x-select" [(ngModel)]="f.dataType" [disabled]="!admin">
+                  <option *ngFor="let d of dataTypes" [value]="d">{{ d }}</option>
+                </select>
+              </td>
+              <td><input class="x-input" [(ngModel)]="f.validationRegex" [disabled]="!admin" /></td>
+              <td><input class="x-input" [(ngModel)]="f.helpText" [disabled]="!admin" /></td>
+              <td><input class="x-input narrow" type="number" [(ngModel)]="f.sortOrder" [disabled]="!admin" /></td>
+              <td><input type="checkbox" [(ngModel)]="f.isMandatory" [disabled]="!admin" /></td>
+              <td><input type="checkbox" [(ngModel)]="f.isActive" [disabled]="!admin" /></td>
+              <td><button type="button" class="x-btn x-sm x-primary" *ngIf="admin" (click)="saveField(f)">Save</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="x-empty" *ngIf="!loading && !fields.length">No fields configured for this insurance type.</p>
+
+      <div class="md-add" *ngIf="admin && fieldType">
+        <h4>Add field to {{ fieldType }}</h4>
+        <input class="x-input" placeholder="fieldName (camelCase)" [(ngModel)]="newField.fieldName" />
+        <input class="x-input" placeholder="Label" [(ngModel)]="newField.displayLabel" />
+        <select class="x-select" [(ngModel)]="newField.dataType">
+          <option *ngFor="let d of dataTypes" [value]="d">{{ d }}</option>
+        </select>
+        <input class="x-input" placeholder="Regex (optional)" [(ngModel)]="newField.validationRegex" />
+        <input class="x-input" placeholder="Help text (optional)" [(ngModel)]="newField.helpText" />
+        <input class="x-input narrow" type="number" placeholder="Order" [(ngModel)]="newField.sortOrder" />
+        <label><input type="checkbox" [(ngModel)]="newField.isMandatory" /> Mandatory</label>
+        <button type="button" class="x-btn x-primary" (click)="addField()">Add field</button>
+      </div>
+    </ng-container>
+
+    <!-- IDENTITY DOCUMENTS -->
+    <ng-container *ngIf="tab === 'identity'">
+      <div class="x-toolbar">
+        <label>Country
+          <select class="x-select" [(ngModel)]="identityCountry" (ngModelChange)="loadIdentity()">
+            <option value="*">All other countries (fallback)</option>
+            <option *ngFor="let c of countries" [value]="c.code">{{ c.name }} ({{ c.code }})</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="scroll-x">
+        <table class="x-table">
+          <thead><tr><th>Code</th><th>Label</th><th>Validation regex</th><th>Example</th><th>Active</th><th></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let t of identityTypes">
+              <td><strong>{{ t.code }}</strong></td>
+              <td><input class="x-input" [(ngModel)]="t.label" [disabled]="!admin" /></td>
+              <td><input class="x-input" [(ngModel)]="t.validationRegex" [disabled]="!admin" /></td>
+              <td><input class="x-input" [(ngModel)]="t.example" [disabled]="!admin" /></td>
+              <td><input type="checkbox" [(ngModel)]="t.active" [disabled]="!admin" /></td>
+              <td><button type="button" class="x-btn x-sm x-primary" *ngIf="admin" (click)="saveIdentity(t)">Save</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="x-empty" *ngIf="!loading && !identityTypes.length">No identity documents for this country.</p>
+
+      <div class="md-add" *ngIf="admin">
+        <h4>Add identity document for {{ identityCountry === '*' ? 'fallback' : identityCountry }}</h4>
+        <input class="x-input" placeholder="Code (e.g. AADHAAR)" [(ngModel)]="newIdentity.code" />
+        <input class="x-input" placeholder="Label" [(ngModel)]="newIdentity.label" />
+        <input class="x-input" placeholder="Regex (optional)" [(ngModel)]="newIdentity.validationRegex" />
+        <input class="x-input" placeholder="Example" [(ngModel)]="newIdentity.example" />
+        <button type="button" class="x-btn x-primary" (click)="addIdentity()">Add</button>
+      </div>
+    </ng-container>
+
+    <!-- COUNTRIES -->
+    <ng-container *ngIf="tab === 'countries'">
+      <table class="x-table">
+        <thead><tr><th>Code</th><th>Name</th><th>Active</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let c of countries">
+            <td><strong>{{ c.code }}</strong></td>
+            <td>{{ c.name }}</td>
+            <td><input type="checkbox" [(ngModel)]="c.active" [disabled]="!admin" (ngModelChange)="toggleCountry(c)" /></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="x-empty" *ngIf="!loading && !countries.length">No countries.</p>
+    </ng-container>
+
+    <!-- EMAIL KEYWORDS -->
+    <ng-container *ngIf="tab === 'keywords'">
+      <p class="x-muted">Emails whose subject contains an active keyword are treated as quotation requests.</p>
+      <table class="x-table">
+        <thead><tr><th>Keyword</th><th>Active</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let k of keywords">
+            <td>{{ k.keyword }}</td>
+            <td><input type="checkbox" [(ngModel)]="k.active" [disabled]="!admin" (ngModelChange)="toggleKeyword(k)" /></td>
+            <td><button type="button" class="x-btn x-sm x-danger" *ngIf="admin" (click)="removeKeyword(k)">Remove</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="x-empty" *ngIf="!loading && !keywords.length">No keywords.</p>
+
+      <div class="md-add" *ngIf="admin">
+        <h4>Add keyword</h4>
+        <input class="x-input" placeholder="Keyword" [(ngModel)]="newKeyword" (keydown.enter)="addKeyword()" />
+        <button type="button" class="x-btn x-primary" (click)="addKeyword()">Add</button>
+      </div>
+    </ng-container>
+
+  </div>
+</div>

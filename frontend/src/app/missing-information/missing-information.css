@@ -4,49 +4,21 @@
 ================================ */
 
 :host {
-  display: flex;
-  flex: 1 1 0;
-  flex-direction: column;
-
-  width: 100%;
-  height: 100%;
+  display: block;
   min-width: 0;
-  min-height: 0;
-
-  margin: 0;
-  padding: 0;
-
-  overflow: hidden;
-  box-sizing: border-box;
 }
 
-*,
-*::before,
-*::after {
+* {
   box-sizing: border-box;
 }
-
-/* ===============================
-   MAIN PAGE
-================================ */
 
 .missing-page {
-  display: flex;
-  flex: 1 1 0;
-  flex-direction: column;
-
+  min-height: 100vh;
   width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-
   background: #f5f7fa;
   padding: 32px 36px;
-
   font-family: Arial, Helvetica, sans-serif;
   color: #172033;
-
-  overflow: hidden;
 }
 
 /* ===============================
@@ -56,9 +28,6 @@
 .page-header {
   display: flex;
   align-items: center;
-  flex: 0 0 auto;
-
-  min-width: 0;
   margin-bottom: 28px;
 }
 
@@ -66,11 +35,6 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  min-width: 0;
-}
-
-.header-content {
-  min-width: 0;
 }
 
 .header-content h1 {
@@ -92,20 +56,16 @@
   width: 42px;
   height: 42px;
   flex-shrink: 0;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   padding: 0;
   background: #ffffff;
   border: 1px solid #e1e6ef;
   border-radius: 9px;
-
   color: #374151;
   font-size: 27px;
   line-height: 1;
-
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
 }
@@ -123,15 +83,10 @@
   display: flex;
   align-items: center;
   gap: 17px;
-
-  flex: 0 0 auto;
-  min-width: 0;
-
   background: #ffffff;
   border: 1px solid #e1e5ec;
   border-left: 4px solid #d18a19;
   border-radius: 10px;
-
   padding: 18px 22px;
   margin-bottom: 22px;
 }
@@ -140,15 +95,12 @@
   width: 38px;
   height: 38px;
   flex-shrink: 0;
-
   border-radius: 50%;
   background: #fff5df;
   color: #bd7710;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   font-weight: 800;
   font-size: 18px;
 }
@@ -157,9 +109,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 1;
 }
 
 .attention-content strong {
@@ -174,7 +124,6 @@
 }
 
 .attention-count {
-  flex-shrink: 0;
   font-size: 24px;
   font-weight: 700;
   color: #bd7710;
@@ -186,28 +135,19 @@
 
 .summary-row {
   display: flex;
-  flex: 0 0 auto;
-
-  min-width: 0;
-
   background: #ffffff;
   border: 1px solid #e1e5ec;
   border-radius: 10px;
-
   margin-bottom: 30px;
   overflow: hidden;
 }
 
 .summary-item {
-  flex: 1 1 0;
-  min-width: 0;
-
+  flex: 1;
   padding: 20px 25px;
-
   display: flex;
   flex-direction: column;
   gap: 5px;
-
   border-right: 1px solid #e8ebf0;
 }
 
@@ -227,36 +167,14 @@
 }
 
 /* ===============================
-   INFORMATION REQUESTS SECTION
-================================ */
-
-.information-section {
-  display: flex;
-  flex: 1 1 0;
-  flex-direction: column;
-
-  width: 100%;
-  height: 0;
-  min-width: 0;
-  min-height: 0;
-
-  overflow: hidden;
-}
-
-/* ===============================
    SECTION HEADER
-   STAYS VISIBLE
 ================================ */
 
 .section-heading {
   display: flex;
-  flex: 0 0 auto;
-
   justify-content: space-between;
   align-items: flex-end;
   gap: 15px;
-
-  min-width: 0;
   margin-bottom: 15px;
 }
 
@@ -272,15 +190,12 @@
   color: #7a8494;
 }
 
-/* ===============================
-   REQUEST FILTERS
-================================ */
+/* REQUEST FILTERS */
 
 .request-filter {
   display: flex;
-  flex: 0 0 auto;
+  flex-shrink: 0;
   gap: 5px;
-
   background: #e9edf3;
   padding: 4px;
   border-radius: 7px;
@@ -289,13 +204,10 @@
 .request-filter button {
   border: none;
   background: transparent;
-
   padding: 7px 13px;
   border-radius: 5px;
-
   color: #697386;
   font-size: 12px;
-
   cursor: pointer;
 }
 
@@ -311,93 +223,25 @@
 }
 
 /* ===============================
-   REQUEST LIST BOX
-   ONLY THIS CONTENT SCROLLS
+   REQUEST LIST
 ================================ */
 
 .request-list {
   display: flex;
-  flex: 1 1 0;
   flex-direction: column;
   gap: 12px;
-
-  width: 100%;
-  height: 0;
-  min-width: 0;
-  min-height: 0;
-
-  overflow-y: auto;
-  overflow-x: hidden;
-
-  padding: 4px 8px 12px 0;
-
-  scrollbar-width: thin;
-  scrollbar-color: #c5ccda transparent;
-
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
 }
-
-.request-list::-webkit-scrollbar {
-  width: 7px;
-}
-
-.request-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.request-list::-webkit-scrollbar-thumb {
-  background: #c5ccda;
-  border-radius: 10px;
-}
-
-.request-list::-webkit-scrollbar-thumb:hover {
-  background: #9ba6bb;
-}
-
-/* Keep cards and messages at natural height */
-
-.request-list > * {
-  flex-shrink: 0;
-  min-width: 0;
-}
-
-/* Loading, error and empty messages */
-
-.request-list > p {
-  flex: 0 0 auto;
-  margin: 8px 0;
-
-  color: #7a8494;
-  font-size: 13px;
-}
-
-/* ===============================
-   REQUEST CARD
-================================ */
 
 .request-card {
-  flex: 0 0 auto;
-
   background: #ffffff;
   border: 1px solid #e0e5ec;
   border-radius: 11px;
-
   min-height: 120px;
-  min-width: 0;
-
   display: grid;
-  grid-template-columns:
-    minmax(150px, 1.2fr)
-    minmax(200px, 1.7fr)
-    minmax(120px, 1fr)
-    auto;
-
+  grid-template-columns: minmax(150px, 1.2fr) minmax(200px, 1.7fr) minmax(120px, 1fr) auto;
   align-items: center;
   gap: 25px;
-
   padding: 20px 24px;
-
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -414,7 +258,6 @@
   display: flex;
   align-items: center;
   gap: 13px;
-
   min-width: 0;
 }
 
@@ -422,15 +265,12 @@
   width: 43px;
   height: 43px;
   flex-shrink: 0;
-
   border-radius: 50%;
   background: #e8f0ff;
   color: #3567b8;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   font-size: 13px;
   font-weight: 700;
 }
@@ -464,19 +304,16 @@
 
 .missing-block {
   min-width: 0;
-
   border-left: 1px solid #e5e9ef;
   padding-left: 24px;
 }
 
 .block-label {
   display: block;
-
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1px;
   color: #9aa2af;
-
   margin-bottom: 7px;
 }
 
@@ -484,30 +321,24 @@
   display: flex;
   align-items: center;
   gap: 8px;
-
-  min-width: 0;
 }
 
 .field-icon {
   width: 25px;
   height: 25px;
   flex-shrink: 0;
-
   border-radius: 6px;
   background: #f1f4f8;
   color: #667085;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   font-size: 12px;
 }
 
 .missing-value strong {
   font-size: 14px;
   color: #303b4d;
-  overflow-wrap: anywhere;
 }
 
 .missing-block p {
@@ -523,7 +354,6 @@
 
 .status-block {
   min-width: 0;
-
   border-left: 1px solid #e5e9ef;
   padding-left: 24px;
 }
@@ -532,7 +362,6 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-
   font-size: 12px;
   font-weight: 600;
 }
@@ -541,7 +370,6 @@
   width: 7px;
   height: 7px;
   flex-shrink: 0;
-
   border-radius: 50%;
   display: inline-block;
 }
@@ -577,7 +405,6 @@
   display: flex;
   flex-direction: column;
   gap: 7px;
-
   min-width: 120px;
 }
 
@@ -585,10 +412,8 @@
 .remind-btn {
   border-radius: 6px;
   padding: 8px 12px;
-
   font-size: 11px;
   font-weight: 600;
-
   cursor: pointer;
   white-space: nowrap;
 }
@@ -615,22 +440,15 @@
 
 /* ===============================
    FOOTER
-   STAYS OUTSIDE THE SCROLLING BOX
 ================================ */
 
 .page-footer {
   display: flex;
-  flex: 0 0 auto;
-
   justify-content: space-between;
   align-items: center;
   gap: 15px;
-
-  min-width: 0;
-
   margin-top: 18px;
   padding: 15px 4px;
-
   font-size: 11px;
   color: #8a93a1;
 }
@@ -638,11 +456,9 @@
 .load-btn {
   border: none;
   background: transparent;
-
   color: #526b91;
   font-size: 12px;
   font-weight: 600;
-
   cursor: pointer;
 }
 
@@ -651,7 +467,7 @@
 }
 
 /* ===============================
-   RESPONSIVE - TABLET / SMALL LAPTOP
+   RESPONSIVE
 ================================ */
 
 @media (max-width: 1200px) {
@@ -660,10 +476,7 @@
   }
 
   .request-card {
-    grid-template-columns:
-      minmax(150px, 1fr)
-      minmax(200px, 1.5fr);
-
+    grid-template-columns: minmax(150px, 1fr) minmax(200px, 1.5fr);
     gap: 18px;
   }
 
@@ -684,10 +497,6 @@
     align-self: end;
   }
 }
-
-/* ===============================
-   RESPONSIVE - TABLET
-================================ */
 
 @media (max-width: 800px) {
   .missing-page {
@@ -733,7 +542,7 @@
   }
 
   .request-card {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 1fr;
     gap: 17px;
     padding: 18px;
   }
@@ -749,10 +558,6 @@
     align-self: auto;
   }
 }
-
-/* ===============================
-   RESPONSIVE - MOBILE
-================================ */
 
 @media (max-width: 500px) {
   .missing-page {
@@ -796,3 +601,9 @@
     flex-direction: column;
   }
 }
+
+/* ---- additions ---- */
+.req-line { display: block; margin-top: 4px; font-size: 12px; }
+.resolved-label { display: block; margin-top: 10px; }
+.res-chip { margin: 2px 4px 2px 0; }
+.summary-row { flex-wrap: wrap; }

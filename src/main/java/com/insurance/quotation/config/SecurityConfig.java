@@ -1,9 +1,7 @@
-
 package com.insurance.quotation.config;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -26,11 +24,10 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Value("${app.cors-origin:http://localhost:4200}")
+    @org.springframework.beans.factory.annotation.Value("${app.cors-origin:http://localhost:4200}")
     private String corsOrigin;
 
-    public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
@@ -41,8 +38,7 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration configuration)
-            throws Exception {
+            AuthenticationConfiguration configuration) throws Exception {
 
         return configuration.getAuthenticationManager();
     }
@@ -54,12 +50,14 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
 
-                .cors(cors -> cors.configurationSource(
-                        corsConfigurationSource()))
+                .cors(cors ->
+                        cors.configurationSource(corsConfigurationSource()))
 
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(
-                                SessionCreationPolicy.STATELESS))
+                                SessionCreationPolicy.STATELESS
+                        )
+                )
 
                 .authorizeHttpRequests(auth -> auth
 
@@ -76,12 +74,18 @@ public class SecurityConfig {
                                 "/api/public/**"
                         ).permitAll()
 
+                        // master data: everyone logged in can read, only ADMIN can change
+                        .requestMatchers(HttpMethod.POST, "/api/master/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/master/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/master/**").hasRole("ADMIN")
+
                         .requestMatchers("/api/**")
                         .hasAnyRole("ADMIN", "OPERATIONS")
 
                         .requestMatchers("/actuator/**")
                         .hasAnyRole("ADMIN", "OPERATIONS")
 
+                        // Anything else is just the Angular app files.
                         .anyRequest().permitAll()
                 )
 

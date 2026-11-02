@@ -15,6 +15,9 @@ import { MissingInformation } from './missing-information/missing-information';
 import { Reports } from './reports/reports';
 import { Settings } from './settings/settings';
 import { ClientQuotation } from './client-quotation/client-quotation';
+import { ClientForm } from './client-form/client-form';
+import { MasterData } from './master-data/master-data';
+import { authGuard } from './core/auth.guard';
 
 export const routes: Routes = [
 
@@ -30,9 +33,20 @@ export const routes: Routes = [
     component: Login
   },
 
+  // Public pages (no login, no layout)
   {
-  path: 'client-quotation',
-  component: ClientQuotation
+    path: 'client-quotation',
+    component: ClientQuotation
+  },
+
+  {
+    path: 'form',
+    component: ClientForm
+  },
+
+  {
+    path: 'form/:type',
+    component: ClientForm
   },
 
 
@@ -40,6 +54,7 @@ export const routes: Routes = [
   {
     path: '',
     component: Layout,
+    canActivate: [authGuard],
 
     children: [
 
@@ -79,6 +94,12 @@ export const routes: Routes = [
         component: MissingInformation
       },
 
+      // Master data
+      {
+        path: 'master-data',
+        component: MasterData
+      },
+
       // Reports
       {
         path: 'reports',
@@ -92,6 +113,12 @@ export const routes: Routes = [
       }
 
     ]
+  },
+
+  // Unknown route
+  {
+    path: '**',
+    redirectTo: 'dashboard'
   }
 
 ];

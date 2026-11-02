@@ -1,173 +1,162 @@
 package com.insurance.quotation.service.extraction;
 
+import com.insurance.quotation.entity.RequiredField;
 import com.insurance.quotation.entity.enums.FieldDataType;
 import com.insurance.quotation.entity.enums.FieldSource;
 import com.insurance.quotation.mailbox.EmailMessage;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
 public class EmailExtractionService {
 
-    private static final double EXPLICIT_FIELD_CONFIDENCE = 0.95;
-    private static final double GENERIC_FIELD_CONFIDENCE = 0.90;
-
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?(?:\\.[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?)+",
             Pattern.CASE_INSENSITIVE
     );
 
-    private static final Set<String> KNOWN_LABELS = new HashSet<>(
-            Arrays.asList(
-                    "name", "client name", "customer name",
-                    "email", "email address", "client email",
-                    "phone", "phone number", "mobile", "mobile number",
-                    "passport number", "passport no", "passport",
-                    "origin country", "country of origin",
-                    "departure country", "from country", "origin",
-                    "destination country", "destination",
-                    "travel destination", "country of destination",
-                    "travel start date", "start date",
-                    "departure date", "travel from",
-                    "travel end date", "end date",
-                    "return date", "travel to",
-                    "travellers", "travelers",
-                    "number of travellers", "number of travelers",
-                    "traveller count", "traveler count",
-                    "policy type", "insurance type",
-                    "date of birth", "dob", "birth date",
-                    "age", "gender", "sex", "nationality",
-                    "country of residence", "residence country",
-                    "pre-existing medical conditions",
-                    "pre existing medical conditions",
-                    "existing medical conditions", "medical conditions",
-                    "purpose of travel", "travel purpose"
-            ).stream().map(EmailExtractionService::normalizeName).toList()
-    );
-
     public List<ExtractedFieldData> extractFields(EmailMessage email) {
         List<ExtractedFieldData> fields = new ArrayList<>();
 
-        if (email == null) {
-            return fields;
-        }
-
-        String body = normalizeBody(
-                email.getBody() == null ? "" : email.getBody()
-        );
-
-        fields.add(extract(body, "name", FieldDataType.TEXT,
-                "Name", "Client Name", "Customer Name"));
-
-        fields.add(extractEmail(body));
-
-        fields.add(extract(body, "phone", FieldDataType.PHONE,
-                "Phone", "Phone Number", "Mobile", "Mobile Number"));
-
-        fields.add(extract(body, "passportNumber", FieldDataType.TEXT,
-                "Passport Number", "Passport No", "Passport"));
-
-        fields.add(extract(body, "originCountry", FieldDataType.TEXT,
-                "Origin Country", "Country of Origin",
-                "Departure Country", "From Country", "Origin"));
-
-        fields.add(extract(body, "destinationCountry", FieldDataType.TEXT,
-                "Destination Country", "Destination",
-                "Travel Destination", "Country of Destination"));
-
-        fields.add(extract(body, "travelStartDate", FieldDataType.DATE,
-                "Travel Start Date", "Start Date",
-                "Departure Date", "Travel From"));
-
-        fields.add(extract(body, "travelEndDate", FieldDataType.DATE,
-                "Travel End Date", "End Date", "Return Date", "Travel To"));
-
-        fields.add(extract(body, "travellers", FieldDataType.NUMBER,
-                "Travellers", "Travelers", "Number of Travellers",
-                "Number of Travelers", "Traveller Count", "Traveler Count"));
-
-        ExtractedFieldData policyType = extract(
-                body, "policyType", FieldDataType.TEXT,
-                "Policy Type", "Insurance Type"
-        );
-
-        String subject = email.getSubject() == null
+        String body = email == null || email.getBody() == null
                 ? ""
-                : email.getSubject().toLowerCase(Locale.ROOT);
+                : normalizeBody(email.getBody());
 
-        if (policyType.getFieldValue() == null
-                && (subject.contains("travel insurance")
-                || subject.contains("travel quotation")
-                || subject.contains("travel quote"))) {
-            policyType = new ExtractedFieldData(
-                    "policyType",
-                    "TRAVEL",
-                    FieldDataType.TEXT,
-                    FieldSource.EMAIL_EXTRACTED,
-                    GENERIC_FIELD_CONFIDENCE,
-                    false
-            );
-        }
-
-        fields.add(policyType);
-
-        fields.add(extract(body, "dateOfBirth", FieldDataType.DATE,
-                "Date of Birth", "DOB", "Birth Date"));
-
-        fields.add(extract(body, "age", FieldDataType.NUMBER, "Age"));
-
-        fields.add(extract(body, "gender", FieldDataType.TEXT,
-                "Gender", "Sex"));
-
-        fields.add(extract(body, "nationality", FieldDataType.TEXT,
-                "Nationality"));
-
-        fields.add(extract(body, "countryOfResidence", FieldDataType.TEXT,
-                "Country of Residence", "Residence Country"));
-
-        fields.add(extract(body, "preExistingMedicalConditions",
-                FieldDataType.TEXT,
-                "Pre-existing Medical Conditions",
-                "Pre Existing Medical Conditions",
-                "Existing Medical Conditions", "Medical Conditions"));
-
-        fields.add(extract(body, "purposeOfTravel", FieldDataType.TEXT,
-                "Purpose of Travel", "Travel Purpose"));
-
-        extractGenericFields(body, fields);
+        fields.add(extract(body, "Name", "name", FieldDataType.TEXT));
+        fields.add(extractEmail(body));
+        fields.add(extract(body, "Phone", "phone", FieldDataType.PHONE));
+        fields.add(extract(body, "Passport Number", "passportNumber", FieldDataType.TEXT));
+        fields.add(extract(body, "Origin Country", "originCountry", FieldDataType.TEXT));
+        fields.add(extract(body, "Destination Country", "destinationCountry", FieldDataType.TEXT));
+        fields.add(extract(body, "Travel Start Date", "travelStartDate", FieldDataType.DATE));
+        fields.add(extract(body, "Travel End Date", "travelEndDate", FieldDataType.DATE));
+        fields.add(extract(body, "Travellers", "travellers", FieldDataType.NUMBER));
+        fields.add(extract(body, "Policy Type", "policyType", FieldDataType.TEXT));
 
         return fields;
     }
 
-    private ExtractedFieldData extractEmail(String body) {
-        ExtractedFieldData field = extract(
-                body, "email", FieldDataType.EMAIL,
-                "Email", "Email Address", "Client Email"
-        );
+    /** [label shown in the email, identity document code, issuing country or null] */
+    private static final String[][] IDENTITY_LABELS = {
+            {"Aadhaar Number", "AADHAAR", "IN"}, {"Aadhaar", "AADHAAR", "IN"},
+            {"Aadhar Number", "AADHAAR", "IN"}, {"Aadhar", "AADHAAR", "IN"},
+            {"PAN Number", "PAN", "IN"}, {"PAN", "PAN", "IN"},
+            {"Voter ID", "VOTER_ID", "IN"},
+            {"Emirates ID", "EMIRATES_ID", "AE"},
+            {"SSN", "SSN", "US"},
+            {"NRIC", "NRIC", "SG"},
+            {"Passport Number", "PASSPORT", null}, {"Passport No", "PASSPORT", null},
+            {"Passport", "PASSPORT", null},
+            {"Driving Licence Number", "DRIVERS_LICENSE", null},
+            {"Driving License Number", "DRIVERS_LICENSE", null},
+    };
 
-        if (field.getFieldValue() == null) {
-            return field;
+    /**
+     * Extracts exactly the fields configured in the database for the insurance
+     * type (label = display label), plus the identity document (Aadhaar, PAN,
+     * passport ...). Values are normalised: dates -> YYYY-MM-DD, phone -> digits.
+     */
+    public List<ExtractedFieldData> extractFields(
+            EmailMessage email, List<RequiredField> requiredFields) {
+
+        String body = email == null || email.getBody() == null
+                ? "" : normalizeBody(email.getBody());
+
+        Map<String, ExtractedFieldData> result = new LinkedHashMap<>();
+
+        for (RequiredField rf : requiredFields) {
+            String value = firstValue(body, rf.getDisplayLabel(), humanize(rf.getFieldName()));
+            if (value == null || value.isBlank()) {
+                result.put(rf.getFieldName(), missingField(rf.getFieldName(), rf.getDataType()));
+                continue;
+            }
+            if (rf.getDataType() == FieldDataType.EMAIL) {
+                Matcher m = EMAIL_PATTERN.matcher(value);
+                value = m.find() ? m.group().trim() : value;
+            }
+            result.put(rf.getFieldName(), new ExtractedFieldData(
+                    rf.getFieldName(),
+                    ValueNormalizer.normalize(value, rf.getDataType()),
+                    rf.getDataType(), FieldSource.EMAIL_EXTRACTED, 0.95, false));
         }
 
-        Matcher matcher = EMAIL_PATTERN.matcher(field.getFieldValue());
+        // ---- identity document ----
+        String type = firstValue(body, "Identity Type", "ID Type", "Document Type");
+        String number = firstValue(body, "Identity Number", "ID Number", "Document Number");
+        String country = firstValue(body, "Identity Country", "ID Country", "Country of Issue");
 
-        if (matcher.find()) {
-            return new ExtractedFieldData(
-                    "email",
-                    matcher.group().trim(),
-                    FieldDataType.EMAIL,
-                    FieldSource.EMAIL_EXTRACTED,
-                    EXPLICIT_FIELD_CONFIDENCE,
-                    false
-            );
+        if (number == null) {
+            for (String[] entry : IDENTITY_LABELS) {
+                String v = extractLabelValue(body, entry[0]);
+                if (v != null && !v.isBlank()) {
+                    number = v;
+                    type = entry[1];
+                    if (country == null) {
+                        country = entry[2];
+                    }
+                    break;
+                }
+            }
+        }
+        putIdentity(result, "identityType", type);
+        putIdentity(result, "identityNumber", number);
+        putIdentity(result, "identityCountry", country);
+
+        return new ArrayList<>(result.values());
+    }
+
+    private void putIdentity(Map<String, ExtractedFieldData> result, String name, String value) {
+        if (value != null && !value.isBlank()) {
+            result.put(name, new ExtractedFieldData(
+                    name, value.trim(), FieldDataType.TEXT,
+                    FieldSource.EMAIL_EXTRACTED, 0.9, false));
+        } else if (!result.containsKey(name)) {
+            result.put(name, missingField(name, FieldDataType.TEXT));
+        }
+    }
+
+    private String firstValue(String body, String... labels) {
+        for (String label : labels) {
+            if (label == null || label.isBlank()) {
+                continue;
+            }
+            String v = extractLabelValue(body, label);
+            if (v != null && !v.isBlank()) {
+                return v;
+            }
+        }
+        return null;
+    }
+
+    /** vehicleRegistrationNumber -> Vehicle Registration Number */
+    private static String humanize(String fieldName) {
+        String spaced = fieldName.replaceAll("([a-z])([A-Z])", "$1 $2");
+        return spaced.isEmpty() ? spaced
+                : Character.toUpperCase(spaced.charAt(0)) + spaced.substring(1);
+    }
+
+    private ExtractedFieldData extractEmail(String body) {
+        String value = extractLabelValue(body, "Email");
+
+        if (value != null) {
+            Matcher matcher = EMAIL_PATTERN.matcher(value);
+
+            if (matcher.find()) {
+                return new ExtractedFieldData(
+                        "email",
+                        matcher.group().trim(),
+                        FieldDataType.EMAIL,
+                        FieldSource.EMAIL_EXTRACTED,
+                        0.95,
+                        false
+                );
+            }
         }
 
         return missingField("email", FieldDataType.EMAIL);
@@ -175,122 +164,54 @@ public class EmailExtractionService {
 
     private ExtractedFieldData extract(
             String body,
+            String label,
             String fieldName,
-            FieldDataType dataType,
-            String... labels) {
+            FieldDataType dataType) {
 
-        for (String label : labels) {
-            Pattern pattern = Pattern.compile(
-                    "(?im)^[\\t >*#-]*" + Pattern.quote(label)
-                            + "[\\t ]*[:：=\\-–—][\\t ]*(.*?)\\s*$"
+        String value = extractLabelValue(body, label);
+
+        if (value != null && !value.isBlank()) {
+            return new ExtractedFieldData(
+                    fieldName,
+                    value,
+                    dataType,
+                    FieldSource.EMAIL_EXTRACTED,
+                    0.95,
+                    false
             );
-
-            Matcher matcher = pattern.matcher(body);
-
-            if (matcher.find()) {
-                String value = cleanValue(matcher.group(1));
-
-                if (value.isEmpty()) {
-                    continue;
-                }
-
-                if (dataType == FieldDataType.EMAIL) {
-                    Matcher emailMatcher = EMAIL_PATTERN.matcher(value);
-                    if (emailMatcher.find()) {
-                        value = emailMatcher.group().trim();
-                    }
-                }
-
-                return new ExtractedFieldData(
-                        fieldName,
-                        value,
-                        dataType,
-                        FieldSource.EMAIL_EXTRACTED,
-                        EXPLICIT_FIELD_CONFIDENCE,
-                        false
-                );
-            }
         }
 
         return missingField(fieldName, dataType);
     }
 
-    private void extractGenericFields(
-            String body,
-            List<ExtractedFieldData> fields) {
-
-        Pattern genericPattern = Pattern.compile(
-                "(?m)^[\\t >*#-]*([^:\\r\\n]{2,80}?)[\\t ]*[:：][\\t ]*(.*?)\\s*$"
+    private String extractLabelValue(String body, String label) {
+        Pattern pattern = Pattern.compile(
+                "(?im)^[\\t >*#-]*"
+                        + Pattern.quote(label)
+                        + "[\\t ]*[:：\\-–—][\\t ]*(.*)$"
         );
 
-        Matcher matcher = genericPattern.matcher(body);
+        Matcher matcher = pattern.matcher(body);
 
-        while (matcher.find()) {
-            String label = matcher.group(1).trim();
-            String value = cleanValue(matcher.group(2));
-
-            if (label.isEmpty() || value.isEmpty()) {
-                continue;
-            }
-
-            String normalizedLabel = normalizeName(label);
-
-            if (KNOWN_LABELS.contains(normalizedLabel)) {
-                continue;
-            }
-
-            boolean alreadyExtracted = fields.stream().anyMatch(existing ->
-                    normalizeName(existing.getFieldName()).equals(normalizedLabel));
-
-            if (alreadyExtracted) {
-                continue;
-            }
-
-            fields.add(new ExtractedFieldData(
-                    label,
-                    value,
-                    FieldDataType.TEXT,
-                    FieldSource.EMAIL_EXTRACTED,
-                    GENERIC_FIELD_CONFIDENCE,
-                    false
-            ));
-        }
-    }
-
-    private ExtractedFieldData missingField(
-            String fieldName,
-            FieldDataType dataType) {
-
-        return new ExtractedFieldData(
-                fieldName,
-                null,
-                dataType,
-                FieldSource.EMAIL_EXTRACTED,
-                0.0,
-                true
-        );
-    }
-
-    private String cleanValue(String value) {
-        if (value == null) {
-            return "";
+        if (!matcher.find()) {
+            return null;
         }
 
-        String cleaned = value.trim();
+        String value = matcher.group(1).trim();
 
+        // Support Markdown links such as [person@example.com](mailto:person@example.com)
         Matcher mailto = Pattern.compile(
                 "(?i)mailto:([^\\s)]+)"
-        ).matcher(cleaned);
+        ).matcher(value);
 
         if (mailto.find()) {
             return mailto.group(1).trim();
         }
 
-        cleaned = cleaned.replaceAll(
-                "\\[([^\\]]*)\\]\\([^)]*\\)", "$1"
-        );
+        // Remove basic Markdown link wrappers, if present.
+        value = value.replaceAll("\\[([^\\]]*)\\]\\([^)]*\\)", "$1");
 
-        return cleaned.trim();
+        return value.trim();
     }
 
     private String normalizeBody(String body) {
@@ -307,12 +228,17 @@ public class EmailExtractionService {
                 .replace('\r', '\n');
     }
 
-    private static String normalizeName(String value) {
-        if (value == null) {
-            return "";
-        }
+    private ExtractedFieldData missingField(
+            String fieldName,
+            FieldDataType dataType) {
 
-        return value.replaceAll("[^A-Za-z0-9]", "")
-                .toLowerCase(Locale.ROOT);
+        return new ExtractedFieldData(
+                fieldName,
+                null,
+                dataType,
+                FieldSource.EMAIL_EXTRACTED,
+                0.0,
+                true
+        );
     }
 }

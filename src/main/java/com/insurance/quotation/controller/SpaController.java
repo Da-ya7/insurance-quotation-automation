@@ -23,7 +23,10 @@ public class SpaController {
             "/quotations",
             "/missing-information",
             "/reports",
-            "/settings"
+            "/settings",
+            "/master-data",
+            "/form",
+            "/form/{type}"
     })
     public String forwardToAngular() {
         return "forward:/index.html";

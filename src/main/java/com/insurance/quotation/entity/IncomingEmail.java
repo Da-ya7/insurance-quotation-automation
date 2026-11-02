@@ -49,6 +49,15 @@ public class IncomingEmail {
     private String processingStatus = "RECEIVED";
 
     // received_at
+    @Column(name = "email_kind", length = 30)
+    private String emailKind;
+
+    @Column(name = "retry_count", nullable = false)
+    private Integer retryCount = 0;
+
+    @Column(name = "last_error", length = 500)
+    private String lastError;
+
     @Column(name = "received_at", nullable = false)
     private LocalDateTime receivedAt;
 
@@ -142,5 +151,15 @@ public class IncomingEmail {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getEmailKind() { return emailKind; }
+    public void setEmailKind(String emailKind) { this.emailKind = emailKind; }
+    public Integer getRetryCount() { return retryCount == null ? 0 : retryCount; }
+    public void setRetryCount(Integer retryCount) { this.retryCount = retryCount; }
+    public String getLastError() { return lastError; }
+    public void setLastError(String lastError) {
+        this.lastError = lastError == null ? null
+                : (lastError.length() > 500 ? lastError.substring(0, 500) : lastError);
     }
 }

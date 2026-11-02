@@ -34,6 +34,19 @@ public class RequiredField {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
+    // true = the client MUST provide it; false = optional (validated only if given)
+    @Column(name = "is_mandatory", nullable = false)
+    private Boolean isMandatory = true;
+
+    @Column(name = "validation_regex", length = 255)
+    private String validationRegex;
+
+    @Column(name = "sort_order", nullable = false)
+    private Integer sortOrder = 0;
+
+    @Column(name = "help_text", length = 255)
+    private String helpText;
+
 
     // Getters and Setters
 
@@ -86,4 +99,13 @@ public class RequiredField {
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
     }
+
+    public Boolean getIsMandatory() { return isMandatory; }
+    public void setIsMandatory(Boolean isMandatory) { this.isMandatory = isMandatory; }
+    public String getValidationRegex() { return validationRegex; }
+    public void setValidationRegex(String validationRegex) { this.validationRegex = validationRegex; }
+    public Integer getSortOrder() { return sortOrder; }
+    public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
+    public String getHelpText() { return helpText; }
+    public void setHelpText(String helpText) { this.helpText = helpText; }
 }

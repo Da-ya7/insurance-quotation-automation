@@ -1,5 +1,7 @@
 import { Component } from '@angular/core';
 import { Location } from '@angular/common';
+import { Router } from '@angular/router';
+import { goBackOrHome } from '../core/nav';
 
 @Component({
   selector: 'app-settings',
@@ -9,10 +11,10 @@ import { Location } from '@angular/common';
   styleUrl: './settings.css'
 })
 export class Settings {
-  constructor(private location: Location) {}
+  constructor(private location: Location, private router: Router) {}
 
   goBack(): void {
-    this.location.back();
+    goBackOrHome(this.location, this.router);
   }
 
   saveSettings(): void {

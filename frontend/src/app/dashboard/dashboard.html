@@ -1,26 +1,48 @@
-<!-- DASHBOARD MAIN CONTENT: Sidebar is handled by Layout -->
+<!-- =====================================================
+     DASHBOARD MAIN CONTENT
+
+     Sidebar is handled by Layout.
+     Do NOT add another sidebar here.
+     ===================================================== -->
 
 <div class="dashboard-page">
 
-  <!-- TOP HEADER -->
+  <!-- ================= TOP HEADER ================= -->
+
   <header class="top-header">
+
+    <!-- Updated Header Title -->
+
     <div class="header-title">
-      <h1>Dashboard</h1>
+
+      <h1>
+        Dashboard
+      </h1>
+
+      
     </div>
+
+    <!-- Header Actions -->
 
     <div class="header-actions">
 
-      <!-- SEARCH -->
+      <!-- ================= SEARCH ================= -->
+
       <div class="search-container">
+
         <div class="search-box">
+
           <span>🔍</span>
+
           <input
             type="text"
             [(ngModel)]="searchQuery"
             placeholder="Search..."
-            aria-label="Search dashboard pages"
           />
+
         </div>
+
+        <!-- SEARCH RESULTS -->
 
         <div
           class="search-results"
@@ -32,333 +54,208 @@
             (click)="goToPage(item.route)">
 
             <span class="result-icon">🔍</span>
+
             <span>{{ item.name }}</span>
+
           </div>
+
         </div>
+
+        <!-- NO RESULTS -->
 
         <div
           class="search-results no-results"
           *ngIf="searchQuery.trim() && filteredItems.length === 0">
 
           <div class="search-result-item">
+
             <span class="result-icon">🔍</span>
+
             <span>No results found</span>
+
           </div>
+
         </div>
+
       </div>
 
-      <!-- NOTIFICATION -->
-      <button
-        class="notification-btn"
-        type="button"
-        aria-label="Notifications">
+      <!-- ================= NOTIFICATION ================= -->
+
+      <button class="notification-btn">
         🔔
       </button>
 
-      <!-- PROFILE -->
+      <!-- ================= PROFILE ================= -->
+
       <div class="profile-container">
 
         <button
           class="profile-btn"
-          type="button"
-          (click)="toggleProfileMenu()"
-          aria-label="Toggle profile menu">
+          (click)="toggleProfileMenu()">
 
-          <div class="profile-avatar">A</div>
+          <div class="profile-avatar">
+            {{ userName.charAt(0).toUpperCase() }}
+          </div>
 
           <div class="profile-info">
-            <strong>Admin</strong>
-            <span>Administrator</span>
+
+            <strong>{{ userName }}</strong>
+
+            <span>{{ role === 'ADMIN' ? 'Administrator' : (role === 'OPERATIONS' ? 'Operations' : 'Staff') }}</span>
+
           </div>
 
           <span>▼</span>
+
         </button>
 
-        <div class="profile-dropdown" *ngIf="showProfileMenu">
+        <!-- PROFILE DROPDOWN -->
+
+        <div
+          class="profile-dropdown"
+          *ngIf="showProfileMenu">
 
           <button
-            type="button"
             (click)="goToPage('/settings'); showProfileMenu = false">
+
             ⚙️ Settings
+
           </button>
 
-          <button
-            type="button"
-            (click)="logout()">
+          <button (click)="logout()">
+
             🚪 Logout
+
           </button>
 
         </div>
+
       </div>
 
     </div>
+
   </header>
 
-  <!-- DASHBOARD CONTENT -->
+  <!-- ================= DASHBOARD CONTENT ================= -->
+
   <section class="dashboard-content">
 
-    <!-- KPI CARDS -->
-    <div class="stats-grid">
+    <!-- REFRESH BAR -->
+    <div class="refresh-bar">
+      <span class="x-muted" *ngIf="lastUpdated">Last updated {{ lastUpdated | date:'mediumTime' }} · auto-refresh every 30 s</span>
+      <button type="button" class="x-btn x-sm" (click)="refresh()">↻ Refresh</button>
+    </div>
 
-      <!-- INCOMING EMAILS -->
-      <a
-        class="stat-card clickable-card"
-        [routerLink]="['/incoming-emails']"
-        title="View Incoming Emails">
+    <p class="x-banner x-error" *ngIf="errorMessage">{{ errorMessage }}</p>
+    <p class="x-muted" *ngIf="loading">Loading dashboard...</p>
 
-        <div class="stat-icon">📧</div>
+    <!-- ================= KPI CARDS (all clickable) ================= -->
 
-        <div class="stat-details">
-          <span class="stat-title">Incoming Emails</span>
-          <h3>{{ totalEmails }}</h3>
-          <span class="stat-change">Total email records</span>
-        </div>
-      </a>
+    <div class="stats-grid" *ngIf="stats">
 
-      <!-- QUOTATION REQUESTS -->
-      <a
-        class="stat-card clickable-card"
-        [routerLink]="['/quotation-requests']"
-        title="View Quotation Requests">
+      <a class="stat-card stat-link"
+         *ngFor="let c of cards"
+         [routerLink]="c.link"
+         [queryParams]="c.query">
 
-        <div class="stat-icon">📋</div>
+        <div class="stat-icon">{{ c.icon }}</div>
 
         <div class="stat-details">
-          <span class="stat-title">Quotation Requests</span>
-          <h3>{{ quotationRequests }}</h3>
-          <span class="stat-change">Total requests</span>
+          <span class="stat-title">{{ c.title }}</span>
+          <h3>{{ c.value }}</h3>
+          <span [class.stat-warning]="c.warn" [class.stat-change]="!c.warn">{{ c.note }}</span>
         </div>
-      </a>
 
-      <!-- PENDING REQUESTS -->
-      <a
-        class="stat-card clickable-card"
-        [routerLink]="['/quotation-requests']"
-        title="View Pending Requests">
-
-        <div class="stat-icon">⚠️</div>
-
-        <div class="stat-details">
-          <span class="stat-title">Pending Requests</span>
-          <h3>{{ pendingDetails }}</h3>
-          <span class="stat-warning">Requires attention</span>
-        </div>
-      </a>
-
-      <!-- QUOTATIONS SENT -->
-      <a
-        class="stat-card clickable-card"
-        [routerLink]="['/quotations']"
-        title="View Quotations Sent">
-
-        <div class="stat-icon">📄</div>
-
-        <div class="stat-details">
-          <span class="stat-title">Quotations Sent</span>
-          <h3>{{ quotationsSent }}</h3>
-          <span class="stat-change">Total quotations sent</span>
-        </div>
       </a>
 
     </div>
 
-    <!-- GRAPH AND CATEGORY BREAKDOWN -->
-    <div class="dashboard-grid">
+    <!-- ================= CHART + STATUS BREAKDOWN ================= -->
 
-      <!-- ACTIVITY GRAPH -->
+    <div class="dashboard-grid" *ngIf="stats">
+
       <div class="chart-card">
 
-        <!-- GRAPH HEADER AND FILTERS -->
-        <div class="card-header activity-header">
-
-          <div class="activity-heading">
-            <h3>Insurance Email &amp; Quotation Activity</h3>
-            <p>
-              View activity for your selected date range
-            </p>
+        <div class="card-header">
+          <div>
+            <h3>Requests &amp; Quotations per day</h3>
+            <p>Last 14 days</p>
           </div>
-
-          <!-- GRAPH DATE FILTERS -->
-          <div
-            class="time-range"
-            role="group"
-            aria-label="Filter activity graph by date range">
-
-            <button
-              type="button"
-              [class.active]="selectedRange === 'today'"
-              [attr.aria-pressed]="selectedRange === 'today'"
-              (click)="filterActivity('today')">
-              Today
-            </button>
-
-            <button
-              type="button"
-              [class.active]="selectedRange === '7days'"
-              [attr.aria-pressed]="selectedRange === '7days'"
-              (click)="filterActivity('7days')">
-              7 Days
-            </button>
-
-            <button
-              type="button"
-              [class.active]="selectedRange === '30days'"
-              [attr.aria-pressed]="selectedRange === '30days'"
-              (click)="filterActivity('30days')">
-              30 Days
-            </button>
-
+          <div class="legend" *ngIf="hasChartData">
+            <span><i class="dot dot-req"></i> Requests</span>
+            <span><i class="dot dot-quo"></i> Quotations</span>
           </div>
         </div>
 
-        <!-- GRAPH -->
         <div class="chart-container">
 
-          <ng-container
-            *ngIf="chartPoints.length > 0; else noChartData">
+          <div class="x-empty" *ngIf="!hasChartData">
+            No requests or quotations in the last 14 days.
+          </div>
 
-            <svg
-              viewBox="0 0 900 350"
-              class="activity-chart"
-              role="img"
-              [attr.aria-label]="'Insurance email and quotation activity for ' + selectedRange">
+          <svg *ngIf="hasChartData" [attr.viewBox]="'0 0 ' + W + ' ' + H" class="activity-chart"
+               role="img" aria-label="Requests and quotations per day">
 
-              <!-- HORIZONTAL GRID LINES -->
-              <line x1="80" y1="50" x2="850" y2="50"></line>
-              <line x1="80" y1="110" x2="850" y2="110"></line>
-              <line x1="80" y1="170" x2="850" y2="170"></line>
-              <line x1="80" y1="230" x2="850" y2="230"></line>
-              <line x1="80" y1="290" x2="850" y2="290"></line>
+            <g *ngFor="let t of yTicks">
+              <line [attr.x1]="60" [attr.x2]="850" [attr.y1]="t.y" [attr.y2]="t.y"></line>
+              <text [attr.x]="50" [attr.y]="t.y + 4" text-anchor="end">{{ t.label }}</text>
+            </g>
 
-              <!-- DYNAMIC Y-AXIS LABELS -->
-              <text x="68" y="55" text-anchor="end">
-                {{ chartAxisLabels[0] }}
-              </text>
+            <polyline [attr.points]="requestLine" fill="none" stroke-width="3" class="line-req"></polyline>
+            <polyline [attr.points]="quotationLine" fill="none" stroke-width="3" class="line-quo"></polyline>
 
-              <text x="68" y="115" text-anchor="end">
-                {{ chartAxisLabels[1] }}
-              </text>
+            <circle *ngFor="let p of requestPoints" [attr.cx]="p.x" [attr.cy]="p.y" r="4.5" class="pt-req">
+              <title>{{ p.label }}: {{ p.requests }} request(s), {{ p.quotations }} quotation(s)</title>
+            </circle>
+            <circle *ngFor="let p of quotationPoints" [attr.cx]="p.x" [attr.cy]="p.y" r="4.5" class="pt-quo">
+              <title>{{ p.label }}: {{ p.requests }} request(s), {{ p.quotations }} quotation(s)</title>
+            </circle>
 
-              <text x="68" y="175" text-anchor="end">
-                {{ chartAxisLabels[2] }}
-              </text>
+            <text *ngFor="let l of xLabels" [attr.x]="l.x" [attr.y]="320" text-anchor="middle">{{ l.label }}</text>
 
-              <text x="68" y="235" text-anchor="end">
-                {{ chartAxisLabels[3] }}
-              </text>
-
-              <text x="68" y="295" text-anchor="end">
-                {{ chartAxisLabels[4] }}
-              </text>
-
-              <!-- ACTIVITY LINE -->
-              <polyline
-                [attr.points]="chartLinePoints"
-                fill="none"
-                stroke="#2563eb"
-                stroke-width="3"
-                stroke-linecap="round"
-                stroke-linejoin="round">
-              </polyline>
-
-              <!-- DATA POINTS -->
-              <g *ngFor="let point of chartPoints">
-
-                <circle
-                  [attr.cx]="point.x"
-                  [attr.cy]="point.y"
-                  r="6">
-                </circle>
-
-                <!-- DATA VALUE -->
-                <text
-                  [attr.x]="point.x"
-                  [attr.y]="point.y - 14"
-                  text-anchor="middle"
-                  class="chart-point-value">
-                  {{ point.count }}
-                </text>
-
-                <!-- X-AXIS LABEL -->
-                <text
-                  [attr.x]="point.x"
-                  y="325"
-                  text-anchor="middle"
-                  class="chart-x-label">
-                  {{ point.shortLabel }}
-                </text>
-
-              </g>
-
-            </svg>
-
-            <!-- GRAPH LEGEND -->
-            <div class="chart-legend">
-              <span class="legend-dot"></span>
-              <span>
-                Activity totals — {{ selectedRange === 'today'
-                  ? 'Today'
-                  : selectedRange === '7days'
-                    ? 'Last 7 Days'
-                    : 'Last 30 Days' }}
-              </span>
-            </div>
-
-          </ng-container>
-
-          <!-- EMPTY GRAPH -->
-          <ng-template #noChartData>
-            <p class="empty-state">
-              No activity data available for this date range.
-            </p>
-          </ng-template>
+          </svg>
 
         </div>
+
       </div>
 
-      <!-- METRIC BREAKDOWN -->
       <div class="category-card">
 
         <div class="card-header">
           <div>
-            <h3>Metric Breakdown</h3>
-            <p>Current totals returned by the backend</p>
+            <h3>Request Status</h3>
+            <p>Requests by status group</p>
           </div>
         </div>
 
         <div class="category-list">
 
-          <div
-            class="category-item"
-            *ngFor="let category of emailCategories">
+          <div class="x-empty" *ngIf="!hasGroupData">No quotation requests yet.</div>
+
+          <a class="category-item stat-link"
+             *ngFor="let g of groupRows"
+             routerLink="/quotation-requests"
+             [queryParams]="g.link">
 
             <div class="category-top">
-              <span>{{ category.name }}</span>
-              <strong>{{ category.count }}</strong>
+              <span>{{ g.label }}</span>
+              <strong>{{ g.count }}</strong>
             </div>
 
             <div class="progress-bar">
-              <div
-                class="progress"
-                [style.width.%]="category.percentage">
-              </div>
+              <div class="progress" [style.width.%]="g.percentage" [style.background]="g.color"></div>
             </div>
 
-            <span class="percentage">
-              {{ category.percentage }}% of the largest displayed total
-            </span>
+            <span class="percentage">{{ g.percentage }}%</span>
 
-          </div>
-
-          <p
-            class="empty-state"
-            *ngIf="emailCategories.length === 0">
-            Statistics are unavailable. Check the backend connection.
-          </p>
+          </a>
 
         </div>
+
       </div>
 
     </div>
+
   </section>
+
 </div>

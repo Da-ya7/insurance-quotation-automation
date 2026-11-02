@@ -1,5 +1,8 @@
 import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
+import { Router } from '@angular/router';
+import { goBackOrHome } from '../core/nav';
+import { errorMessage } from '../core/http-error';
 import { forkJoin } from 'rxjs';
 import { ApiService, DashboardStats, ReportSummary } from '../core/api.service';
 import { money, shortDate, statusLabel } from '../core/format';
@@ -16,7 +19,8 @@ export class Reports implements OnInit {
   private api = inject(ApiService);
   private cdr = inject(ChangeDetectorRef);
 
-  constructor(private location: Location) {}
+  private router = inject(Router);
+  private location = inject(Location);
 
   stats: DashboardStats | null = null;
   summary: ReportSummary | null = null;
@@ -42,8 +46,8 @@ export class Reports implements OnInit {
         this.summary = summary;
         this.cdr.markForCheck();
       },
-      error: () => {
-        this.errorMessage = 'Could not load report data.';
+      error: err => {
+        this.errorMessage = errorMessage(err, 'Could not load report data.');
         this.cdr.markForCheck();
       }
     });
@@ -79,6 +83,6 @@ export class Reports implements OnInit {
   }
 
   goBack(): void {
-    this.location.back();
+    goBackOrHome(this.location, this.router);
   }
 }

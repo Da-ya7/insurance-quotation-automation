@@ -19,8 +19,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(request).pipe(
     catchError((error: HttpErrorResponse) => {
       // Token missing, expired or rejected on a staff API: back to login.
-      if (!isPublic && (error.status === 401 || error.status === 403)) {
-        localStorage.removeItem('token');
+      // (403 = logged in but not allowed; pages show a friendly message instead.)
+      if (!isPublic && error.status === 401) {
+        ['token', 'role', 'userName'].forEach(k => localStorage.removeItem(k));
         router.navigate(['/login']);
       }
       return throwError(() => error);
