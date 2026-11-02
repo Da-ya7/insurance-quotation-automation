@@ -43,6 +43,7 @@ import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { storeSession } from '../core/auth';
 
 @Component({
   selector: 'app-login',
@@ -96,7 +97,7 @@ export class Login {
 
         // Save JWT token returned by backend
         if (response && response.token) {
-          localStorage.setItem('token', response.token);
+          storeSession(response);
         }
 
         // Save email when Remember Me is checked

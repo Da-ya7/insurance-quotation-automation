@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class GmailMailboxClient implements MailboxClient {
+public class GmailMailboxClient implements MailboxClient, com.insurance.quotation.mailbox.OutboundMailer {
 
     private static final GsonFactory JSON_FACTORY =
             GsonFactory.getDefaultInstance();
@@ -581,5 +581,73 @@ public class GmailMailboxClient implements MailboxClient {
                 .decode(part.getBody().getData());
 
         return new String(decoded, StandardCharsets.UTF_8);
+    }
+
+    // ---------- generic sending used by OutboundMailer ----------
+
+    @Override
+    public void sendPlain(String to, String subject, String body) {
+        sendRaw(to, subject, body, null);
+    }
+
+    @Override
+    public void sendWithAttachment(String to, String subject, String body, String pdfPath) {
+        sendRaw(to, subject, body, pdfPath);
+    }
+
+    private void sendRaw(String to, String subject, String body, String pdfPath) {
+        try {
+            if (to == null || !to.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+                throw new IllegalArgumentException("Invalid recipient email address.");
+            }
+            if (subject.contains("\r") || subject.contains("\n")) {
+                throw new IllegalArgumentException("Invalid subject.");
+            }
+            String encodedSubject = "=?UTF-8?B?"
+                    + Base64.getEncoder().encodeToString(subject.getBytes(StandardCharsets.UTF_8))
+                    + "?=";
+            String crlfBody = body.replace("\r\n", "\n").replace("\n", "\r\n");
+
+            String mime;
+            if (pdfPath == null) {
+                mime = "To: " + to + "\r\n"
+                        + "Subject: " + encodedSubject + "\r\n"
+                        + "MIME-Version: 1.0\r\n"
+                        + "Content-Type: text/plain; charset=UTF-8\r\n"
+                        + "Content-Transfer-Encoding: 8bit\r\n\r\n"
+                        + crlfBody;
+            } else {
+                Path file = Path.of(pdfPath);
+                if (!Files.isRegularFile(file)) {
+                    throw new IllegalArgumentException("Quotation PDF not found: " + pdfPath);
+                }
+                String boundary = "IqasBoundary" + System.currentTimeMillis();
+                String fileName = file.getFileName().toString()
+                        .replace("\"", "_").replace("\r", "_").replace("\n", "_");
+                String attachment = Base64.getMimeEncoder(76, "\r\n".getBytes(StandardCharsets.US_ASCII))
+                        .encodeToString(Files.readAllBytes(file));
+                mime = "To: " + to + "\r\n"
+                        + "Subject: " + encodedSubject + "\r\n"
+                        + "MIME-Version: 1.0\r\n"
+                        + "Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n\r\n"
+                        + "--" + boundary + "\r\n"
+                        + "Content-Type: text/plain; charset=UTF-8\r\n"
+                        + "Content-Transfer-Encoding: 8bit\r\n\r\n"
+                        + crlfBody + "\r\n\r\n"
+                        + "--" + boundary + "\r\n"
+                        + "Content-Type: application/pdf; name=\"" + fileName + "\"\r\n"
+                        + "Content-Disposition: attachment; filename=\"" + fileName + "\"\r\n"
+                        + "Content-Transfer-Encoding: base64\r\n\r\n"
+                        + attachment + "\r\n"
+                        + "--" + boundary + "--";
+            }
+
+            Message outgoing = new Message();
+            outgoing.setRaw(Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(mime.getBytes(StandardCharsets.UTF_8)));
+            getGmailService().users().messages().send("me", outgoing).execute();
+        } catch (Exception e) {
+            throw new MailboxException("Failed to send email to " + to + ": " + e.getMessage(), e);
+        }
     }
 }

@@ -1051,3 +1051,13 @@
     width: 100%;
   }
 }
+
+/* ---- additions ---- */
+.summary-section { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.summary-card.clickable { cursor: pointer; }
+.failed-icon { background: #fdeaea; color: #b91c1c; }
+.filter-selects { display: flex; gap: 8px; padding: 0 20px 12px; flex-wrap: wrap; }
+.preview-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.info-box small { display: block; color: #6b7280; font-size: 11px; margin-top: 2px; }
+.last-error { margin-top: 12px; word-break: break-word; }
+.email-item .x-badge { font-size: 10px; padding: 2px 8px; }

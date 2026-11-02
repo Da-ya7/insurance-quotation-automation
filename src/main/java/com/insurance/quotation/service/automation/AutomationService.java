@@ -1,334 +1,439 @@
 package com.insurance.quotation.service.automation;
 
-import com.insurance.quotation.entity.Client;
-import com.insurance.quotation.entity.IncomingEmail;
-import com.insurance.quotation.entity.Quotation;
-import com.insurance.quotation.entity.QuotationRequest;
-import com.insurance.quotation.entity.RequestFieldValue;
-import com.insurance.quotation.entity.enums.FieldSource;
-import com.insurance.quotation.entity.enums.RequestStatus;
-import com.insurance.quotation.mailbox.EmailMessage;
-import com.insurance.quotation.repository.ClientRepository;
-import com.insurance.quotation.repository.IncomingEmailRepository;
-import com.insurance.quotation.repository.QuotationRequestRepository;
-import com.insurance.quotation.repository.RequestFieldValueRepository;
-import com.insurance.quotation.service.extraction.EmailExtractionService;
-import com.insurance.quotation.service.extraction.ExtractedFieldData;
-import com.insurance.quotation.service.ingestion.EmailIngestionService;
-import com.insurance.quotation.service.quotation.QuotationEmailService;
-import com.insurance.quotation.service.quotation.QuotationGenerationService;
-import com.insurance.quotation.service.validation.ValidationService;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.locks.ReentrantLock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import com.insurance.quotation.entity.Client;
+import com.insurance.quotation.entity.IncomingEmail;
+import com.insurance.quotation.entity.QuotationRequest;
+import com.insurance.quotation.entity.RequestFieldValue;
+import com.insurance.quotation.entity.RequiredField;
+import com.insurance.quotation.entity.enums.FieldDataType;
+import com.insurance.quotation.entity.enums.FieldSource;
+import com.insurance.quotation.entity.enums.RequestStatus;
+import com.insurance.quotation.mailbox.EmailMessage;
+import com.insurance.quotation.repository.IncomingEmailRepository;
+import com.insurance.quotation.repository.QuotationRequestRepository;
+import com.insurance.quotation.repository.RequestFieldValueRepository;
+import com.insurance.quotation.repository.RequiredFieldRepository;
+import com.insurance.quotation.service.client.ClientMasterService;
+import com.insurance.quotation.service.email.EmailClassificationService;
+import com.insurance.quotation.service.extraction.EmailExtractionService;
+import com.insurance.quotation.service.extraction.ExtractedFieldData;
+import com.insurance.quotation.service.ingestion.EmailIngestionService;
+import com.insurance.quotation.service.master.InsuranceTypeDef;
+import com.insurance.quotation.service.master.MasterDataService;
+import com.insurance.quotation.service.quotation.QuotationEmailService;
+import com.insurance.quotation.service.quotation.QuotationWorkflowService;
+import com.insurance.quotation.service.validation.ValidationService;
+
+/**
+ * Reads new mail and drives it through:
+ *   classify (subject filter) -> identify client -> extract -> validate ->
+ *   missing-details reply | quotation PDF + email.
+ *
+ * Safe to run repeatedly: an email is stored once (unique Message-ID), failed
+ * emails are retried up to MAX_RETRIES times, and a request never gets a
+ * second quotation.
+ */
 @Service
 public class AutomationService {
 
-    private final EmailIngestionService emailIngestionService;
-    private final EmailExtractionService emailExtractionService;
-    private final ValidationService validationService;
-    private final QuotationGenerationService quotationGenerationService;
-    private final QuotationEmailService quotationEmailService;
+    private static final Logger log = LoggerFactory.getLogger(AutomationService.class);
 
-    private final ClientRepository clientRepository;
+    public static final int MAX_RETRIES = 3;
+
+    private final EmailIngestionService ingestion;
+    private final EmailExtractionService extraction;
+    private final EmailClassificationService classifier;
+    private final ClientMasterService clientMaster;
+    private final MasterDataService masterData;
+    private final QuotationWorkflowService workflow;
+    private final QuotationEmailService emailService;
+    private final RequiredFieldRepository requiredFieldRepository;
     private final IncomingEmailRepository incomingEmailRepository;
-    private final QuotationRequestRepository quotationRequestRepository;
-    private final RequestFieldValueRepository requestFieldValueRepository;
+    private final QuotationRequestRepository requestRepository;
+    private final RequestFieldValueRepository fieldValueRepository;
+
+    private final ReentrantLock running = new ReentrantLock();
 
     public AutomationService(
-            EmailIngestionService emailIngestionService,
-            EmailExtractionService emailExtractionService,
-            ValidationService validationService,
-            QuotationGenerationService quotationGenerationService,
-            QuotationEmailService quotationEmailService,
-            ClientRepository clientRepository,
+            EmailIngestionService ingestion,
+            EmailExtractionService extraction,
+            EmailClassificationService classifier,
+            ClientMasterService clientMaster,
+            MasterDataService masterData,
+            QuotationWorkflowService workflow,
+            QuotationEmailService emailService,
+            RequiredFieldRepository requiredFieldRepository,
             IncomingEmailRepository incomingEmailRepository,
-            QuotationRequestRepository quotationRequestRepository,
-            RequestFieldValueRepository requestFieldValueRepository) {
-
-        this.emailIngestionService = emailIngestionService;
-        this.emailExtractionService = emailExtractionService;
-        this.validationService = validationService;
-        this.quotationGenerationService = quotationGenerationService;
-        this.quotationEmailService = quotationEmailService;
-        this.clientRepository = clientRepository;
+            QuotationRequestRepository requestRepository,
+            RequestFieldValueRepository fieldValueRepository) {
+        this.ingestion = ingestion;
+        this.extraction = extraction;
+        this.classifier = classifier;
+        this.clientMaster = clientMaster;
+        this.masterData = masterData;
+        this.workflow = workflow;
+        this.emailService = emailService;
+        this.requiredFieldRepository = requiredFieldRepository;
         this.incomingEmailRepository = incomingEmailRepository;
-        this.quotationRequestRepository = quotationRequestRepository;
-        this.requestFieldValueRepository = requestFieldValueRepository;
+        this.requestRepository = requestRepository;
+        this.fieldValueRepository = fieldValueRepository;
     }
 
-    // Not one big transaction: a failure on one email must not undo or block others.
+    /** Not one big transaction: one broken email must not undo or block the others. */
     public void processIncomingEmails() {
 
-        List<EmailMessage> emails =
-                emailIngestionService.fetchIncomingEmails();
-
-        for (EmailMessage email : emails) {
-
-            if (incomingEmailRepository.existsByMessageId(
-                    email.getMessageId())) {
-
-                emailIngestionService.markEmailAsProcessed(
-                        email.getMessageId());
-
-                continue;
-            }
-
-            try {
-                processEmail(email);
-            } catch (Exception e) {
-                handleProcessingFailure(email, e);
-            }
+        // the scheduler and the manual button must never run at the same time
+        if (!running.tryLock()) {
+            log.info("Email processing already running - skipped");
+            return;
         }
-    }
-
-    private void handleProcessingFailure(EmailMessage email, Exception e) {
-        System.err.println("Failed to process email "
-                + email.getMessageId() + ": " + e.getMessage());
-        e.printStackTrace();
-
-        incomingEmailRepository.findByMessageId(email.getMessageId())
-                .ifPresent(saved -> {
-                    saved.setProcessingStatus("FAILED");
-                    incomingEmailRepository.save(saved);
-
-                    QuotationRequest req = saved.getQuotationRequest();
-                    if (req != null) {
-                        req.setStatus(RequestStatus.EMAIL_PROCESSING_FAILED);
-                        req.setUpdatedAt(LocalDateTime.now());
-                        quotationRequestRepository.save(req);
-                    }
-                });
-
-        // Mark as processed so a broken email is not retried every minute.
         try {
-            emailIngestionService.markEmailAsProcessed(email.getMessageId());
-        } catch (Exception ignored) {
-            // nothing more we can do
+            List<EmailMessage> emails = ingestion.fetchIncomingEmails();
+
+            for (EmailMessage email : emails) {
+                Optional<IncomingEmail> existing =
+                        incomingEmailRepository.findByMessageId(email.getMessageId());
+
+                if (existing.isPresent()) {
+                    String status = existing.get().getProcessingStatus();
+                    boolean done = "PROCESSED".equals(status) || "IGNORED".equals(status);
+                    boolean exhausted = "FAILED".equals(status)
+                            && existing.get().getRetryCount() >= MAX_RETRIES;
+                    if (done || exhausted) {
+                        markProcessedQuietly(email.getMessageId());
+                        continue;
+                    }
+                }
+
+                try {
+                    processEmail(email, existing.orElse(null));
+                } catch (Exception e) {
+                    handleProcessingFailure(email, e);
+                }
+            }
+        } finally {
+            running.unlock();
         }
     }
 
-    private void processEmail(EmailMessage email) {
+    // ------------------------------------------------------------------
 
-        // 0. Is this really a quotation request? Real customers often write
-        // free text. If nothing usable is found and the sender has no pending
-        // request, do NOT create a client/request. Store the email and point
-        // the sender to the web form instead.
-        boolean nothingUseful = emailExtractionService.extractFields(email)
-                .stream()
-                .noneMatch(f -> !f.isMissing()
-                        && f.getFieldValue() != null
-                        && !f.getFieldValue().isBlank());
+    private void processEmail(EmailMessage email, IncomingEmail existingRow) {
 
-        boolean senderHasPendingRequest = clientRepository
-                .findByEmail(email.getSenderEmail())
-                .flatMap(this::findPendingRequest)
-                .isPresent();
+        String sender = email.getSenderEmail() == null
+                ? "" : email.getSenderEmail().trim().toLowerCase();
 
-        if (nothingUseful && !senderHasPendingRequest) {
-            handleNonQuotationEmail(email);
+        List<RequiredField> allActive =
+                requiredFieldRepository.findByIsActiveTrueOrderBySortOrderAscIdAsc();
+
+        // 1. extract once over every configured field to see what the mail contains
+        List<ExtractedFieldData> firstPass = extraction.extractFields(email, allActive);
+        boolean useful = firstPass.stream().anyMatch(f ->
+                !f.isMissing() && f.getFieldValue() != null && !f.getFieldValue().isBlank()
+                        && !"policyType".equalsIgnoreCase(f.getFieldName()));
+
+        ClientMasterService.ClientDetails details = toClientDetails(email, sender, firstPass);
+        Optional<Client> knownClient = clientMaster.find(details);
+        Optional<QuotationRequest> pending = knownClient.flatMap(this::findPendingRequest);
+
+        // 2. first-level filter: subject words, reply or unrelated
+        EmailClassificationService.Classification classification = classifier.classify(
+                email.getSubject(), pending.isPresent(), useful,
+                masterData.activeSubjectKeywords());
+
+        IncomingEmail row = existingRow != null ? existingRow : newRow(email, sender);
+        row.setEmailKind(classification.kind().name());
+
+        if (classification.kind() == EmailClassificationService.Kind.UNRELATED) {
+            row.setProcessingStatus("IGNORED");
+            row.setLastError(null);
+            incomingEmailRepository.save(row);
+            markProcessedQuietly(email.getMessageId());
+            log.info("Email from {} ignored: {}", sender, classification.reason());
             return;
         }
 
-        // 1. Find or create the customer.
-        Client client = findOrCreateClient(email);
+        // 3. which insurance type?
+        String type = resolveType(firstPass, email, pending.orElse(null));
 
-        // 2. Reuse the customer's pending request when possible.
-        Optional<QuotationRequest> pendingRequest =
-                findPendingRequest(client);
-
-        boolean isReply = pendingRequest.isPresent();
-
-        QuotationRequest quotationRequest;
-
-        if (isReply) {
-            quotationRequest = pendingRequest.get();
-
-            quotationRequest.setStatus(
-                    RequestStatus.CLIENT_REPLY_RECEIVED);
-
-            quotationRequest.setUpdatedAt(LocalDateTime.now());
-
-            System.out.println(
-                    "Customer reply linked to existing request "
-                            + quotationRequest.getId());
-
-        } else {
-            quotationRequest = new QuotationRequest();
-
-            quotationRequest.setClient(client);
-            quotationRequest.setStatus(RequestStatus.EMAIL_RECEIVED);
-            quotationRequest.setCreatedAt(LocalDateTime.now());
-            quotationRequest.setUpdatedAt(LocalDateTime.now());
-
-            quotationRequest =
-                    quotationRequestRepository.save(quotationRequest);
-        }
-
-        // 3. Save the incoming email or customer reply in MySQL.
-        IncomingEmail incomingEmail = new IncomingEmail();
-
-        incomingEmail.setQuotationRequest(quotationRequest);
-        incomingEmail.setMessageId(email.getMessageId());
-        incomingEmail.setInReplyTo(email.getInReplyTo());
-        incomingEmail.setSenderEmail(email.getSenderEmail());
-        incomingEmail.setSubject(email.getSubject());
-        incomingEmail.setBody(email.getBody());
-        incomingEmail.setProcessingStatus("RECEIVED");
-        incomingEmail.setReceivedAt(email.getReceivedAt());
-
-        incomingEmail =
-                incomingEmailRepository.save(incomingEmail);
-
-        // 4. Extract fields from the latest email.
-        List<ExtractedFieldData> extractedFields =
-                emailExtractionService.extractFields(email);
-
-        // 5. For a reply, combine new details with previous valid values.
-        if (isReply) {
-            extractedFields = mergeExistingValues(
-                    quotationRequest,
-                    extractedFields);
-        }
-
-        // 6. Update customer information.
-        updateClient(client, extractedFields);
-
-        // 7. Set the policy type before validation.
-        String policyType =
-                getFieldValue(extractedFields, "policyType");
-
-        if (policyType == null || policyType.isBlank()) {
-        policyType = quotationRequest.getPolicyType();
-        }
-
-        if (policyType == null || policyType.isBlank()) {
-        policyType = "TRAVEL";
-        }
-
-        quotationRequest.setPolicyType(policyType);
-
-        quotationRequest.setUpdatedAt(LocalDateTime.now());
-
-        quotationRequest =
-                quotationRequestRepository.save(quotationRequest);
-
-        // 8. Validate the combined information.
-        ValidationService.ValidationResult result =
-                validationService.validate(
-                        quotationRequest,
-                        extractedFields);
-
-        // 9. If information is still missing, email the customer.
-        if (!result.isValid()) {
-
-        // IMPORTANT: Save a pending status so the client's reply
-        // can be linked to this same quotation request.
-        quotationRequest.setStatus(RequestStatus.MISSING_INFORMATION);
-        quotationRequest.setUpdatedAt(LocalDateTime.now());
-        quotationRequestRepository.save(quotationRequest);
-
-        quotationEmailService.sendMissingInformationEmail(
-                client.getEmail(),
-                result.getMissingFields(),
-                result.getInvalidFields());
-
-        incomingEmail.setProcessingStatus("PROCESSED");
-        incomingEmailRepository.save(incomingEmail);
-
-        emailIngestionService.markEmailAsProcessed(
-                email.getMessageId());
-
-        System.out.println(
-                "Missing-information email sent to "
-                        + client.getEmail());
-
-        return;
-        }
-
-        // 10. Generate the quotation and PDF.
-        Quotation quotation =
-                quotationGenerationService.generateQuotation(
-                        quotationRequest);
-
-        // 11. Send the actual PDF to the customer.
-        try {
-            quotationEmailService.sendQuotation(quotation);
-        } catch (Exception sendError) {
-            quotationRequest.setStatus(RequestStatus.EMAIL_SEND_FAILED);
-            quotationRequest.setUpdatedAt(LocalDateTime.now());
-            quotationRequestRepository.save(quotationRequest);
-
-            incomingEmail.setProcessingStatus("FAILED");
-            incomingEmailRepository.save(incomingEmail);
-
-            emailIngestionService.markEmailAsProcessed(email.getMessageId());
-            throw sendError;
-        }
-
-        // 12. Mark the request as sent only after successful sending.
-        quotationRequest.setStatus(RequestStatus.QUOTATION_SENT);
-        quotationRequest.setUpdatedAt(LocalDateTime.now());
-
-        quotationRequestRepository.save(quotationRequest);
-
-        // 13. Mark the incoming email as processed.
-        incomingEmail.setProcessingStatus("PROCESSED");
-        incomingEmailRepository.save(incomingEmail);
-
-        emailIngestionService.markEmailAsProcessed(
-                email.getMessageId());
-
-        System.out.println(
-                "Quotation generated and sent: "
-                        + quotation.getQuotationNumber());
-    }
-
-    /** Email that is not a quotation request: keep it, reply once with the form link. */
-    private void handleNonQuotationEmail(EmailMessage email) {
-
-        String sender = email.getSenderEmail();
-
-        // Only the first such email from a sender gets an automatic reply.
-        boolean alreadyNotified = incomingEmailRepository
-                .existsBySenderEmailAndQuotationRequestIsNull(sender);
-
-        IncomingEmail stored = new IncomingEmail();
-        stored.setQuotationRequest(null);
-        stored.setMessageId(email.getMessageId());
-        stored.setInReplyTo(email.getInReplyTo());
-        stored.setSenderEmail(sender);
-        stored.setSubject(email.getSubject());
-        stored.setBody(email.getBody());
-        stored.setProcessingStatus("PROCESSED");
-        stored.setReceivedAt(email.getReceivedAt());
-        incomingEmailRepository.save(stored);
-
-        if (!alreadyNotified && isHumanSender(sender)) {
-            try {
-                quotationEmailService.sendFormLinkEmail(sender);
-            } catch (Exception e) {
-                System.err.println("Could not send form link to "
-                        + sender + ": " + e.getMessage());
+        // 4. a quotation-related mail with no details (or no insurance type): reply with the form link
+        if (!useful || type == null) {
+            if (pending.isEmpty()) {
+                handleIncomplete(email, sender, row, knownClient.orElse(null), type, existingRow == null);
+                return;
             }
         }
 
-        emailIngestionService.markEmailAsProcessed(email.getMessageId());
+        // 5. identify / create the client, reuse the open request on a reply
+        ClientMasterService.ApplyResult applied =
+                clientMaster.findOrCreateAndApply(details, "EMAIL", sender, false);
+        Client client = applied.client();
+        if (applied.hasBlockedChanges()) {
+            log.info("Client {}: email had different values for {} - kept saved values (OTP needed to change)",
+                    client.getClientCode(), applied.blocked());
+        }
 
-        System.out.println("Non-quotation email stored from " + sender);
+        Optional<QuotationRequest> openRequest = findPendingRequest(client);
+        boolean isReply = openRequest.isPresent();
+
+        QuotationRequest request;
+        if (isReply) {
+            request = openRequest.get();
+            request.setStatus(RequestStatus.CLIENT_REPLY_RECEIVED);
+            row.setEmailKind(EmailClassificationService.Kind.CLIENT_REPLY.name());
+            if (request.getPolicyType() != null && !request.getPolicyType().isBlank()) {
+                type = request.getPolicyType();
+            }
+        } else {
+            request = new QuotationRequest();
+            request.setClient(client);
+            request.setStatus(RequestStatus.EMAIL_RECEIVED);
+            request.setCreatedAt(LocalDateTime.now());
+        }
+        request.setPolicyType(type);
+        request.setUpdatedAt(LocalDateTime.now());
+        request = requestRepository.save(request);
+
+        row.setQuotationRequest(request);
+        row.setProcessingStatus("RECEIVED");
+        row = incomingEmailRepository.save(row);
+
+        // insurance type still unknown -> ask the client to choose it in the form
+        if (type == null) {
+            request.setStatus(RequestStatus.MISSING_INFORMATION);
+            requestRepository.save(request);
+            emailService.sendFormLinkEmail(sender, client, null, request.getId());
+            finish(row, email);
+            return;
+        }
+
+        // 6. extract the fields of THIS insurance type and merge with earlier answers
+        final String finalType = type;
+        List<RequiredField> forType = allActive.stream()
+                .filter(f -> ValidationService.appliesTo(f, finalType)).toList();
+
+        List<ExtractedFieldData> fields = extraction.extractFields(email, forType);
+        if (isReply) {
+            fields = mergeExistingValues(request, fields);
+        }
+        fields = withPolicyType(fields, type);
+
+        // 7. validate -> missing-details reply, or quotation + PDF + email
+        QuotationWorkflowService.Outcome outcome =
+                workflow.process(request, client, fields, false);
+
+        log.info("Email {} -> request {} -> {}", email.getMessageId(), request.getId(), outcome.result());
+
+        if (outcome.result() == QuotationWorkflowService.Result.EMAIL_SEND_FAILED
+                || outcome.result() == QuotationWorkflowService.Result.QUOTATION_GENERATION_FAILED) {
+            // keep it retryable
+            throw new IllegalStateException("Request " + request.getId() + ": " + outcome.result());
+        }
+
+        finish(row, email);
     }
 
-    // Never auto-reply to robots or bounce messages (avoids mail loops).
-    private boolean isHumanSender(String sender) {
+    /** Quotation-related email without enough details: thank-you + personal form link (once per day). */
+    private void handleIncomplete(
+            EmailMessage email, String sender, IncomingEmail row,
+            Client knownClient, String type, boolean firstAttempt) {
+
+        boolean recentlyAnswered = firstAttempt
+                && incomingEmailRepository
+                .existsBySenderEmailAndEmailKindAndQuotationRequestIsNullAndCreatedAtAfter(
+                        sender, EmailClassificationService.Kind.NEW_REQUEST.name(),
+                        LocalDateTime.now().minusHours(24));
+
+        row.setQuotationRequest(null);
+        row.setProcessingStatus("RECEIVED");
+        row = incomingEmailRepository.save(row);
+
+        if (!recentlyAnswered && isHumanSender(sender)) {
+            emailService.sendFormLinkEmail(sender, knownClient, type, null);
+        }
+        finish(row, email);
+        log.info("Incomplete quotation email from {} answered with the form link", sender);
+    }
+
+    private void finish(IncomingEmail row, EmailMessage email) {
+        row.setProcessingStatus("PROCESSED");
+        row.setLastError(null);
+        incomingEmailRepository.save(row);
+        markProcessedQuietly(email.getMessageId());
+    }
+
+    private void handleProcessingFailure(EmailMessage email, Exception e) {
+        log.error("Failed to process email {}", email.getMessageId(), e);
+
+        IncomingEmail row = incomingEmailRepository.findByMessageId(email.getMessageId())
+                .orElseGet(() -> newRow(email, email.getSenderEmail() == null
+                        ? "" : email.getSenderEmail().trim().toLowerCase()));
+
+        row.setProcessingStatus("FAILED");
+        row.setRetryCount(row.getRetryCount() + 1);
+        row.setLastError(e.getClass().getSimpleName() + ": " + e.getMessage());
+        incomingEmailRepository.save(row);
+
+        QuotationRequest req = row.getQuotationRequest();
+        if (req != null && req.getStatus() != RequestStatus.EMAIL_SEND_FAILED
+                && req.getStatus() != RequestStatus.QUOTATION_GENERATION_FAILED) {
+            req.setStatus(RequestStatus.EMAIL_PROCESSING_FAILED);
+            req.setUpdatedAt(LocalDateTime.now());
+            requestRepository.save(req);
+        }
+
+        // Leave it unread so the next run retries; give up after MAX_RETRIES.
+        if (row.getRetryCount() >= MAX_RETRIES) {
+            markProcessedQuietly(email.getMessageId());
+        }
+    }
+
+    // ------------------------------------------------------------------
+
+    private IncomingEmail newRow(EmailMessage email, String sender) {
+        IncomingEmail row = new IncomingEmail();
+        row.setMessageId(email.getMessageId());
+        row.setInReplyTo(email.getInReplyTo());
+        row.setSenderEmail(sender.isBlank() ? "unknown" : sender);
+        row.setSubject(email.getSubject() == null ? null
+                : email.getSubject().length() > 255 ? email.getSubject().substring(0, 255) : email.getSubject());
+        row.setBody(email.getBody());
+        row.setProcessingStatus("RECEIVED");
+        row.setReceivedAt(email.getReceivedAt() == null ? LocalDateTime.now() : email.getReceivedAt());
+        return row;
+    }
+
+    private void markProcessedQuietly(String messageId) {
+        try {
+            ingestion.markEmailAsProcessed(messageId);
+        } catch (Exception e) {
+            log.warn("Could not mark {} as processed in the mailbox: {}", messageId, e.getMessage());
+        }
+    }
+
+    private ClientMasterService.ClientDetails toClientDetails(
+            EmailMessage email, String sender, List<ExtractedFieldData> fields) {
+
+        String idType = get(fields, "identityType");
+        String idNumber = get(fields, "identityNumber");
+        return new ClientMasterService.ClientDetails(
+                get(fields, "name"),
+                sender,
+                get(fields, "phone"),
+                parseDate(get(fields, "dateOfBirth")),
+                null,
+                get(fields, "nationality"),
+                null,
+                get(fields, "identityCountry"),
+                idType,
+                idNumber);
+    }
+
+    private static java.time.LocalDate parseDate(String v) {
+        try {
+            return v == null ? null : java.time.LocalDate.parse(v);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** policyType value in the mail, else the open request, else keywords in subject/body. */
+    private String resolveType(
+            List<ExtractedFieldData> fields, EmailMessage email, QuotationRequest pending) {
+
+        if (pending != null && pending.getPolicyType() != null && !pending.getPolicyType().isBlank()) {
+            return pending.getPolicyType();
+        }
+        List<InsuranceTypeDef> types = masterData.insuranceTypes(true);
+
+        String stated = get(fields, "policyType");
+        if (stated != null) {
+            for (InsuranceTypeDef t : types) {
+                if (t.code().equalsIgnoreCase(stated.trim()) || t.label().equalsIgnoreCase(stated.trim())
+                        || (t.label().toLowerCase().startsWith(stated.trim().toLowerCase())
+                        && stated.trim().length() >= 4)) {
+                    return t.code();
+                }
+            }
+        }
+        return classifier.detectInsuranceType(email.getSubject(), email.getBody(), types);
+    }
+
+    private Optional<QuotationRequest> findPendingRequest(Client client) {
+        return requestRepository.findFirstByClientIdAndStatusInOrderByIdDesc(
+                client.getId(),
+                List.of(RequestStatus.MISSING_INFORMATION, RequestStatus.WAITING_FOR_CLIENT));
+    }
+
+    private List<ExtractedFieldData> withPolicyType(List<ExtractedFieldData> fields, String type) {
+        List<ExtractedFieldData> out = new ArrayList<>();
+        for (ExtractedFieldData f : fields) {
+            if (!"policyType".equalsIgnoreCase(f.getFieldName())) {
+                out.add(f);
+            }
+        }
+        out.add(new ExtractedFieldData("policyType", type, FieldDataType.TEXT,
+                FieldSource.EMAIL_EXTRACTED, 1.0, false));
+        return out;
+    }
+
+    /** Earlier answers stay; a new non-blank value in the latest email replaces them. */
+    private List<ExtractedFieldData> mergeExistingValues(
+            QuotationRequest request, List<ExtractedFieldData> latest) {
+
+        Map<String, ExtractedFieldData> combined = new LinkedHashMap<>();
+
+        for (RequestFieldValue saved : fieldValueRepository.findByQuotationRequestId(request.getId())) {
+            if (saved.getRequiredField() == null || saved.getFieldValue() == null) {
+                continue;
+            }
+            String name = saved.getRequiredField().getFieldName();
+            combined.put(normalize(name), new ExtractedFieldData(
+                    name, saved.getFieldValue(), saved.getRequiredField().getDataType(),
+                    saved.getSource() != null ? saved.getSource() : FieldSource.EMAIL_EXTRACTED,
+                    1.0, false));
+        }
+
+        for (ExtractedFieldData field : latest) {
+            if (field.getFieldName() == null) {
+                continue;
+            }
+            String key = normalize(field.getFieldName());
+            boolean hasValue = !field.isMissing()
+                    && field.getFieldValue() != null && !field.getFieldValue().isBlank();
+            if (hasValue || !combined.containsKey(key)) {
+                combined.put(key, field);
+            }
+        }
+        return new ArrayList<>(combined.values());
+    }
+
+    private static String get(List<ExtractedFieldData> fields, String name) {
+        return fields.stream()
+                .filter(f -> name.equalsIgnoreCase(f.getFieldName()))
+                .filter(f -> !f.isMissing() && f.getFieldValue() != null && !f.getFieldValue().isBlank())
+                .map(ExtractedFieldData::getFieldValue)
+                .findFirst().orElse(null);
+    }
+
+    private static String normalize(String s) {
+        return s == null ? "" : s.trim().toLowerCase();
+    }
+
+    /** Never auto-reply to robots or bounce messages (avoids mail loops). */
+    static boolean isHumanSender(String sender) {
         if (sender == null || sender.isBlank()) {
             return false;
         }
@@ -336,155 +441,5 @@ public class AutomationService {
         return !(s.contains("no-reply") || s.contains("noreply")
                 || s.contains("donotreply") || s.contains("do-not-reply")
                 || s.contains("mailer-daemon") || s.contains("postmaster"));
-    }
-
-    private Optional<QuotationRequest> findPendingRequest(
-            Client client) {
-
-        List<QuotationRequest> pendingRequests =
-                new ArrayList<>();
-
-        pendingRequests.addAll(
-                quotationRequestRepository.findByStatus(
-                        RequestStatus.MISSING_INFORMATION));
-
-        pendingRequests.addAll(
-                quotationRequestRepository.findByStatus(
-                        RequestStatus.WAITING_FOR_CLIENT));
-
-        return pendingRequests.stream()
-                .filter(request ->
-                        request.getClient() != null
-                                && request.getClient().getId() != null
-                                && request.getClient().getId()
-                                .equals(client.getId()))
-                .max(Comparator.comparingLong(
-                        request -> request.getId() == null
-                                ? 0L
-                                : request.getId()));
-    }
-
-    private List<ExtractedFieldData> mergeExistingValues(
-            QuotationRequest quotationRequest,
-            List<ExtractedFieldData> newlyExtractedFields) {
-
-        Map<String, ExtractedFieldData> combined =
-                new LinkedHashMap<>();
-
-        // Load the values already stored for this request.
-        List<RequestFieldValue> savedValues =
-                requestFieldValueRepository.findByQuotationRequestId(
-                        quotationRequest.getId());
-
-        for (RequestFieldValue saved : savedValues) {
-
-            if (saved.getRequiredField() == null
-                    || saved.getFieldValue() == null) {
-                continue;
-            }
-
-            String fieldName =
-                    saved.getRequiredField().getFieldName();
-
-            FieldSource source = saved.getSource() != null
-                    ? saved.getSource()
-                    : FieldSource.EMAIL_EXTRACTED;
-
-            combined.put(
-                    normalize(fieldName),
-                    new ExtractedFieldData(
-                            fieldName,
-                            saved.getFieldValue(),
-                            saved.getRequiredField().getDataType(),
-                            source,
-                            1.0,
-                            false
-                    )
-            );
-        }
-
-        // Only replace an existing value when the latest email
-        // actually contains a nonblank value for that field.
-        for (ExtractedFieldData field : newlyExtractedFields) {
-
-            if (field.getFieldName() == null) {
-                continue;
-            }
-
-            String key = normalize(field.getFieldName());
-
-            boolean hasValue =
-                    !field.isMissing()
-                            && field.getFieldValue() != null
-                            && !field.getFieldValue().isBlank();
-
-            if (hasValue || !combined.containsKey(key)) {
-                combined.put(key, field);
-            }
-        }
-
-        return new ArrayList<>(combined.values());
-    }
-
-    private Client findOrCreateClient(EmailMessage email) {
-
-        Optional<Client> existingClient =
-                clientRepository.findByEmail(
-                        email.getSenderEmail());
-
-        if (existingClient.isPresent()) {
-            return existingClient.get();
-        }
-
-        Client client = new Client();
-
-        client.setEmail(email.getSenderEmail());
-        client.setCreatedAt(LocalDateTime.now());
-        client.setUpdatedAt(LocalDateTime.now());
-
-        return clientRepository.save(client);
-    }
-
-    private void updateClient(
-            Client client,
-            List<ExtractedFieldData> fields) {
-
-        String name = getFieldValue(fields, "name");
-        String phone = getFieldValue(fields, "phone");
-
-        if (name != null && !name.isBlank()) {
-            client.setName(name);
-        }
-
-        if (phone != null && !phone.isBlank()) {
-            client.setPhone(phone);
-        }
-
-        client.setUpdatedAt(LocalDateTime.now());
-
-        clientRepository.save(client);
-    }
-
-    private String getFieldValue(
-            List<ExtractedFieldData> fields,
-            String fieldName) {
-
-        return fields.stream()
-                .filter(field ->
-                        fieldName.equalsIgnoreCase(
-                                field.getFieldName()))
-                .filter(field ->
-                        !field.isMissing()
-                                && field.getFieldValue() != null
-                                && !field.getFieldValue().isBlank())
-                .map(ExtractedFieldData::getFieldValue)
-                .findFirst()
-                .orElse(null);
-    }
-
-    private String normalize(String fieldName) {
-        return fieldName == null
-                ? ""
-                : fieldName.trim().toLowerCase();
     }
 }

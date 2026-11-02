@@ -18,6 +18,8 @@ import com.insurance.quotation.entity.QuotationRequestTraveller;
 import com.insurance.quotation.entity.RequestFieldValue;
 import com.insurance.quotation.repository.QuotationRequestTravellerRepository;
 import com.insurance.quotation.repository.RequestFieldValueRepository;
+import com.insurance.quotation.service.master.InsuranceTypeDef;
+import com.insurance.quotation.service.master.MasterDataService;
 
 /**
  * Per-traveller pricing. ALL rates live in application.properties
@@ -39,6 +41,7 @@ public class QuotationCalculationService {
 
     private final RequestFieldValueRepository fieldValueRepository;
     private final QuotationRequestTravellerRepository travellerRepository;
+    private final MasterDataService masterData;
 
     private final BigDecimal dailyRate;
     private final BigDecimal childMultiplier;
@@ -53,6 +56,7 @@ public class QuotationCalculationService {
     public QuotationCalculationService(
             RequestFieldValueRepository fieldValueRepository,
             QuotationRequestTravellerRepository travellerRepository,
+            MasterDataService masterData,
             @Value("${pricing.daily-rate:100.00}") BigDecimal dailyRate,
             @Value("${pricing.child-multiplier:0.50}") BigDecimal childMultiplier,
             @Value("${pricing.adult-multiplier:1.00}") BigDecimal adultMultiplier,
@@ -65,6 +69,7 @@ public class QuotationCalculationService {
 
         this.fieldValueRepository = fieldValueRepository;
         this.travellerRepository = travellerRepository;
+        this.masterData = masterData;
         this.dailyRate = dailyRate;
         this.childMultiplier = childMultiplier;
         this.adultMultiplier = adultMultiplier;
@@ -89,6 +94,11 @@ public class QuotationCalculationService {
             if (v.getRequiredField() != null) {
                 fields.put(v.getRequiredField().getFieldName(), v.getFieldValue());
             }
+        }
+
+        String type = request.getPolicyType();
+        if (type != null && !type.isBlank() && !"TRAVEL".equalsIgnoreCase(type)) {
+            return calculateGeneric(type, fields);
         }
 
         LocalDate start;
@@ -173,6 +183,56 @@ public class QuotationCalculationService {
         BigDecimal total = money(premium.add(tax));
 
         return new CalculationResult(items, premium, tax, total);
+    }
+
+    /**
+     * Non-travel types: premium = base premium + rate% of one value field
+     * (all three come from the insurance_types master data).
+     * DEMO pricing until the company supplies real rating tables.
+     */
+    private CalculationResult calculateGeneric(String type, Map<String, String> fields) {
+
+        InsuranceTypeDef def = masterData.insuranceType(type)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Unknown insurance type: " + type));
+
+        BigDecimal basis = BigDecimal.ZERO;
+        if (def.rateBasisField() != null && !def.rateBasisField().isBlank()) {
+            try {
+                basis = new BigDecimal(required(fields, def.rateBasisField()));
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException(
+                        "The value for " + def.rateBasisField() + " must be a number.");
+            }
+        }
+        return genericPremium(def.label(), def.basePremium(), def.ratePercent(),
+                def.rateBasisField(), basis, taxRate);
+    }
+
+    /** Pure calculation, public for unit tests. */
+    public static CalculationResult genericPremium(
+            String label, BigDecimal base, BigDecimal ratePercent,
+            String basisField, BigDecimal basis, BigDecimal taxRate) {
+
+        List<LineItem> items = new ArrayList<>();
+        BigDecimal premium = BigDecimal.ZERO;
+
+        BigDecimal basePremium = base.setScale(2, RoundingMode.HALF_UP);
+        items.add(new LineItem("Base premium - " + label, basePremium));
+        premium = premium.add(basePremium);
+
+        if (ratePercent.signum() > 0 && basis.signum() > 0) {
+            BigDecimal charge = basis.multiply(ratePercent)
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            items.add(new LineItem(ratePercent.stripTrailingZeros().toPlainString()
+                    + "% of " + basisField, charge));
+            premium = premium.add(charge);
+        }
+
+        premium = premium.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal tax = premium.multiply(taxRate).setScale(2, RoundingMode.HALF_UP);
+        return new CalculationResult(items, premium, tax,
+                premium.add(tax).setScale(2, RoundingMode.HALF_UP));
     }
 
     private BigDecimal money(BigDecimal v) {

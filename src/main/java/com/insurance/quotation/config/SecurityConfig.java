@@ -74,6 +74,11 @@ public class SecurityConfig {
                                 "/api/public/**"
                         ).permitAll()
 
+                        // master data: everyone logged in can read, only ADMIN can change
+                        .requestMatchers(HttpMethod.POST, "/api/master/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/master/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/master/**").hasRole("ADMIN")
+
                         .requestMatchers("/api/**")
                         .hasAnyRole("ADMIN", "OPERATIONS")
 

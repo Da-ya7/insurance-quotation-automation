@@ -32,8 +32,43 @@ public class QuotationGenerationService {
         this.pdfService = pdfService;
     }
 
+    /**
+     * First quotation for a request. Safe to call twice (e.g. after a retry):
+     * if the request already has a quotation it is returned, never duplicated.
+     */
     @Transactional
     public Quotation generateQuotation(QuotationRequest quotationRequest) {
+
+        java.util.Optional<Quotation> existing = quotationRepository
+                .findFirstByQuotationRequestIdOrderByVersionNoDesc(
+                        quotationRequest.getId());
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        return createVersion(quotationRequest, 1);
+    }
+
+    /**
+     * Create the next version after the client changed details. The previous
+     * version is kept and marked SUPERSEDED.
+     */
+    @Transactional
+    public Quotation reviseQuotation(QuotationRequest quotationRequest) {
+
+        Quotation latest = quotationRepository
+                .findFirstByQuotationRequestIdOrderByVersionNoDesc(
+                        quotationRequest.getId())
+                .orElse(null);
+
+        if (latest == null) {
+            return createVersion(quotationRequest, 1);
+        }
+        latest.setStatus("SUPERSEDED");
+        quotationRepository.save(latest);
+        return createVersion(quotationRequest, latest.getVersionNo() + 1);
+    }
+
+    private Quotation createVersion(QuotationRequest quotationRequest, int version) {
 
         if (quotationRequest.getStatus() != RequestStatus.READY_FOR_QUOTATION) {
         throw new IllegalStateException(
@@ -46,10 +81,16 @@ public class QuotationGenerationService {
         Quotation quotation = new Quotation();
 
         quotation.setQuotationRequest(quotationRequest);
+        quotation.setVersionNo(version);
+        if (quotationRequest.getClient() != null) {
+            quotation.setClientVersionNo(
+                    quotationRequest.getClient().getVersionNo());
+        }
         quotation.setQuotationNumber(
                 "IQ-" + LocalDateTime.now().getYear()
                         + "-"
-                        + String.format("%06d", quotationRequest.getId()));
+                        + String.format("%06d", quotationRequest.getId())
+                        + (version > 1 ? "-V" + version : ""));
 
         quotation.setPremiumAmount(calculation.premium());
         quotation.setTaxAmount(calculation.tax());

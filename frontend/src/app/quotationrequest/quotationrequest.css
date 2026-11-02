@@ -679,3 +679,15 @@ tbody tr:last-child td {
     font-size: 10px;
   }
 }
+
+/* ---- additions ---- */
+.summary-cards { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.summary-card.clickable { cursor: pointer; }
+.attention-icon { background: #fdeaea; color: #b91c1c; }
+.sub { display: block; color: #6b7280; font-size: 11px; margin-top: 2px; }
+.missing-list { margin-top: 6px; max-width: 280px; }
+.detail-panel { margin-top: 22px; }
+.detail-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.detail-head h3 { margin: 0; }
+.scroll-x { overflow-x: auto; }
+.toolbar { flex-wrap: wrap; gap: 10px; }

@@ -94,14 +94,14 @@
           (click)="toggleProfileMenu()">
 
           <div class="profile-avatar">
-            A
+            {{ userName.charAt(0).toUpperCase() }}
           </div>
 
           <div class="profile-info">
 
-            <strong>Admin</strong>
+            <strong>{{ userName }}</strong>
 
-            <span>Administrator</span>
+            <span>{{ role === 'ADMIN' ? 'Administrator' : (role === 'OPERATIONS' ? 'Operations' : 'Staff') }}</span>
 
           </div>
 
@@ -140,242 +140,78 @@
 
   <section class="dashboard-content">
 
-    <!--
-      Removed:
-      Dashboard
-      Overview of your insurance email and quotation automation
-    -->
+    <!-- REFRESH BAR -->
+    <div class="refresh-bar">
+      <span class="x-muted" *ngIf="lastUpdated">Last updated {{ lastUpdated | date:'mediumTime' }} · auto-refresh every 30 s</span>
+      <button type="button" class="x-btn x-sm" (click)="refresh()">↻ Refresh</button>
+    </div>
 
-    <!-- ================= KPI CARDS ================= -->
+    <p class="x-banner x-error" *ngIf="errorMessage">{{ errorMessage }}</p>
+    <p class="x-muted" *ngIf="loading">Loading dashboard...</p>
 
-    <div class="stats-grid">
+    <!-- ================= KPI CARDS (all clickable) ================= -->
 
-      <!-- INCOMING EMAILS -->
+    <div class="stats-grid" *ngIf="stats">
 
-      <div class="stat-card">
+      <a class="stat-card stat-link"
+         *ngFor="let c of cards"
+         [routerLink]="c.link"
+         [queryParams]="c.query">
 
-        <div class="stat-icon">
-          📧
-        </div>
-
-        <div class="stat-details">
-
-          <span class="stat-title">
-            Incoming Emails
-          </span>
-
-          <h3>{{ totalEmails }}</h3>
-
-          <span class="stat-change">
-            +12.5% from last month
-          </span>
-
-        </div>
-
-      </div>
-
-      <!-- QUOTATION REQUESTS -->
-
-      <div class="stat-card">
-
-        <div class="stat-icon">
-          📋
-        </div>
+        <div class="stat-icon">{{ c.icon }}</div>
 
         <div class="stat-details">
-
-          <span class="stat-title">
-            Quotation Requests
-          </span>
-
-          <h3>{{ quotationRequests }}</h3>
-
-          <span class="stat-change">
-            +8.2% from last month
-          </span>
-
+          <span class="stat-title">{{ c.title }}</span>
+          <h3>{{ c.value }}</h3>
+          <span [class.stat-warning]="c.warn" [class.stat-change]="!c.warn">{{ c.note }}</span>
         </div>
 
-      </div>
-
-      <!-- PENDING REQUESTS -->
-
-      <div class="stat-card">
-
-        <div class="stat-icon">
-          ⚠️
-        </div>
-
-        <div class="stat-details">
-
-          <span class="stat-title">
-            Pending Requests
-          </span>
-
-          <h3>{{ pendingDetails }}</h3>
-
-          <span class="stat-warning">
-            Requires attention
-          </span>
-
-        </div>
-
-      </div>
-
-      <!-- QUOTATIONS SENT -->
-
-      <div class="stat-card">
-
-        <div class="stat-icon">
-          📄
-        </div>
-
-        <div class="stat-details">
-
-          <span class="stat-title">
-            Quotations Sent
-          </span>
-
-          <h3>{{ quotationsGenerated }}</h3>
-
-          <span class="stat-change">
-            +10.8% from last month
-          </span>
-
-        </div>
-
-      </div>
+      </a>
 
     </div>
 
-    <!-- ================= CHART + EMAIL CATEGORIES ================= -->
+    <!-- ================= CHART + STATUS BREAKDOWN ================= -->
 
-    <div class="dashboard-grid">
-
-      <!-- ACTIVITY CHART -->
+    <div class="dashboard-grid" *ngIf="stats">
 
       <div class="chart-card">
 
         <div class="card-header">
-
           <div>
-
-            <h3>
-              Insurance Email &amp; Quotation Activity
-            </h3>
-
-            <p>
-              Email processing and quotation activity
-            </p>
-
+            <h3>Requests &amp; Quotations per day</h3>
+            <p>Last 14 days</p>
           </div>
-
-          <!-- TIME RANGE -->
-
-          <div class="time-range">
-
-            <button
-              [class.active]="selectedTimeRange === '7 Days'"
-              (click)="setTimeRange('7 Days')">
-
-              7 Days
-
-            </button>
-
-            <button
-              [class.active]="selectedTimeRange === '30 Days'"
-              (click)="setTimeRange('30 Days')">
-
-              30 Days
-
-            </button>
-
-            <button
-              [class.active]="selectedTimeRange === '90 Days'"
-              (click)="setTimeRange('90 Days')">
-
-              90 Days
-
-            </button>
-
-            <button
-              [class.active]="selectedTimeRange === 'Year to Date'"
-              (click)="setTimeRange('Year to Date')">
-
-              Year to Date
-
-            </button>
-
+          <div class="legend" *ngIf="hasChartData">
+            <span><i class="dot dot-req"></i> Requests</span>
+            <span><i class="dot dot-quo"></i> Quotations</span>
           </div>
-
         </div>
-
-        <!-- GRAPH -->
 
         <div class="chart-container">
 
-          <svg
-            viewBox="0 0 900 350"
-            class="activity-chart">
+          <div class="x-empty" *ngIf="!hasChartData">
+            No requests or quotations in the last 14 days.
+          </div>
 
-            <!-- HORIZONTAL GRID LINES -->
+          <svg *ngIf="hasChartData" [attr.viewBox]="'0 0 ' + W + ' ' + H" class="activity-chart"
+               role="img" aria-label="Requests and quotations per day">
 
-            <line x1="60" y1="50" x2="850" y2="50"></line>
-            <line x1="60" y1="110" x2="850" y2="110"></line>
-            <line x1="60" y1="170" x2="850" y2="170"></line>
-            <line x1="60" y1="230" x2="850" y2="230"></line>
-            <line x1="60" y1="290" x2="850" y2="290"></line>
+            <g *ngFor="let t of yTicks">
+              <line [attr.x1]="60" [attr.x2]="850" [attr.y1]="t.y" [attr.y2]="t.y"></line>
+              <text [attr.x]="50" [attr.y]="t.y + 4" text-anchor="end">{{ t.label }}</text>
+            </g>
 
-            <!-- Y AXIS -->
+            <polyline [attr.points]="requestLine" fill="none" stroke-width="3" class="line-req"></polyline>
+            <polyline [attr.points]="quotationLine" fill="none" stroke-width="3" class="line-quo"></polyline>
 
-            <text x="25" y="55">100</text>
-            <text x="30" y="115">80</text>
-            <text x="30" y="175">60</text>
-            <text x="30" y="235">40</text>
-            <text x="30" y="295">20</text>
+            <circle *ngFor="let p of requestPoints" [attr.cx]="p.x" [attr.cy]="p.y" r="4.5" class="pt-req">
+              <title>{{ p.label }}: {{ p.requests }} request(s), {{ p.quotations }} quotation(s)</title>
+            </circle>
+            <circle *ngFor="let p of quotationPoints" [attr.cx]="p.x" [attr.cy]="p.y" r="4.5" class="pt-quo">
+              <title>{{ p.label }}: {{ p.requests }} request(s), {{ p.quotations }} quotation(s)</title>
+            </circle>
 
-            <!-- ACTIVITY LINE -->
-
-            <polyline
-              points="
-                60,250
-                150,210
-                240,225
-                330,170
-                420,190
-                510,130
-                600,150
-                690,100
-                780,125
-                850,75
-              "
-              fill="none"
-              stroke="currentColor"
-              stroke-width="3">
-            </polyline>
-
-            <!-- DATA POINTS -->
-
-            <circle cx="60" cy="250" r="5"></circle>
-            <circle cx="150" cy="210" r="5"></circle>
-            <circle cx="240" cy="225" r="5"></circle>
-            <circle cx="330" cy="170" r="5"></circle>
-            <circle cx="420" cy="190" r="5"></circle>
-            <circle cx="510" cy="130" r="5"></circle>
-            <circle cx="600" cy="150" r="5"></circle>
-            <circle cx="690" cy="100" r="5"></circle>
-            <circle cx="780" cy="125" r="5"></circle>
-            <circle cx="850" cy="75" r="5"></circle>
-
-            <!-- X AXIS -->
-
-            <text x="55" y="325">01</text>
-            <text x="150" y="325">05</text>
-            <text x="240" y="325">10</text>
-            <text x="330" y="325">15</text>
-            <text x="420" y="325">20</text>
-            <text x="510" y="325">25</text>
-            <text x="600" y="325">30</text>
+            <text *ngFor="let l of xLabels" [attr.x]="l.x" [attr.y]="320" text-anchor="middle">{{ l.label }}</text>
 
           </svg>
 
@@ -383,52 +219,36 @@
 
       </div>
 
-      <!-- EMAIL CATEGORIES -->
-
       <div class="category-card">
 
         <div class="card-header">
-
           <div>
-
-            <h3>Email Categories</h3>
-
-            <p>
-              Classification of incoming emails
-            </p>
-
+            <h3>Request Status</h3>
+            <p>Requests by status group</p>
           </div>
-
         </div>
 
         <div class="category-list">
 
-          <div
-            class="category-item"
-            *ngFor="let category of emailCategories">
+          <div class="x-empty" *ngIf="!hasGroupData">No quotation requests yet.</div>
+
+          <a class="category-item stat-link"
+             *ngFor="let g of groupRows"
+             routerLink="/quotation-requests"
+             [queryParams]="g.link">
 
             <div class="category-top">
-
-              <span>{{ category.name }}</span>
-
-              <strong>{{ category.count }}</strong>
-
+              <span>{{ g.label }}</span>
+              <strong>{{ g.count }}</strong>
             </div>
 
             <div class="progress-bar">
-
-              <div
-                class="progress"
-                [style.width.%]="category.percentage">
-              </div>
-
+              <div class="progress" [style.width.%]="g.percentage" [style.background]="g.color"></div>
             </div>
 
-            <span class="percentage">
-              {{ category.percentage }}%
-            </span>
+            <span class="percentage">{{ g.percentage }}%</span>
 
-          </div>
+          </a>
 
         </div>
 

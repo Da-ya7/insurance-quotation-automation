@@ -762,3 +762,11 @@
     flex-direction: column;
   }
 }
+
+/* ---- additions ---- */
+.ver { margin-left: 8px; vertical-align: middle; }
+.detail-panel { margin-top: 20px; }
+.detail-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.detail-head h3 { margin: 0; }
+.detail-actions { display: flex; gap: 10px; margin-top: 14px; }
+.quotation-card.x-row-selected { background: #f3f7ff; }

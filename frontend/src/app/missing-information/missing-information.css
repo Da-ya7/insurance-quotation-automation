@@ -601,3 +601,9 @@
     flex-direction: column;
   }
 }
+
+/* ---- additions ---- */
+.req-line { display: block; margin-top: 4px; font-size: 12px; }
+.resolved-label { display: block; margin-top: 10px; }
+.res-chip { margin: 2px 4px 2px 0; }
+.summary-row { flex-wrap: wrap; }

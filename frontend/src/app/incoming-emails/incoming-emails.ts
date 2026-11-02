@@ -1,186 +1,142 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApiService, EmailDto } from '../core/api.service';
-import { avatarColor, initials, shortDate } from '../core/format';
-
-interface IncomingEmail {
-  sender: string;
-  email: string;
-  subject: string;
-  category: string;
-  status: string;
-  time: string;
-  initials: string;
-  color: string;
-  body: string[];
-  name: string;
-  detectedEmail: string;
-}
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { forkJoin } from 'rxjs';
+import { ApiService, EmailDto, EmailSummary } from '../core/api.service';
+import { avatarColor, initials, kindClass, kindLabel, shortDate, simpleStatusClass, statusLabel } from '../core/format';
+import { goBackOrHome } from '../core/nav';
+import { startPolling } from '../core/polling';
 
 @Component({
   selector: 'app-incoming-emails',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './incoming-emails.html',
   styleUrl: './incoming-emails.css'
 })
-export class IncomingEmails implements OnInit, OnDestroy {
+export class IncomingEmails {
 
   private api = inject(ApiService);
   private cdr = inject(ChangeDetectorRef);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private location = inject(Location);
 
-  constructor(private location: Location) {}
+  readonly initials = initials;
+  readonly avatarColor = avatarColor;
+  readonly shortDate = shortDate;
+  readonly kindLabel = kindLabel;
+  readonly kindClass = kindClass;
+  readonly statusClass = simpleStatusClass;
+  readonly statusLabel = statusLabel;
 
+  readonly kinds = [
+    { value: '', label: 'All kinds' },
+    { value: 'NEW_REQUEST', label: 'New request' },
+    { value: 'CLIENT_REPLY', label: 'Client reply' },
+    { value: 'UNRELATED', label: 'Unrelated' }
+  ];
+  readonly statuses = [
+    { value: '', label: 'All statuses' },
+    { value: 'RECEIVED', label: 'Pending' },
+    { value: 'PROCESSED', label: 'Processed' },
+    { value: 'FAILED', label: 'Failed' },
+    { value: 'IGNORED', label: 'Ignored' }
+  ];
+
+  emails: EmailDto[] = [];
+  summary: EmailSummary | null = null;
   searchText = '';
-  activeFilter = 'All';
-  selectedEmailId = 1;
-  private selectedSender = '';
+  kind = '';
+  status = '';
+  selectedId: number | null = null;
+  loading = true;
+  errorMessage = '';
+  lastUpdated: Date | null = null;
 
-  emails: IncomingEmail[] = [];
-
-  private timer: ReturnType<typeof setInterval> | undefined;
-
-  ngOnInit(): void {
-    this.loadEmails();
-    // New mail arrives in the background: refresh the list every 30 seconds.
-    this.timer = setInterval(() => this.loadEmails(), 30000);
-  }
-
-  ngOnDestroy(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
+  private poller = startPolling(
+    () => forkJoin({
+      list: this.api.emails(this.kind, this.status),
+      summary: this.api.emailSummary()
+    }),
+    ({ list, summary }) => {
+      this.emails = list;
+      this.summary = summary;
+      if (this.selectedId === null && list.length > 0) {
+        this.selectedId = list[0].id;
+      }
+      this.loading = false;
+      this.errorMessage = '';
+      this.lastUpdated = new Date();
+      this.cdr.markForCheck();
+    },
+    message => {
+      this.errorMessage = message;
+      this.loading = false;
+      this.cdr.markForCheck();
     }
-  }
+  );
 
-  loadEmails(): void {
-    this.api.emails().subscribe({
-      next: rows => {
-        this.emails = rows.map(r => this.toView(r));
-        if (this.emails.length > 0 && !this.selectedEmail) {
-          this.selectedSender = this.emails[0].sender;
-        }
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.emails = [];
-        this.cdr.markForCheck();
+  constructor() {
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => {
+      const k = params.get('kind') ?? '';
+      const s = params.get('status') ?? '';
+      const changed = k !== this.kind || s !== this.status;
+      this.kind = k;
+      this.status = s;
+      if (changed) {
+        this.loading = true;
+        this.poller.refresh();
       }
     });
   }
 
-  private toView(r: EmailDto): IncomingEmail {
-    const name = r.senderEmail.split('@')[0];
-    const waiting = r.requestStatus === 'MISSING_INFORMATION'
-      || r.requestStatus === 'WAITING_FOR_CLIENT';
-    const status = r.status === 'PROCESSED' && !waiting ? 'Processed' : 'Pending';
-
-    return {
-      sender: r.senderEmail,
-      email: r.senderEmail,
-      subject: r.subject,
-      category: r.requestId ? 'Quotation' : 'Other',
-      status,
-      time: shortDate(r.receivedAt),
-      initials: initials(name, r.senderEmail),
-      color: avatarColor(r.id),
-      body: (r.body ?? '').split(/\r?\n/).filter(line => line.trim().length > 0),
-      name,
-      detectedEmail: r.senderEmail
-    };
+  get filteredEmails(): EmailDto[] {
+    const q = this.searchText.trim().toLowerCase();
+    return this.emails.filter(e =>
+      !q ||
+      e.senderEmail.toLowerCase().includes(q) ||
+      (e.subject ?? '').toLowerCase().includes(q) ||
+      (e.clientName ?? '').toLowerCase().includes(q) ||
+      (e.clientCode ?? '').toLowerCase().includes(q));
   }
 
-  get filteredEmails(): IncomingEmail[] {
-    const search = this.searchText.trim().toLowerCase();
+  get selectedEmail(): EmailDto | undefined {
+    return this.emails.find(e => e.id === this.selectedId);
+  }
 
-    return this.emails.filter(email => {
-      const matchesSearch =
-        !search ||
-        email.sender.toLowerCase().includes(search) ||
-        email.email.toLowerCase().includes(search) ||
-        email.subject.toLowerCase().includes(search);
+  selectEmail(email: EmailDto): void {
+    this.selectedId = email.id;
+  }
 
-      let matchesFilter = true;
-
-      switch (this.activeFilter) {
-        case 'Quotation':
-          matchesFilter = email.category === 'Quotation';
-          break;
-
-        case 'Other':
-          matchesFilter = email.category === 'Other';
-          break;
-
-        case 'Pending':
-          matchesFilter = email.status === 'Pending';
-          break;
-      }
-
-      return matchesSearch && matchesFilter;
+  // Filters live in the URL so links such as ?kind=NEW_REQUEST&status=FAILED work.
+  applyFilters(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { kind: this.kind || null, status: this.status || null },
+      queryParamsHandling: 'merge'
     });
   }
 
-  get selectedEmail(): IncomingEmail | undefined {
-    return this.emails.find(
-      email => email.sender === this.selectedSender
-    );
+  quickFilter(kind: string, status: string): void {
+    this.kind = kind;
+    this.status = status;
+    this.applyFilters();
   }
 
-  selectEmail(email: IncomingEmail): void {
-    this.selectedSender = email.sender;
-    this.selectedEmailId = this.emails.indexOf(email) + 1;
-  }
-
-  viewEmailDetails(): void {
-    const email = this.selectedEmail;
-
-    if (!email) {
-      alert('Please select an email first.');
-      return;
-    }
-
-    alert(
-      `Sender: ${email.sender}\n` +
-      `Email: ${email.email}\n` +
-      `Subject: ${email.subject}\n` +
-      `Category: ${email.category}\n` +
-      `Status: ${email.status}`
-    );
-  }
-
-  setFilter(filter: string): void {
-    this.activeFilter = filter;
-  }
-
-  refreshEmails(): void {
+  clearFilters(): void {
     this.searchText = '';
-    this.activeFilter = 'All';
-    this.loadEmails();
+    this.quickFilter('', '');
   }
 
-  get totalEmails(): number {
-    return this.emails.length;
-  }
-
-  get pendingEmails(): number {
-    return this.emails.filter(
-      email => email.status === 'Pending'
-    ).length;
-  }
-
-  get processedEmails(): number {
-    return this.emails.filter(
-      email => email.status === 'Processed'
-    ).length;
-  }
-
-  get quotationEmails(): number {
-    return this.emails.filter(
-      email => email.category === 'Quotation'
-    ).length;
+  refresh(): void {
+    this.loading = true;
+    this.poller.refresh();
   }
 
   goBack(): void {
-    this.location.back();
+    goBackOrHome(this.location, this.router);
   }
 }

@@ -51,7 +51,8 @@ public class AuthController {
                 user.getRole().name()
         );
 
-        return new LoginResponse(token);
+        return new LoginResponse(token, user.getRole().name(),
+                user.getName() != null && !user.getName().isBlank() ? user.getName() : user.getEmail());
     }
     
 }

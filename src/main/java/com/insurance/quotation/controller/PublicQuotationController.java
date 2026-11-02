@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.insurance.quotation.dto.request.QuotationFormRequest;
@@ -24,8 +25,9 @@ public class PublicQuotationController {
 
     @PostMapping("/quotation-requests")
     public ResponseEntity<FormSubmissionService.SubmissionResult> submit(
-            @Valid @RequestBody QuotationFormRequest form) {
+            @Valid @RequestBody QuotationFormRequest form,
+            @RequestParam(required = false) String token) {
 
-        return ResponseEntity.ok(submissionService.submit(form));
+        return ResponseEntity.ok(submissionService.submit(form, token));
     }
 }

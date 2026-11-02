@@ -15,37 +15,43 @@
 
       <div class="header-content">
         <h1>Missing Information</h1>
-        <p>Track information required from clients</p>
+        <p>Track information required from clients
+          <span *ngIf="lastUpdated"> · updated {{ lastUpdated | date:'mediumTime' }}</span></p>
       </div>
 
     </div>
   </div>
 
+  <p class="x-banner x-error" *ngIf="errorMessage">{{ errorMessage }}</p>
+
   <!-- ATTENTION BANNER -->
-  <div class="attention-banner" *ngIf="missingItems.length > 0">
+  <div class="attention-banner" *ngIf="summary && summary.requestsWaiting > 0">
     <div class="attention-icon">!</div>
 
     <div class="attention-content">
-      <strong>{{ requestCount }} request(s) are waiting for client details</strong>
-      <span>
-        Follow up with clients to complete the required quotation information.
-      </span>
+      <strong>{{ summary.requestsWaiting }} request(s) are waiting for client details</strong>
+      <span>Follow up with clients to complete the required quotation information.</span>
     </div>
 
-    <div class="attention-count">{{ requestCount }}</div>
+    <div class="attention-count">{{ summary.requestsWaiting }}</div>
   </div>
 
   <!-- SUMMARY -->
-  <div class="summary-row">
+  <div class="summary-row" *ngIf="summary">
 
     <div class="summary-item">
-      <span class="summary-number">{{ requestCount }}</span>
-      <span class="summary-label">Pending Requests</span>
+      <span class="summary-number">{{ summary.requestsWaiting }}</span>
+      <span class="summary-label">Requests Waiting</span>
     </div>
 
     <div class="summary-item">
-      <span class="summary-number">{{ missingItems.length }}</span>
-      <span class="summary-label">Missing Details</span>
+      <span class="summary-number">{{ summary.open }}</span>
+      <span class="summary-label">Open Fields</span>
+    </div>
+
+    <div class="summary-item">
+      <span class="summary-number">{{ summary.resolved }}</span>
+      <span class="summary-label">Resolved Fields</span>
     </div>
 
   </div>
@@ -58,60 +64,73 @@
     </div>
 
     <div class="request-filter">
-      <button type="button" class="filter-active" (click)="load()">↻ Refresh</button>
+      <button type="button" *ngFor="let t of tabs"
+        [class.filter-active]="status === t.value" (click)="setStatus(t.value)">{{ t.label }}</button>
+      <button type="button" (click)="refresh()">↻ Refresh</button>
     </div>
   </div>
 
   <!-- REQUEST LIST -->
   <div class="request-list">
 
-    <div class="request-card" *ngFor="let item of missingItems">
+    <div class="request-card" *ngFor="let g of groups">
 
       <div class="client-block">
-        <div class="client-avatar" [ngClass]="avatarColor(item.requestId)">
-          {{ initials(item.clientName, item.clientEmail) }}
+        <div class="client-avatar" [ngClass]="avatarColor(g.requestId)">
+          {{ initials(g.clientName, g.clientEmail) }}
         </div>
         <div>
-          <h3>{{ item.clientName || 'Name not provided' }}</h3>
-          <span>{{ item.clientEmail }}</span>
+          <h3>{{ g.clientName || 'Name not provided' }}</h3>
+          <span>{{ g.clientCode }} · {{ g.clientEmail }}</span>
+          <span class="req-line">
+            <a class="x-link" routerLink="/quotation-requests" [queryParams]="{ id: g.requestId }">{{ g.requestReference || ('Request #' + g.requestId) }}</a>
+            · {{ g.insuranceType || '-' }}
+          </span>
         </div>
       </div>
 
       <div class="missing-block">
-        <span class="block-label">INFORMATION REQUIRED</span>
+        <ng-container *ngIf="g.open.length">
+          <span class="block-label">INFORMATION REQUIRED ({{ g.open.length }})</span>
+          <div>
+            <span class="x-chip" *ngFor="let m of g.open">{{ m.field }}</span>
+          </div>
+        </ng-container>
 
-        <div class="missing-value">
-          <span class="field-icon">▣</span>
-          <strong>{{ item.field }}</strong>
-        </div>
-
-        <p>Needed to continue the quotation for request {{ item.requestId }}.</p>
+        <ng-container *ngIf="g.resolved.length">
+          <span class="block-label resolved-label">RESOLVED ({{ g.resolved.length }})</span>
+          <div>
+            <span class="x-badge x-green res-chip" *ngFor="let m of g.resolved">{{ m.field }}</span>
+          </div>
+        </ng-container>
       </div>
 
       <div class="status-block">
         <span class="block-label">STATUS</span>
 
-        <span class="status pending">
+        <span class="status pending" *ngIf="g.open.length">
           <span class="status-dot"></span>
           Waiting for client
         </span>
+        <span class="x-badge x-green" *ngIf="!g.open.length">Resolved</span>
 
-        <small>Requested {{ shortDate(item.createdAt) }}</small>
+        <small *ngIf="g.open.length">Requested {{ shortDate(g.createdAt) }}</small>
+        <small *ngIf="resolvedAt(g) as r">Resolved {{ shortDate(r) }}</small>
+        <small *ngIf="g.requestStatusLabel">Request: {{ g.requestStatusLabel }}</small>
       </div>
 
     </div>
 
-    <p *ngIf="loading">Loading...</p>
-    <p *ngIf="errorMessage">{{ errorMessage }}</p>
-    <p *ngIf="!loading && !errorMessage && missingItems.length === 0">
-      No missing information. All requests have the details they need.
+    <p class="x-muted" *ngIf="loading && groups.length === 0">Loading...</p>
+    <p class="x-empty" *ngIf="!loading && !errorMessage && groups.length === 0">
+      {{ status === 'RESOLVED' ? 'No resolved information yet.' : 'No missing information. All requests have the details they need.' }}
     </p>
 
   </div>
 
   <!-- FOOTER -->
   <div class="page-footer">
-    <span>Showing {{ missingItems.length }} open information request(s)</span>
+    <span>Showing {{ groups.length }} request(s) · {{ itemCount }} field(s)</span>
   </div>
 
 </div>

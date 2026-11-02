@@ -1,112 +1,109 @@
-
 package com.insurance.quotation.service.quotation;
 
-import com.insurance.quotation.entity.Quotation;
-import com.insurance.quotation.mailbox.provider.GmailMailboxClient;
-import com.insurance.quotation.repository.QuotationRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 import java.util.List;
 
-import java.time.LocalDateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.insurance.quotation.entity.Client;
+import com.insurance.quotation.entity.Quotation;
+import com.insurance.quotation.mailbox.MailTemplates;
+import com.insurance.quotation.mailbox.OutboundMailer;
+import com.insurance.quotation.repository.QuotationRepository;
+import com.insurance.quotation.service.master.FormLinkService;
+
+/** Every email the system sends to customers goes through here. */
 @Service
 public class QuotationEmailService {
 
-    private final GmailMailboxClient gmailMailboxClient;
+    private static final Logger log = LoggerFactory.getLogger(QuotationEmailService.class);
+
+    private final OutboundMailer mailer;
     private final QuotationRepository quotationRepository;
-    private final boolean demoMode;
-    private final String formUrl;
+    private final FormLinkService formLinks;
 
     public QuotationEmailService(
-            GmailMailboxClient gmailMailboxClient,
+            OutboundMailer mailer,
             QuotationRepository quotationRepository,
-            @org.springframework.beans.factory.annotation.Value("${mailbox.mode:demo}") String mailboxMode,
-            @org.springframework.beans.factory.annotation.Value("${app.public-form-url:http://localhost:4200/client-quotation}") String formUrl) {
-        this.gmailMailboxClient = gmailMailboxClient;
+            FormLinkService formLinks) {
+        this.mailer = mailer;
         this.quotationRepository = quotationRepository;
-        this.demoMode = !"gmail".equalsIgnoreCase(mailboxMode);
-        this.formUrl = formUrl;
+        this.formLinks = formLinks;
     }
 
+    /** Missing-details email with a personal form link (pre-filled for returning clients). */
+    public String sendMissingInformationEmail(
+            Client client, Long requestId, String insuranceType,
+            List<String> missingFields, List<String> invalidFields) {
+
+        FormLinkService.FormLink link = formLinks.create(client.getId(), requestId, insuranceType);
+        String url = formLinks.url(link);
+
+        MailTemplates.Mail mail = MailTemplates.missingInformation(missingFields, invalidFields, url);
+        mailer.sendPlain(client.getEmail(), mail.subject(), mail.body());
+        log.info("Missing-information email sent to {} (request {})", client.getEmail(), requestId);
+        return url;
+    }
+
+    /** Same email without a personal link (used by the older web-form flows). */
     public void sendMissingInformationEmail(
-            String recipient,
-            List<String> missingFields,
-            List<String> invalidFields) {
+            String recipient, List<String> missingFields, List<String> invalidFields) {
 
-        if (demoMode) {
-            System.out.println("[DEMO MAIL] Missing-information email to "
-                    + recipient + " missing=" + missingFields
-                    + " invalid=" + invalidFields);
-            return;
-        }
-
-        gmailMailboxClient.sendMissingInformationEmail(
-                recipient,
-                missingFields,
-                invalidFields
-        );
+        MailTemplates.Mail mail = MailTemplates.missingInformation(missingFields, invalidFields, null);
+        mailer.sendPlain(recipient, mail.subject(), mail.body());
     }
 
-    /** Reply to an email that was not a quotation request: point to the web form. */
-    public void sendFormLinkEmail(String recipient) {
+    /**
+     * "Thank you for contacting us" reply that carries the form link. For a
+     * returning client the link opens with their saved details filled in.
+     */
+    public String sendFormLinkEmail(
+            String recipient, Client existingClientOrNull, String insuranceType, Long requestId) {
 
-        if (demoMode) {
-            System.out.println("[DEMO MAIL] Form link " + formUrl
-                    + " would be sent to " + recipient);
-            return;
-        }
+        FormLinkService.FormLink link = formLinks.create(
+                existingClientOrNull == null ? null : existingClientOrNull.getId(),
+                requestId, insuranceType);
+        String url = formLinks.url(link);
 
-        gmailMailboxClient.sendFormLinkEmail(recipient, formUrl);
+        MailTemplates.Mail mail = MailTemplates.formLink(existingClientOrNull != null, url);
+        mailer.sendPlain(recipient, mail.subject(), mail.body());
+        log.info("Form-link email sent to {}", recipient);
+        return url;
     }
 
+    /** Sends the quotation PDF. Does nothing if this version was already sent. */
     @Transactional
     public void sendQuotation(Quotation quotation) {
 
-        if (quotation.getPdfPath() == null
-                || quotation.getPdfPath().isBlank()) {
-            throw new IllegalStateException(
-                    "Cannot send quotation: PDF path is missing.");
+        if ("SENT".equals(quotation.getStatus())) {
+            log.info("Quotation {} was already sent - skipping", quotation.getQuotationNumber());
+            return;
         }
-
+        if (quotation.getPdfPath() == null || quotation.getPdfPath().isBlank()) {
+            throw new IllegalStateException("Cannot send quotation: PDF path is missing.");
+        }
         if (quotation.getQuotationRequest() == null
                 || quotation.getQuotationRequest().getClient() == null) {
-            throw new IllegalStateException(
-                    "Cannot send quotation: client details are missing.");
+            throw new IllegalStateException("Cannot send quotation: client details are missing.");
         }
 
-        String recipient = quotation.getQuotationRequest()
-                .getClient()
-                .getEmail();
-
+        String recipient = quotation.getQuotationRequest().getClient().getEmail();
         if (recipient == null || recipient.isBlank()) {
-            throw new IllegalStateException(
-                    "Cannot send quotation: client email is missing.");
+            throw new IllegalStateException("Cannot send quotation: client email is missing.");
         }
 
-        if (demoMode) {
-            System.out.println("[DEMO MAIL] Quotation "
-                    + quotation.getQuotationNumber() + " would be sent to "
-                    + recipient + " with " + quotation.getPdfPath());
-        } else {
-            // Gmail API sends the PDF and throws an exception if sending fails.
-            gmailMailboxClient.sendQuotationEmail(
-                    recipient,
-                    quotation.getQuotationNumber(),
-                    quotation.getPdfPath()
-            );
-        }
+        MailTemplates.Mail mail = MailTemplates.quotation(
+                quotation.getQuotationNumber(), quotation.getVersionNo());
+        mailer.sendWithAttachment(recipient, mail.subject(), mail.body(), quotation.getPdfPath());
 
-        // Update the database only after Gmail accepts the send request.
+        // Only after the provider accepted the message:
         quotation.setStatus("SENT");
         quotation.setSentAt(LocalDateTime.now());
-
         quotationRepository.save(quotation);
 
-        System.out.println(
-                "Quotation email sent successfully to "
-                        + recipient
-                        + " for "
-                        + quotation.getQuotationNumber());
+        log.info("Quotation {} sent to {}", quotation.getQuotationNumber(), recipient);
     }
 }

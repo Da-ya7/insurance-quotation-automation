@@ -1,21 +1,17 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
+
 import { Clients } from './clients';
 
 describe('Clients', () => {
-  let component: Clients;
-  let fixture: ComponentFixture<Clients>;
-
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
+  it('can be created', () => {
+    TestBed.configureTestingModule({
       imports: [Clients],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(Clients);
-    component = fixture.componentInstance;
-    await fixture.whenStable();
-  });
-
-  it('should create', () => {
-    expect(component).toBeTruthy();
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+    });
+    const fixture = TestBed.createComponent(Clients);
+    expect(fixture.componentInstance).toBeTruthy();
   });
 });

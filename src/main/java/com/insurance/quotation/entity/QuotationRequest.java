@@ -65,9 +65,9 @@ public class QuotationRequest {
     @OneToMany(mappedBy = "quotationRequest")
     private List<MissingField> missingFields;
 
-    // Relationship with Quotation
-    @OneToOne(mappedBy = "quotationRequest")
-    private Quotation quotation;
+    // A request can have several quotation versions (V1, V2 ...)
+    @OneToMany(mappedBy = "quotationRequest")
+    private List<Quotation> quotations;
 
 
     // =========================
@@ -154,11 +154,11 @@ public class QuotationRequest {
         this.missingFields = missingFields;
     }
 
-    public Quotation getQuotation() {
-        return quotation;
+    public List<Quotation> getQuotations() {
+        return quotations;
     }
 
-    public void setQuotation(Quotation quotation) {
-        this.quotation = quotation;
+    public void setQuotations(List<Quotation> quotations) {
+        this.quotations = quotations;
     }
 }

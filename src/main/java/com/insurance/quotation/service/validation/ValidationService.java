@@ -1,29 +1,38 @@
 package com.insurance.quotation.service.validation;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.insurance.quotation.entity.MissingField;
 import com.insurance.quotation.entity.QuotationRequest;
-import com.insurance.quotation.entity.RequiredField;
 import com.insurance.quotation.entity.RequestFieldValue;
+import com.insurance.quotation.entity.RequiredField;
 import com.insurance.quotation.entity.enums.FieldDataType;
 import com.insurance.quotation.entity.enums.RequestStatus;
 import com.insurance.quotation.repository.MissingFieldRepository;
 import com.insurance.quotation.repository.QuotationRequestRepository;
-import com.insurance.quotation.repository.RequiredFieldRepository;
 import com.insurance.quotation.repository.RequestFieldValueRepository;
+import com.insurance.quotation.repository.RequiredFieldRepository;
+import com.insurance.quotation.service.client.IdentityProtectionService;
 import com.insurance.quotation.service.extraction.ExtractedFieldData;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.insurance.quotation.service.extraction.ValueNormalizer;
+import com.insurance.quotation.service.master.MasterDataService;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+/**
+ * Checks a quotation request against the required fields configured in the
+ * database for its insurance type (field list, mandatory flag, regex), and
+ * the identity document against the rules of the client's country.
+ */
 @Service
 public class ValidationService {
 
@@ -31,17 +40,37 @@ public class ValidationService {
     private final RequestFieldValueRepository requestFieldValueRepository;
     private final MissingFieldRepository missingFieldRepository;
     private final QuotationRequestRepository quotationRequestRepository;
+    private final MasterDataService masterData;
 
     public ValidationService(
             RequiredFieldRepository requiredFieldRepository,
             RequestFieldValueRepository requestFieldValueRepository,
             MissingFieldRepository missingFieldRepository,
-            QuotationRequestRepository quotationRequestRepository) {
+            QuotationRequestRepository quotationRequestRepository,
+            MasterDataService masterData) {
 
         this.requiredFieldRepository = requiredFieldRepository;
         this.requestFieldValueRepository = requestFieldValueRepository;
         this.missingFieldRepository = missingFieldRepository;
         this.quotationRequestRepository = quotationRequestRepository;
+        this.masterData = masterData;
+    }
+
+    /** true when the field applies to this insurance type (NULL = all, or a comma list). */
+    public static boolean appliesTo(RequiredField field, String policyType) {
+        String configured = field.getPolicyType();
+        if (configured == null || configured.isBlank()) {
+            return true;
+        }
+        if (policyType == null || policyType.isBlank()) {
+            return false;
+        }
+        for (String t : configured.split(",")) {
+            if (t.trim().equalsIgnoreCase(policyType.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Transactional
@@ -52,168 +81,122 @@ public class ValidationService {
         if (quotationRequest == null) {
             throw new IllegalArgumentException("Quotation request cannot be null");
         }
-
         if (extractedFields == null) {
             extractedFields = List.of();
         }
 
         quotationRequest.setStatus(RequestStatus.VALIDATING);
 
-        List<RequiredField> requiredFields =
-                requiredFieldRepository.findAll();
-
-        List<RequiredField> applicableFields = requiredFields.stream()
-                .filter(field -> Boolean.TRUE.equals(field.getIsActive()))
-                .filter(field -> isApplicableToPolicy(
-                        field,
-                        quotationRequest.getPolicyType()))
+        List<RequiredField> applicable = requiredFieldRepository
+                .findByIsActiveTrueOrderBySortOrderAscIdAsc().stream()
+                .filter(f -> appliesTo(f, quotationRequest.getPolicyType()))
                 .toList();
 
-        if (applicableFields.isEmpty()) {
+        if (applicable.isEmpty()) {
             throw new IllegalStateException(
-                    "No active required fields are configured for policy type: "
+                    "No active required fields are configured for insurance type: "
                             + quotationRequest.getPolicyType());
         }
 
-        Map<String, ExtractedFieldData> extractedFieldMap = new HashMap<>();
-
-        for (ExtractedFieldData field : extractedFields) {
-            if (field.getFieldName() != null) {
-                extractedFieldMap.put(
-                        normalize(field.getFieldName()),
-                        field
-                );
+        Map<String, ExtractedFieldData> byName = new HashMap<>();
+        for (ExtractedFieldData f : extractedFields) {
+            if (f.getFieldName() != null) {
+                byName.put(normalize(f.getFieldName()), f);
             }
         }
 
-        List<String> missingFields = new ArrayList<>();
-        List<String> invalidFields = new ArrayList<>();
-        Set<String> validFieldNames = new HashSet<>();
+        List<String> missing = new ArrayList<>();
+        List<String> invalid = new ArrayList<>();
+        RequiredField identityNumberField = null;
 
-        for (RequiredField requiredField : applicableFields) {
+        for (RequiredField rf : applicable) {
 
-            String fieldName = normalize(requiredField.getFieldName());
+            if ("identityNumber".equalsIgnoreCase(rf.getFieldName())) {
+                identityNumberField = rf;
+            }
 
-            ExtractedFieldData extracted =
-                    extractedFieldMap.get(fieldName);
+            ExtractedFieldData extracted = byName.get(normalize(rf.getFieldName()));
+            boolean absent = extracted == null || extracted.isMissing()
+                    || isBlank(extracted.getFieldValue());
 
-            if (extracted == null
-                    || extracted.isMissing()
-                    || isBlank(extracted.getFieldValue())) {
-
-                missingFields.add(requiredField.getDisplayLabel());
-                createMissingFieldIfNeeded(
-                        quotationRequest,
-                        requiredField
-                );
+            if (absent) {
+                if (Boolean.FALSE.equals(rf.getIsMandatory())) {
+                    continue;                       // optional and not given
+                }
+                missing.add(rf.getDisplayLabel());
+                openMissingField(quotationRequest, rf);
                 continue;
             }
 
-            if (!isValidValue(
-                    extracted.getFieldValue(),
-                    requiredField.getDataType())) {
+            String value = ValueNormalizer.normalize(extracted.getFieldValue(), rf.getDataType());
 
-                invalidFields.add(requiredField.getDisplayLabel());
-                createMissingFieldIfNeeded(
-                        quotationRequest,
-                        requiredField
-                );
+            if (!isValidValue(value, rf.getDataType()) || !matchesRegex(value, rf.getValidationRegex())) {
+                invalid.add(rf.getDisplayLabel());
+                openMissingField(quotationRequest, rf);
                 continue;
             }
 
-            saveRequestFieldValue(
-                    quotationRequest,
-                    requiredField,
-                    extracted
-            );
-
-            resolveExistingMissingField(
-                    quotationRequest,
-                    requiredField
-            );
-
-            validFieldNames.add(fieldName);
+            saveValue(quotationRequest, rf, value, extracted);
+            resolveMissingField(quotationRequest, rf);
         }
 
-        if (!missingFields.isEmpty() || !invalidFields.isEmpty()) {
+        // Identity document: country-specific rules from the master data.
+        ExtractedFieldData idType = byName.get("identitytype");
+        ExtractedFieldData idNumber = byName.get("identitynumber");
+        if (idType != null && idNumber != null
+                && !isBlank(idType.getFieldValue()) && !isBlank(idNumber.getFieldValue())) {
 
-            quotationRequest.setStatus(
-                    RequestStatus.MISSING_INFORMATION
-            );
+            ExtractedFieldData idCountry = byName.get("identitycountry");
+            String country = idCountry != null && !isBlank(idCountry.getFieldValue())
+                    ? idCountry.getFieldValue()
+                    : quotationRequest.getClient() == null ? null
+                    : quotationRequest.getClient().getIdentityCountry();
 
+            var problem = masterData.validateIdentity(
+                    country, idType.getFieldValue(), idNumber.getFieldValue());
+            if (problem.isPresent()) {
+                invalid.add(problem.get());
+                if (identityNumberField != null) {
+                    openMissingField(quotationRequest, identityNumberField);
+                }
+            }
+        }
+
+        if (!missing.isEmpty() || !invalid.isEmpty()) {
+            quotationRequest.setStatus(RequestStatus.MISSING_INFORMATION);
             quotationRequestRepository.save(quotationRequest);
-
-            return new ValidationResult(
-                    false,
-                    missingFields,
-                    invalidFields
-            );
+            return new ValidationResult(false, missing, invalid);
         }
 
-        quotationRequest.setStatus(
-                RequestStatus.READY_FOR_QUOTATION
-        );
+        // everything is fine: close whatever was still open
+        for (MissingField open : missingFieldRepository
+                .findByQuotationRequestIdAndStatus(quotationRequest.getId(), "OPEN")) {
+            close(open);
+        }
 
+        quotationRequest.setStatus(RequestStatus.READY_FOR_QUOTATION);
         quotationRequestRepository.save(quotationRequest);
-
-        return new ValidationResult(
-                true,
-                List.of(),
-                List.of()
-        );
+        return new ValidationResult(true, List.of(), List.of());
     }
 
-    private boolean isApplicableToPolicy(
-            RequiredField field,
-            String policyType) {
+    // ------------------------------------------------------------------
 
-        if (field.getPolicyType() == null
-                || field.getPolicyType().isBlank()) {
-            return true;
-        }
-
-        if (policyType == null || policyType.isBlank()) {
-            return false;
-        }
-
-        return field.getPolicyType()
-                .trim()
-                .equalsIgnoreCase(policyType.trim());
-    }
-
-    private boolean isValidValue(
-            String value,
-            FieldDataType dataType) {
-
+    private boolean isValidValue(String value, FieldDataType dataType) {
         if (isBlank(value)) {
             return false;
         }
-
-        String trimmed = value.trim();
-
+        String v = value.trim();
         if (dataType == null) {
             return true;
         }
-
         return switch (dataType) {
-
-            case TEXT ->
-                    !trimmed.isBlank();
-
-            case EMAIL ->
-                    trimmed.matches(
-                            "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$"
-                    );
-
-            case PHONE ->
-                    trimmed.matches("^\\d{10,15}$");
-
-            case NUMBER ->
-                    trimmed.matches("^\\d+(\\.\\d+)?$");
-
+            case TEXT -> true;
+            case EMAIL -> v.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
+            case PHONE -> v.matches("^\\d{10,15}$");
+            case NUMBER -> v.matches("^\\d+(\\.\\d+)?$");
             case DATE -> {
                 try {
-                    LocalDate.parse(trimmed);
+                    LocalDate.parse(v);
                     yield true;
                 } catch (DateTimeParseException e) {
                     yield false;
@@ -222,124 +205,75 @@ public class ValidationService {
         };
     }
 
-    private void saveRequestFieldValue(
-            QuotationRequest quotationRequest,
-            RequiredField requiredField,
-            ExtractedFieldData extracted) {
+    private boolean matchesRegex(String value, String regex) {
+        if (regex == null || regex.isBlank()) {
+            return true;
+        }
+        try {
+            return Pattern.compile(regex).matcher(value.trim()).matches();
+        } catch (PatternSyntaxException e) {
+            return true;   // a broken pattern in the database must not block every customer
+        }
+    }
 
-        List<RequestFieldValue> existingValues =
-                requestFieldValueRepository
-                        .findByQuotationRequestId(
-                                quotationRequest.getId()
-                        );
+    private void saveValue(
+            QuotationRequest request, RequiredField rf, String value, ExtractedFieldData extracted) {
 
-        RequestFieldValue requestFieldValue = existingValues.stream()
-                .filter(value ->
-                        value.getRequiredField() != null
-                                && requiredField.getId()
-                                .equals(value.getRequiredField().getId()))
+        // Never keep the raw government ID in request data; the client master holds it encrypted.
+        String stored = "identityNumber".equalsIgnoreCase(rf.getFieldName())
+                ? IdentityProtectionService.mask(lastFour(value))
+                : value.trim();
+
+        RequestFieldValue row = requestFieldValueRepository
+                .findByQuotationRequestId(request.getId()).stream()
+                .filter(v -> v.getRequiredField() != null
+                        && rf.getId().equals(v.getRequiredField().getId()))
                 .findFirst()
                 .orElseGet(RequestFieldValue::new);
 
-        requestFieldValue.setQuotationRequest(quotationRequest);
-        requestFieldValue.setRequiredField(requiredField);
-        requestFieldValue.setFieldValue(
-                extracted.getFieldValue().trim()
-        );
-        requestFieldValue.setSource(extracted.getSource());
-
         LocalDateTime now = LocalDateTime.now();
-
-        if (requestFieldValue.getCreatedAt() == null) {
-            requestFieldValue.setCreatedAt(now);
+        row.setQuotationRequest(request);
+        row.setRequiredField(rf);
+        row.setFieldValue(stored);
+        row.setSource(extracted.getSource());
+        if (row.getCreatedAt() == null) {
+            row.setCreatedAt(now);
         }
-
-        requestFieldValue.setUpdatedAt(now);
-
-        requestFieldValueRepository.save(requestFieldValue);
+        row.setUpdatedAt(now);
+        requestFieldValueRepository.save(row);
     }
 
-    private void createMissingFieldIfNeeded(
-            QuotationRequest quotationRequest,
-            RequiredField requiredField) {
-
-        List<MissingField> existingMissingFields =
-                missingFieldRepository.findAll();
-
-        boolean alreadyOpen = existingMissingFields.stream()
-                .anyMatch(missingField ->
-                        missingField.getQuotationRequest() != null
-                                && quotationRequest.getId()
-                                .equals(
-                                        missingField
-                                                .getQuotationRequest()
-                                                .getId()
-                                )
-                                && missingField.getRequiredField() != null
-                                && requiredField.getId()
-                                .equals(
-                                        missingField
-                                                .getRequiredField()
-                                                .getId()
-                                )
-                                && "OPEN".equalsIgnoreCase(
-                                        missingField.getStatus()
-                                )
-                );
-
+    private void openMissingField(QuotationRequest request, RequiredField rf) {
+        boolean alreadyOpen = !missingFieldRepository
+                .findByQuotationRequestIdAndRequiredFieldIdAndStatus(
+                        request.getId(), rf.getId(), "OPEN").isEmpty();
         if (alreadyOpen) {
             return;
         }
-
-        MissingField missingField = new MissingField();
-
-        missingField.setQuotationRequest(quotationRequest);
-        missingField.setRequiredField(requiredField);
-        missingField.setStatus("OPEN");
-
-        missingFieldRepository.save(missingField);
+        MissingField mf = new MissingField();
+        mf.setQuotationRequest(request);
+        mf.setRequiredField(rf);
+        mf.setStatus("OPEN");
+        missingFieldRepository.save(mf);
     }
 
-    private void resolveExistingMissingField(
-            QuotationRequest quotationRequest,
-            RequiredField requiredField) {
-
-        List<MissingField> existingMissingFields =
-                missingFieldRepository.findAll();
-
-        for (MissingField missingField : existingMissingFields) {
-
-            boolean sameRequest =
-                    missingField.getQuotationRequest() != null
-                            && quotationRequest.getId()
-                            .equals(
-                                    missingField
-                                            .getQuotationRequest()
-                                            .getId()
-                            );
-
-            boolean sameField =
-                    missingField.getRequiredField() != null
-                            && requiredField.getId()
-                            .equals(
-                                    missingField
-                                            .getRequiredField()
-                                            .getId()
-                            );
-
-            boolean open =
-                    "OPEN".equalsIgnoreCase(
-                            missingField.getStatus()
-                    );
-
-            if (sameRequest && sameField && open) {
-                missingField.setStatus("RESOLVED");
-                missingField.setResolvedAt(
-                        java.time.LocalDateTime.now()
-                );
-                missingFieldRepository.save(missingField);
-            }
+    private void resolveMissingField(QuotationRequest request, RequiredField rf) {
+        for (MissingField open : missingFieldRepository
+                .findByQuotationRequestIdAndRequiredFieldIdAndStatus(
+                        request.getId(), rf.getId(), "OPEN")) {
+            close(open);
         }
+    }
+
+    private void close(MissingField mf) {
+        mf.setStatus("RESOLVED");
+        mf.setResolvedAt(LocalDateTime.now());
+        missingFieldRepository.save(mf);
+    }
+
+    private static String lastFour(String v) {
+        String n = IdentityProtectionService.normalize(v);
+        return n.length() <= 4 ? n : n.substring(n.length() - 4);
     }
 
     private boolean isBlank(String value) {
@@ -347,9 +281,7 @@ public class ValidationService {
     }
 
     private String normalize(String value) {
-        return value == null
-                ? ""
-                : value.trim().toLowerCase();
+        return value == null ? "" : value.trim().toLowerCase();
     }
 
     public static class ValidationResult {
@@ -358,26 +290,14 @@ public class ValidationService {
         private final List<String> missingFields;
         private final List<String> invalidFields;
 
-        public ValidationResult(
-                boolean valid,
-                List<String> missingFields,
-                List<String> invalidFields) {
-
+        public ValidationResult(boolean valid, List<String> missingFields, List<String> invalidFields) {
             this.valid = valid;
             this.missingFields = missingFields;
             this.invalidFields = invalidFields;
         }
 
-        public boolean isValid() {
-            return valid;
-        }
-
-        public List<String> getMissingFields() {
-            return missingFields;
-        }
-
-        public List<String> getInvalidFields() {
-            return invalidFields;
-        }
+        public boolean isValid() { return valid; }
+        public List<String> getMissingFields() { return missingFields; }
+        public List<String> getInvalidFields() { return invalidFields; }
     }
 }

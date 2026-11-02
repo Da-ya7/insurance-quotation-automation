@@ -1,100 +1,163 @@
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApiService, QuotationDto } from '../core/api.service';
-import { avatarColor, initials, money, shortDate } from '../core/format';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { catchError, forkJoin, of } from 'rxjs';
+import {
+  ApiService, QuotationDetailDto, QuotationDto, QuotationHistoryDto, QuotationSummary
+} from '../core/api.service';
+import { avatarColor, initials, money, shortDate, simpleStatusClass, statusLabel } from '../core/format';
+import { errorMessage } from '../core/http-error';
+import { goBackOrHome } from '../core/nav';
+import { startPolling } from '../core/polling';
 
 @Component({
   selector: 'app-quotation',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './quotation.html',
   styleUrl: './quotation.css'
 })
-export class Quotation implements OnInit {
+export class Quotation {
 
   private api = inject(ApiService);
   private cdr = inject(ChangeDetectorRef);
-
-  constructor(private location: Location) {}
-
-  quotations: QuotationDto[] = [];
-  searchText = '';
-  statusFilter: 'ALL' | 'SENT' | 'NOT_SENT' = 'ALL';
-  loading = true;
-  errorMessage = '';
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private location = inject(Location);
 
   readonly initials = initials;
   readonly avatarColor = avatarColor;
   readonly money = money;
   readonly shortDate = shortDate;
+  readonly statusClass = simpleStatusClass;
+  readonly statusLabel = statusLabel;
 
-  ngOnInit(): void {
-    this.load();
+  quotations: QuotationDto[] = [];
+  summary: QuotationSummary | null = null;
+  detail: QuotationDetailDto | null = null;
+  history: QuotationHistoryDto[] = [];
+  detailError = '';
+
+  searchText = '';
+  statusFilter = ''; // '' | SENT | DRAFT | SUPERSEDED
+  selectedId: number | null = null;
+  loading = true;
+  errorMessage = '';
+  actionError = '';
+  lastUpdated: Date | null = null;
+
+  private poller = startPolling(
+    () => forkJoin({
+      list: this.api.quotations(this.statusFilter),
+      summary: this.api.quotationSummary(),
+      detail: this.selectedId !== null
+        ? this.api.quotation(this.selectedId).pipe(catchError(err => {
+            this.detailError = errorMessage(err, 'Could not load quotation details.');
+            return of(null);
+          }))
+        : of(null),
+      history: this.selectedId !== null
+        ? this.api.quotationHistory(this.selectedId).pipe(catchError(() => of(null)))
+        : of(null)
+    }),
+    ({ list, summary, detail, history }) => {
+      this.quotations = list;
+      this.summary = summary;
+      if (detail) {
+        this.detail = detail;
+        this.detailError = '';
+      }
+      if (history) {
+        this.history = history;
+      }
+      this.loading = false;
+      this.errorMessage = '';
+      this.lastUpdated = new Date();
+      this.cdr.markForCheck();
+    },
+    message => {
+      this.errorMessage = message;
+      this.loading = false;
+      this.cdr.markForCheck();
+    }
+  );
+
+  constructor() {
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => {
+      const raw = (params.get('status') ?? '').toUpperCase();
+      const s = ['SENT', 'DRAFT', 'SUPERSEDED'].includes(raw) ? raw : '';
+      const idParam = params.get('id');
+      const id = idParam && /^\d+$/.test(idParam) ? Number(idParam) : null;
+      const changed = s !== this.statusFilter || id !== this.selectedId;
+      if (id !== this.selectedId) {
+        this.detail = null;
+        this.history = [];
+        this.detailError = '';
+      }
+      this.statusFilter = s;
+      this.selectedId = id;
+      if (changed) {
+        this.poller.refresh();
+      }
+    });
   }
 
-  load(): void {
-    this.loading = true;
-    this.errorMessage = '';
+  get filteredQuotations(): QuotationDto[] {
+    const q = this.searchText.trim().toLowerCase();
+    return this.quotations.filter(item =>
+      !q ||
+      item.quotationNumber.toLowerCase().includes(q) ||
+      (item.clientName ?? '').toLowerCase().includes(q) ||
+      (item.clientCode ?? '').toLowerCase().includes(q) ||
+      item.clientEmail.toLowerCase().includes(q));
+  }
 
-    this.api.quotations().subscribe({
-      next: data => {
-        this.quotations = data;
-        this.loading = false;
-        this.cdr.markForCheck();
+  setStatus(filter: string): void {
+    this.navigateQuery({ status: filter || null });
+  }
+
+  select(q: QuotationDto): void {
+    this.navigateQuery({ id: String(q.id) });
+  }
+
+  closeDetail(): void {
+    this.navigateQuery({ id: null });
+  }
+
+  private navigateQuery(params: Record<string, string | null>): void {
+    this.router.navigate([], { relativeTo: this.route, queryParams: params, queryParamsHandling: 'merge' });
+  }
+
+  clearFilters(): void {
+    this.searchText = '';
+    this.navigateQuery({ status: null });
+  }
+
+  refresh(): void {
+    this.loading = true;
+    this.poller.refresh();
+  }
+
+  // The PDF endpoint needs the Authorization header, so it is fetched as a blob.
+  openPdf(q: { id: number }): void {
+    this.actionError = '';
+    this.api.quotationPdf(q.id).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
       },
-      error: () => {
-        this.errorMessage = 'Could not load quotations.';
-        this.loading = false;
+      error: err => {
+        this.actionError = errorMessage(err, 'Could not open the PDF.');
         this.cdr.markForCheck();
       }
     });
   }
 
-  get sentCount(): number {
-    return this.quotations.filter(q => q.status === 'SENT').length;
-  }
-
-  get notSentCount(): number {
-    return this.quotations.length - this.sentCount;
-  }
-
-  get filteredQuotations(): QuotationDto[] {
-    const q = this.searchText.trim().toLowerCase();
-
-    return this.quotations.filter(item => {
-      const matchesSearch =
-        !q ||
-        item.quotationNumber.toLowerCase().includes(q) ||
-        (item.clientName ?? '').toLowerCase().includes(q) ||
-        item.clientEmail.toLowerCase().includes(q);
-
-      const matchesStatus =
-        this.statusFilter === 'ALL' ||
-        (this.statusFilter === 'SENT' && item.status === 'SENT') ||
-        (this.statusFilter === 'NOT_SENT' && item.status !== 'SENT');
-
-      return matchesSearch && matchesStatus;
-    });
-  }
-
-  setStatus(filter: 'ALL' | 'SENT' | 'NOT_SENT'): void {
-    this.statusFilter = filter;
-  }
-
-  clearFilters(): void {
-    this.searchText = '';
-    this.statusFilter = 'ALL';
-  }
-
-  openPdf(q: QuotationDto): void {
-    this.api.quotationPdf(q.id).subscribe({
-      next: blob => window.open(URL.createObjectURL(blob), '_blank'),
-      error: () => alert('Could not open the PDF.')
-    });
-  }
-
-  downloadPdf(q: QuotationDto): void {
+  downloadPdf(q: { id: number; quotationNumber: string }): void {
+    this.actionError = '';
     this.api.quotationPdf(q.id).subscribe({
       next: blob => {
         const url = URL.createObjectURL(blob);
@@ -102,13 +165,16 @@ export class Quotation implements OnInit {
         link.href = url;
         link.download = `${q.quotationNumber}.pdf`;
         link.click();
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
       },
-      error: () => alert('Could not download the PDF.')
+      error: err => {
+        this.actionError = errorMessage(err, 'Could not download the PDF.');
+        this.cdr.markForCheck();
+      }
     });
   }
 
   goBack(): void {
-    this.location.back();
+    goBackOrHome(this.location, this.router);
   }
 }

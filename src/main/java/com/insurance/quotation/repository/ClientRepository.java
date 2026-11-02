@@ -1,13 +1,18 @@
 package com.insurance.quotation.repository;
 
-import com.insurance.quotation.entity.Client;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.Optional;
+import com.insurance.quotation.entity.Client;
 
 public interface ClientRepository extends JpaRepository<Client, Long> {
 
-    Optional<Client> findByEmail(String email);
+    /** Several different people may share one email address. */
+    List<Client> findAllByEmailIgnoreCase(String email);
+
+    Optional<Client> findByClientCode(String clientCode);
+
+    Optional<Client> findByIdentityNumberHash(String identityNumberHash);
 }
-
-
