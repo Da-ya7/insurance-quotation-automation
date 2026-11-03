@@ -50,8 +50,6 @@
   color: #7b8494;
 }
 
-/* BACK ARROW BUTTON */
-
 .back-arrow-btn {
   width: 42px;
   height: 42px;
@@ -135,6 +133,7 @@
 
 .summary-row {
   display: flex;
+  flex-wrap: wrap;
   background: #ffffff;
   border: 1px solid #e1e5ec;
   border-radius: 10px;
@@ -348,6 +347,21 @@
   color: #87909f;
 }
 
+.req-line {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.resolved-label {
+  display: block;
+  margin-top: 10px;
+}
+
+.res-chip {
+  margin: 2px 4px 2px 0;
+}
+
 /* ===============================
    STATUS
 ================================ */
@@ -439,7 +453,7 @@
 }
 
 /* ===============================
-   FOOTER
+   FOOTER AND PAGINATION
 ================================ */
 
 .page-footer {
@@ -451,6 +465,40 @@
   padding: 15px 4px;
   font-size: 11px;
   color: #8a93a1;
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pagination-buttons span {
+  color: #697386;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.pagination-buttons button {
+  border: 1px solid #d7dde6;
+  background: #ffffff;
+  color: #465267;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.pagination-buttons button:hover:not(:disabled) {
+  background: #f1f4f9;
+  border-color: #cbd5e1;
+}
+
+.pagination-buttons button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .load-btn {
@@ -597,13 +645,13 @@
     flex-direction: column;
   }
 
+  .pagination-buttons {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .action-block {
     flex-direction: column;
   }
 }
-
-/* ---- additions ---- */
-.req-line { display: block; margin-top: 4px; font-size: 12px; }
-.resolved-label { display: block; margin-top: 10px; }
-.res-chip { margin: 2px 4px 2px 0; }
-.summary-row { flex-wrap: wrap; }

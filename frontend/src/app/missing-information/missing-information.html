@@ -1,3 +1,4 @@
+
 <div class="missing-page">
 
   <!-- PAGE HEADER -->
@@ -15,8 +16,10 @@
 
       <div class="header-content">
         <h1>Missing Information</h1>
-        <p>Track information required from clients
-          <span *ngIf="lastUpdated"> · updated {{ lastUpdated | date:'mediumTime' }}</span></p>
+        <p>
+          Track information required from clients
+          <span *ngIf="lastUpdated"> · updated {{ lastUpdated | date:'mediumTime' }}</span>
+        </p>
       </div>
 
     </div>
@@ -64,8 +67,14 @@
     </div>
 
     <div class="request-filter">
-      <button type="button" *ngFor="let t of tabs"
-        [class.filter-active]="status === t.value" (click)="setStatus(t.value)">{{ t.label }}</button>
+      <button
+        type="button"
+        *ngFor="let t of tabs"
+        [class.filter-active]="status === t.value"
+        (click)="setStatus(t.value)">
+        {{ t.label }}
+      </button>
+
       <button type="button" (click)="refresh()">↻ Refresh</button>
     </div>
   </div>
@@ -73,36 +82,56 @@
   <!-- REQUEST LIST -->
   <div class="request-list">
 
-    <div class="request-card" *ngFor="let g of groups">
+    <!-- DISPLAY 5 REQUESTS PER PAGE -->
+    <div class="request-card" *ngFor="let g of paginatedGroups">
 
       <div class="client-block">
         <div class="client-avatar" [ngClass]="avatarColor(g.requestId)">
           {{ initials(g.clientName, g.clientEmail) }}
         </div>
+
         <div>
           <h3>{{ g.clientName || 'Name not provided' }}</h3>
           <span>{{ g.clientCode }} · {{ g.clientEmail }}</span>
+
           <span class="req-line">
-            <a class="x-link" routerLink="/quotation-requests" [queryParams]="{ id: g.requestId }">{{ g.requestReference || ('Request #' + g.requestId) }}</a>
+            <a
+              class="x-link"
+              routerLink="/quotation-requests"
+              [queryParams]="{ id: g.requestId }">
+              {{ g.requestReference || ('Request #' + g.requestId) }}
+            </a>
             · {{ g.insuranceType || '-' }}
           </span>
         </div>
       </div>
 
       <div class="missing-block">
+
         <ng-container *ngIf="g.open.length">
-          <span class="block-label">INFORMATION REQUIRED ({{ g.open.length }})</span>
+          <span class="block-label">
+            INFORMATION REQUIRED ({{ g.open.length }})
+          </span>
+
           <div>
-            <span class="x-chip" *ngFor="let m of g.open">{{ m.field }}</span>
+            <span class="x-chip" *ngFor="let m of g.open">
+              {{ m.field }}
+            </span>
           </div>
         </ng-container>
 
         <ng-container *ngIf="g.resolved.length">
-          <span class="block-label resolved-label">RESOLVED ({{ g.resolved.length }})</span>
+          <span class="block-label resolved-label">
+            RESOLVED ({{ g.resolved.length }})
+          </span>
+
           <div>
-            <span class="x-badge x-green res-chip" *ngFor="let m of g.resolved">{{ m.field }}</span>
+            <span class="x-badge x-green res-chip" *ngFor="let m of g.resolved">
+              {{ m.field }}
+            </span>
           </div>
         </ng-container>
+
       </div>
 
       <div class="status-block">
@@ -112,25 +141,69 @@
           <span class="status-dot"></span>
           Waiting for client
         </span>
-        <span class="x-badge x-green" *ngIf="!g.open.length">Resolved</span>
 
-        <small *ngIf="g.open.length">Requested {{ shortDate(g.createdAt) }}</small>
-        <small *ngIf="resolvedAt(g) as r">Resolved {{ shortDate(r) }}</small>
-        <small *ngIf="g.requestStatusLabel">Request: {{ g.requestStatusLabel }}</small>
+        <span class="x-badge x-green" *ngIf="!g.open.length">
+          Resolved
+        </span>
+
+        <small *ngIf="g.open.length">
+          Requested {{ shortDate(g.createdAt) }}
+        </small>
+
+        <small *ngIf="resolvedAt(g) as r">
+          Resolved {{ shortDate(r) }}
+        </small>
+
+        <small *ngIf="g.requestStatusLabel">
+          Request: {{ g.requestStatusLabel }}
+        </small>
       </div>
 
     </div>
 
-    <p class="x-muted" *ngIf="loading && groups.length === 0">Loading...</p>
+    <!-- LOADING -->
+    <p class="x-muted" *ngIf="loading && groups.length === 0">
+      Loading...
+    </p>
+
+    <!-- EMPTY STATE -->
     <p class="x-empty" *ngIf="!loading && !errorMessage && groups.length === 0">
-      {{ status === 'RESOLVED' ? 'No resolved information yet.' : 'No missing information. All requests have the details they need.' }}
+      {{ status === 'RESOLVED'
+        ? 'No resolved information yet.'
+        : 'No missing information. All requests have the details they need.' }}
     </p>
 
   </div>
 
-  <!-- FOOTER -->
+  <!-- PAGINATION -->
   <div class="page-footer">
-    <span>Showing {{ groups.length }} request(s) · {{ itemCount }} field(s)</span>
+
+    <span>
+      Showing <strong>{{ showingFrom }}–{{ showingTo }}</strong>
+      of <strong>{{ groups.length }}</strong> request(s)
+      · {{ itemCount }} field(s)
+    </span>
+
+    <div class="pagination-buttons">
+
+      <button
+        type="button"
+        (click)="previousPage()"
+        [disabled]="currentPage === 0">
+        Previous
+      </button>
+
+      <span>Page {{ currentPage + 1 }} of {{ totalPages }}</span>
+
+      <button
+        type="button"
+        (click)="nextPage()"
+        [disabled]="currentPage + 1 >= totalPages">
+        Next
+      </button>
+
+    </div>
+
   </div>
 
 </div>
