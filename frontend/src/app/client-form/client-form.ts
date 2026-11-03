@@ -8,15 +8,11 @@ import {
 } from '../core/api.service';
 import { errorMessage } from '../core/http-error';
 
-const PERSONAL = ['name', 'email', 'phone', 'dateOfBirth', 'gender', 'nationality',
-  'countryOfResidence', 'identityCountry', 'identityType', 'identityNumber'] as const;
+const PERSONAL = [
+  'name', 'email', 'phone', 'dateOfBirth', 'gender', 'nationality',
+  'countryOfResidence', 'identityCountry', 'identityType', 'identityNumber'
+] as const;
 
-/**
- * Public customer form. Works for every insurance type (fields come from the
- * database). With a personal link (?token=) a returning client sees saved
- * details, only fills what is missing, and must verify an OTP sent to the
- * phone on file before changing saved personal details.
- */
 @Component({
   selector: 'app-client-form',
   imports: [FormsModule],
@@ -43,28 +39,55 @@ export class ClientForm {
   otpSent = signal(false);
   otpMsg = signal('');
   otpCode = '';
+
+  // A customer cannot see the application form until OTP verification succeeds.
   unlocked = signal(false);
 
+  // New-customer OTP challenge and verification token.
+  challengeId = signal<string | null>(null);
+  verificationToken = signal<string | null>(null);
+
   token: string | null = null;
+
   a: ApplicantPayload = {
-    name: null, email: null, phone: null, dateOfBirth: null, gender: null, nationality: null,
-    countryOfResidence: null, identityCountry: null, identityType: null, identityNumber: null
+    name: null,
+    email: null,
+    phone: null,
+    dateOfBirth: null,
+    gender: null,
+    nationality: null,
+    countryOfResidence: null,
+    identityCountry: null,
+    identityType: null,
+    identityNumber: null
   };
+
   values: Record<string, string> = {};
 
-  // saved personal data stays read-only until the phone is verified
-  locked = computed(() => !!this.link()?.existingClient && !this.unlocked());
+  locked = computed(() =>
+    !!this.link()?.existingClient && !this.unlocked()
+  );
+
   otherFields = computed(() =>
-    (this.form()?.fields ?? []).filter(f => !(PERSONAL as readonly string[]).includes(f.fieldName)));
+    (this.form()?.fields ?? []).filter(
+      f => !(PERSONAL as readonly string[]).includes(f.fieldName)
+    )
+  );
+
   idExample = computed(() =>
-    this.idTypes().find(t => t.code === this.a.identityType)?.example ?? null);
+    this.idTypes().find(t => t.code === this.a.identityType)?.example ?? null
+  );
 
   constructor() {
     const qp = this.route.snapshot.queryParamMap;
     this.token = qp.get('token');
-    const routeType = this.route.snapshot.paramMap.get('type') ?? qp.get('type');
 
-    this.api.publicCountries().subscribe({ next: c => this.countries.set(c) });
+    const routeType =
+      this.route.snapshot.paramMap.get('type') ?? qp.get('type');
+
+    this.api.publicCountries().subscribe({
+      next: c => this.countries.set(c)
+    });
 
     if (this.token) {
       this.api.formLink(this.token).subscribe({
@@ -79,14 +102,24 @@ export class ClientForm {
       this.loadForm(routeType);
     } else {
       this.api.publicInsuranceTypes().subscribe({
-        next: t => { this.types.set(t); this.loading.set(false); },
+        next: t => {
+          this.types.set(t);
+          this.loading.set(false);
+        },
         error: e => this.fail(e)
       });
     }
   }
 
   pick(code: string) {
-    this.router.navigate(['/form', code], this.token ? { queryParams: { token: this.token } } : {});
+    this.unlocked.set(false);
+    this.otpSent.set(false);
+    this.otpMsg.set('');
+    this.otpCode = '';
+    this.challengeId.set(null);
+    this.verificationToken.set(null);
+
+    this.router.navigate(['/form', code]);
     this.loading.set(true);
     this.loadForm(code);
   }
@@ -94,27 +127,165 @@ export class ClientForm {
   private loadForm(code: string) {
     this.type.set(code);
     this.api.publicForm(code).subscribe({
-      next: f => { this.form.set(f); this.loading.set(false); this.refreshIdTypes(); },
+      next: f => {
+        this.form.set(f);
+        this.loading.set(false);
+        this.refreshIdTypes();
+      },
       error: e => this.fail(e)
     });
   }
 
   private applyPrefill(l: FormLink) {
     const c = l.client;
+
     if (c) {
-      this.a.name = c.name; this.a.email = c.email; this.a.dateOfBirth = c.dateOfBirth;
-      this.a.gender = c.gender; this.a.nationality = c.nationality;
+      this.a.name = c.name;
+      this.a.email = c.email;
+      this.a.dateOfBirth = c.dateOfBirth;
+      this.a.gender = c.gender;
+      this.a.nationality = c.nationality;
       this.a.countryOfResidence = c.countryOfResidence;
-      this.a.identityCountry = c.identityCountry; this.a.identityType = c.identityType;
-      this.a.phone = c.phoneMasked; // masked; the server keeps the saved number unless changed after OTP
+      this.a.identityCountry = c.identityCountry;
+      this.a.identityType = c.identityType;
+
+      // Never put the masked phone into the actual applicant phone field.
+      this.a.phone = null;
     }
+
     for (const [k, v] of Object.entries(l.prefill ?? {})) {
+      if (l.existingClient && k === 'phone') {
+        continue;
+      }
+
       if ((PERSONAL as readonly string[]).includes(k)) {
         (this.a as unknown as Record<string, string | null>)[k] = v;
       } else {
         this.values[k] = v;
       }
     }
+  }
+
+  onNewPhoneChange() {
+    // A newly entered phone number requires a fresh OTP challenge.
+    if (!this.token) {
+      this.otpSent.set(false);
+      this.otpMsg.set('');
+      this.otpCode = '';
+      this.challengeId.set(null);
+      this.verificationToken.set(null);
+      this.unlocked.set(false);
+    }
+  }
+
+  sendOtp() {
+    this.busy.set(true);
+    this.otpMsg.set('');
+    this.error.set('');
+
+    // Returning customer: OTP goes to the phone associated with the link.
+    if (this.token) {
+      this.api.sendOtp(this.token).subscribe({
+        next: r => {
+          this.otpSent.set(true);
+          this.otpMsg.set(
+            'Verification code sent to ' + r.phoneMasked + '.'
+          );
+          this.busy.set(false);
+        },
+        error: e => {
+          this.otpMsg.set(errorMessage(e));
+          this.busy.set(false);
+        }
+      });
+
+      return;
+    }
+
+    // New customer: OTP goes to the phone entered on this screen.
+    const phone = this.a.phone?.trim();
+
+    if (!phone) {
+      this.otpMsg.set('Please enter your mobile number first.');
+      this.busy.set(false);
+      return;
+    }
+
+    this.api.sendNewCustomerOtp(phone).subscribe({
+      next: r => {
+        this.challengeId.set(r.challengeId);
+        this.otpSent.set(true);
+        this.otpMsg.set(
+          'Verification code sent to ' + r.phoneMasked + '.'
+        );
+        this.busy.set(false);
+      },
+      error: e => {
+        this.otpMsg.set(errorMessage(e));
+        this.busy.set(false);
+      }
+    });
+  }
+
+  verifyOtp() {
+    const code = this.otpCode.trim();
+
+    if (!/^\d{6}$/.test(code)) {
+      this.otpMsg.set('Please enter the 6-digit verification code.');
+      return;
+    }
+
+    this.busy.set(true);
+    this.otpMsg.set('');
+
+    // Returning customer: verify the personal form-link OTP.
+    if (this.token) {
+      this.api.verifyOtp(this.token, code).subscribe({
+        next: r => {
+          this.busy.set(false);
+
+          if (r.verified) {
+            this.unlocked.set(true);
+            this.otpMsg.set('Phone verified successfully.');
+          } else {
+            this.otpMsg.set(r.message || 'Incorrect verification code.');
+          }
+        },
+        error: e => {
+          this.otpMsg.set(errorMessage(e));
+          this.busy.set(false);
+        }
+      });
+
+      return;
+    }
+
+    // New customer: verify the phone challenge and receive a submission token.
+    const challenge = this.challengeId();
+
+    if (!challenge) {
+      this.otpMsg.set('Please request a new verification code.');
+      this.busy.set(false);
+      return;
+    }
+
+    this.api.verifyNewCustomerOtp(challenge, code).subscribe({
+      next: r => {
+        this.busy.set(false);
+
+        if (r.verified && r.verificationToken) {
+          this.verificationToken.set(r.verificationToken);
+          this.unlocked.set(true);
+          this.otpMsg.set('Phone verified successfully.');
+        } else {
+          this.otpMsg.set(r.message || 'Incorrect verification code.');
+        }
+      },
+      error: e => {
+        this.otpMsg.set(errorMessage(e));
+        this.busy.set(false);
+      }
+    });
   }
 
   onIdCountry(code: string | null) {
@@ -124,51 +295,61 @@ export class ClientForm {
   }
 
   private refreshIdTypes() {
-    if (!this.a.identityCountry) { this.idTypes.set([]); return; }
+    if (!this.a.identityCountry) {
+      this.idTypes.set([]);
+      return;
+    }
+
     this.api.publicIdentityTypes(this.a.identityCountry).subscribe({
-      next: t => this.idTypes.set(t), error: () => this.idTypes.set([])
+      next: t => this.idTypes.set(t),
+      error: () => this.idTypes.set([])
     });
   }
 
   inputType(t: string) {
-    return t === 'DATE' ? 'date' : t === 'NUMBER' ? 'number' : t === 'EMAIL' ? 'email' : 'text';
-  }
-
-  sendOtp() {
-    if (!this.token) return;
-    this.busy.set(true);
-    this.api.sendOtp(this.token).subscribe({
-      next: r => { this.otpSent.set(true); this.otpMsg.set('Code sent to ' + r.phoneMasked + '.'); this.busy.set(false); },
-      error: e => { this.otpMsg.set(errorMessage(e)); this.busy.set(false); }
-    });
-  }
-
-  verifyOtp() {
-    if (!this.token) return;
-    this.busy.set(true);
-    this.api.verifyOtp(this.token, this.otpCode.trim()).subscribe({
-      next: r => {
-        this.busy.set(false);
-        if (r.verified) { this.unlocked.set(true); this.otpMsg.set('Verified. You can now edit your details.'); }
-        else { this.otpMsg.set(r.message || 'Incorrect code.'); }
-      },
-      error: e => { this.otpMsg.set(errorMessage(e)); this.busy.set(false); }
-    });
+    return t === 'DATE'
+      ? 'date'
+      : t === 'NUMBER'
+        ? 'number'
+        : t === 'EMAIL'
+          ? 'email'
+          : 'text';
   }
 
   submit() {
     const code = this.type();
+
     if (!code) return;
+
+    // Extra UI protection. Backend must also enforce OTP verification.
+    if (!this.unlocked()) {
+      this.error.set('Please verify your phone number before submitting.');
+      return;
+    }
+
     this.busy.set(true);
     this.error.set('');
+
     const applicant = { ...this.a };
-    // untouched masked values are never sent back as if they were real data
-    if (this.locked()) {
-      applicant.phone = null; applicant.identityNumber = null;
-    }
-    this.api.submitForm(code, this.token, { insuranceType: code, applicant, fields: this.values }).subscribe({
-      next: r => { this.result.set(r); this.busy.set(false); },
-      error: e => { this.error.set(errorMessage(e)); this.busy.set(false); }
+
+    const payload = {
+      insuranceType: code,
+      applicant,
+      fields: this.values,
+      ...(!this.token
+        ? { verificationToken: this.verificationToken() ?? undefined }
+        : {})
+    };
+
+    this.api.submitForm(code, this.token, payload).subscribe({
+      next: r => {
+        this.result.set(r);
+        this.busy.set(false);
+      },
+      error: e => {
+        this.error.set(errorMessage(e));
+        this.busy.set(false);
+      }
     });
   }
 

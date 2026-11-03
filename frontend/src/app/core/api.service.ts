@@ -368,6 +368,19 @@ export interface FormLink {
 
 export interface OtpSendResult { sent: boolean; phoneMasked: string; expiresInSeconds: number; }
 export interface OtpVerifyResult { verified: boolean; attemptsLeft?: number; message?: string; }
+export interface NewCustomerOtpSendResult {
+  sent: boolean;
+  challengeId: string;
+  phoneMasked: string;
+  expiresInSeconds: number;
+}
+
+export interface NewCustomerOtpVerifyResult {
+  verified: boolean;
+  verificationToken?: string;
+  attemptsLeft?: number;
+  message?: string;
+}
 
 export interface ApplicantPayload {
   name: string | null;
@@ -386,6 +399,7 @@ export interface FormSubmitPayload {
   insuranceType: string;
   applicant: ApplicantPayload;
   fields: Record<string, string>;
+  verificationToken?: string;
 }
 
 function params(obj: Record<string, string | null | undefined>): HttpParams {
@@ -541,6 +555,26 @@ export class ApiService {
   }
 
   // ---- public (no login)
+
+    // ---- new customer phone verification
+
+  sendNewCustomerOtp(phone: string): Observable<NewCustomerOtpSendResult> {
+    return this.http.post<NewCustomerOtpSendResult>(
+      '/api/public/phone-otp/send',
+      { phone }
+    );
+  }
+
+  verifyNewCustomerOtp(
+    challengeId: string,
+    code: string
+  ): Observable<NewCustomerOtpVerifyResult> {
+    return this.http.post<NewCustomerOtpVerifyResult>(
+      '/api/public/phone-otp/verify',
+      { challengeId, code }
+    );
+  }
+  
   publicInsuranceTypes(): Observable<PublicInsuranceType[]> {
     return this.http.get<PublicInsuranceType[]>('/api/public/master/insurance-types');
   }

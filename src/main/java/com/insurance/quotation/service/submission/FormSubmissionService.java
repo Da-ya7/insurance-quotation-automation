@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.service.submission;
 
 import java.time.LocalDate;
@@ -8,7 +9,9 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.insurance.quotation.dto.request.QuotationFormRequest;
 import com.insurance.quotation.dto.request.TravellerForm;
@@ -91,6 +94,11 @@ public class FormSubmissionService {
     // status can still be saved after something goes wrong.
     public SubmissionResult submit(QuotationFormRequest form, String token) {
 
+        if (form == null || form.getApplicant() == null) {
+            throw new IllegalArgumentException(
+                    "Applicant details are required.");
+        }
+
         if (form.getTravelEndDate().isBefore(form.getTravelStartDate())) {
             throw new IllegalArgumentException(
                     "Travel end date must be on or after the travel start date.");
@@ -102,160 +110,317 @@ public class FormSubmissionService {
         }
 
         FormLinkService.FormLink link = null;
+
         if (token != null && !token.isBlank()) {
             link = formLinks.find(token)
-                    .orElseThrow(() -> new IllegalArgumentException("This link is not valid."));
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "This link is not valid."));
+
             if (link.isExpired()) {
                 throw new IllegalArgumentException(
                         "This link has expired. Please reply to our email to get a new one.");
             }
         }
-        boolean otpOk = link != null && otp.isVerified(link.token());
 
         TravellerForm applicant = form.getApplicant();
-        String email = applicant.getEmail().trim().toLowerCase();
-        String phone = digitsOnly(applicant.getPhone());
 
-        // 1. Client master: returning clients are recognised (identity, then
-        // email + name); saved details change only with a verified OTP.
-        ClientMasterService.ClientDetails details = new ClientMasterService.ClientDetails(
-                applicant.getName(), email, phone,
-                applicant.getDateOfBirth(), applicant.getGender(),
-                applicant.getNationality(), applicant.getCountryOfResidence(),
-                applicant.getNationality(), "PASSPORT", applicant.getPassportNumber());
+        // ============================================================
+        // 1. MANDATORY OTP SECURITY CHECK
+        // ============================================================
+
+        String submittedPhone = applicant.getPhone();
+
+        if (submittedPhone == null || submittedPhone.isBlank()) {
+            throw new IllegalArgumentException(
+                    "A verified phone number is required.");
+        }
+
+        boolean otpOk;
+
+        if (link != null) {
+            // Returning customer: OTP must be verified for this personal link.
+            otpOk = otp.isVerified(link.token());
+        } else {
+            // New customer: verification token must match the submitted phone.
+            otpOk = otp.isPhoneVerified(
+                    form.getVerificationToken(),
+                    submittedPhone);
+        }
+
+        if (!otpOk) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Please verify your phone number before submitting the form.");
+        }
+
+        // No client creation or profile update is allowed before the OTP check.
+
+        String email = applicant.getEmail().trim().toLowerCase();
+        String phone = digitsOnly(submittedPhone);
+
+        // ============================================================
+        // 2. CLIENT MASTER
+        // ============================================================
+
+        ClientMasterService.ClientDetails details =
+                new ClientMasterService.ClientDetails(
+                        applicant.getName(),
+                        email,
+                        phone,
+                        applicant.getDateOfBirth(),
+                        applicant.getGender(),
+                        applicant.getNationality(),
+                        applicant.getCountryOfResidence(),
+                        applicant.getNationality(),
+                        "PASSPORT",
+                        applicant.getPassportNumber());
 
         ClientMasterService.ApplyResult applied;
+
         if (link != null && link.clientId() != null) {
             Client linked = clientRepository.findById(link.clientId())
-                    .orElseThrow(() -> new IllegalArgumentException("This link is not valid."));
-            applied = clientMasterService.apply(linked, details, "FORM", "CUSTOMER_FORM", otpOk);
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "This link is not valid."));
+
+            applied = clientMasterService.apply(
+                    linked, details, "FORM", "CUSTOMER_FORM", otpOk);
         } else {
-            applied = clientMasterService.findOrCreateAndApply(details, "FORM", "CUSTOMER_FORM", otpOk);
+            applied = clientMasterService.findOrCreateAndApply(
+                    details, "FORM", "CUSTOMER_FORM", otpOk);
         }
+
         Client client = applied.client();
 
         if (applied.hasBlockedChanges()) {
-            return new SubmissionResult(null, "OTP_REQUIRED", null,
+            return new SubmissionResult(
+                    null,
+                    "OTP_REQUIRED",
+                    null,
                     link == null
                             ? "Your details are already saved. Use the personal link from our email to change them."
                             : "To change saved personal details please verify the code sent to your registered phone.",
                     applied.blocked());
         }
 
-        // 2. Request (a personal link keeps using the request it was created for)
-        QuotationRequest request = link != null && link.requestId() != null
-                ? requestRepository.findById(link.requestId()).orElse(null) : null;
+        // ============================================================
+        // 3. QUOTATION REQUEST
+        // ============================================================
+
+        QuotationRequest request =
+                link != null && link.requestId() != null
+                        ? requestRepository.findById(link.requestId()).orElse(null)
+                        : null;
+
         boolean reused = request != null;
+
         if (request == null) {
             request = new QuotationRequest();
             request.setClient(client);
             request.setCreatedAt(LocalDateTime.now());
         }
+
         request.setPolicyType("TRAVEL");
         request.setPurposeOfTravel(form.getPurposeOfTravel().trim());
         request.setStatus(RequestStatus.EMAIL_RECEIVED);
         request.setUpdatedAt(LocalDateTime.now());
+
         request = requestRepository.save(request);
+
         if (link != null && link.requestId() == null) {
             formLinks.attachRequest(link.id(), request.getId());
         }
 
         boolean hadQuotation = quotationRepository
-                .findFirstByQuotationRequestIdOrderByVersionNoDesc(request.getId()).isPresent();
+                .findFirstByQuotationRequestIdOrderByVersionNoDesc(
+                        request.getId())
+                .isPresent();
 
-        // 3. Travellers (applicant = #1); replaced when the same request is re-submitted
+        // ============================================================
+        // 4. TRAVELLERS
+        // ============================================================
+
         if (reused) {
             travellerRepository.deleteByQuotationRequestId(request.getId());
         }
+
         List<TravellerForm> all = new ArrayList<>();
         all.add(applicant);
         all.addAll(form.getAdditionalTravellers());
 
         int number = 1;
+
         for (TravellerForm t : all) {
-            QuotationRequestTraveller row = new QuotationRequestTraveller();
+            QuotationRequestTraveller row =
+                    new QuotationRequestTraveller();
+
             row.setQuotationRequest(request);
             row.setTravellerNumber(number++);
             row.setName(t.getName().trim());
             row.setDateOfBirth(t.getDateOfBirth());
+
             row.setAgeAtSubmission(
-                    Period.between(t.getDateOfBirth(), LocalDate.now()).getYears());
+                    Period.between(
+                            t.getDateOfBirth(),
+                            LocalDate.now()).getYears());
+
             row.setPassportNumber(t.getPassportNumber().trim());
             row.setGender(t.getGender());
             row.setNationality(t.getNationality().trim());
             row.setCountryOfResidence(t.getCountryOfResidence().trim());
             row.setEmail(t.getEmail().trim().toLowerCase());
             row.setPhone(digitsOnly(t.getPhone()));
+
             row.setPreExistingMedicalConditions(
                     t.getPreExistingMedicalConditions() == null
                             || t.getPreExistingMedicalConditions().isBlank()
                             ? null
                             : t.getPreExistingMedicalConditions().trim());
+
             row.setCreatedAt(LocalDateTime.now());
             travellerRepository.save(row);
         }
 
-        // 4. The same field list the email flow uses (saved details of a
-        // returning client are used, not the possibly different typed ones)
+        // ============================================================
+        // 5. WORKFLOW
+        // ============================================================
+
         List<ExtractedFieldData> fields = List.of(
                 field("name", client.getName(), FieldDataType.TEXT),
                 field("email", client.getEmail(), FieldDataType.EMAIL),
                 field("phone", client.getPhone(), FieldDataType.PHONE),
-                field("passportNumber", applicant.getPassportNumber(), FieldDataType.TEXT),
-                field("originCountry", form.getDepartureCountry(), FieldDataType.TEXT),
-                field("destinationCountry", form.getDestinationCountry(), FieldDataType.TEXT),
-                field("travelStartDate", form.getTravelStartDate().toString(), FieldDataType.DATE),
-                field("travelEndDate", form.getTravelEndDate().toString(), FieldDataType.DATE),
-                field("travellers", String.valueOf(all.size()), FieldDataType.NUMBER),
+                field("passportNumber", applicant.getPassportNumber(),
+                        FieldDataType.TEXT),
+                field("originCountry", form.getDepartureCountry(),
+                        FieldDataType.TEXT),
+                field("destinationCountry", form.getDestinationCountry(),
+                        FieldDataType.TEXT),
+                field("travelStartDate",
+                        form.getTravelStartDate().toString(),
+                        FieldDataType.DATE),
+                field("travelEndDate",
+                        form.getTravelEndDate().toString(),
+                        FieldDataType.DATE),
+                field("travellers", String.valueOf(all.size()),
+                        FieldDataType.NUMBER),
                 field("policyType", "TRAVEL", FieldDataType.TEXT));
 
-        // 5. validate -> quotation (new version if re-submitted) -> email
         try {
             QuotationWorkflowService.Outcome outcome =
                     workflow.process(request, client, fields, hadQuotation);
 
+            // Consume a new-customer OTP only after the workflow has returned.
+            consumeNewCustomerOtpIfRequired(link, form, applicant);
+
             Long id = request.getId();
-            if (link != null && outcome.result() == QuotationWorkflowService.Result.QUOTATION_SENT) {
+
+            if (link != null
+                    && outcome.result()
+                    == QuotationWorkflowService.Result.QUOTATION_SENT) {
                 formLinks.markUsed(link.id());
             }
 
             return switch (outcome.result()) {
-                case QUOTATION_SENT -> new SubmissionResult(id, "QUOTATION_SENT",
-                        outcome.quotation().getQuotationNumber(),
-                        "Your quotation " + outcome.quotation().getQuotationNumber()
-                                + " has been emailed to " + client.getEmail() + ".");
+
+                case QUOTATION_SENT ->
+                        new SubmissionResult(
+                                id,
+                                "QUOTATION_SENT",
+                                outcome.quotation().getQuotationNumber(),
+                                "Your quotation "
+                                        + outcome.quotation().getQuotationNumber()
+                                        + " has been emailed to "
+                                        + client.getEmail() + ".");
+
                 case MISSING_INFORMATION -> {
-                    List<String> all2 = new ArrayList<>(outcome.missingFields());
+                    List<String> all2 =
+                            new ArrayList<>(outcome.missingFields());
+
                     all2.addAll(outcome.invalidFields());
-                    yield new SubmissionResult(id, "MISSING_INFORMATION", null,
-                            "We still need a few details: " + String.join(", ", all2) + ".");
+
+                    yield new SubmissionResult(
+                            id,
+                            "MISSING_INFORMATION",
+                            null,
+                            "We still need a few details: "
+                                    + String.join(", ", all2) + ".");
                 }
-                case EMAIL_SEND_FAILED -> new SubmissionResult(id, "EMAIL_SEND_FAILED",
-                        outcome.quotation() == null ? null : outcome.quotation().getQuotationNumber(),
-                        "Your quotation was created but the email could not be sent. Our team will send it to you.");
-                case QUOTATION_GENERATION_FAILED -> new SubmissionResult(id, "QUOTATION_GENERATION_FAILED", null,
-                        "We received your request but could not create the quotation yet. Our team will contact you.");
+
+                case EMAIL_SEND_FAILED ->
+                        new SubmissionResult(
+                                id,
+                                "EMAIL_SEND_FAILED",
+                                outcome.quotation() == null
+                                        ? null
+                                        : outcome.quotation().getQuotationNumber(),
+                                "Your quotation was created but the email could not be sent. Our team will send it to you.");
+
+                case QUOTATION_GENERATION_FAILED ->
+                        new SubmissionResult(
+                                id,
+                                "QUOTATION_GENERATION_FAILED",
+                                null,
+                                "We received your request but could not create the quotation yet. Our team will contact you.");
             };
 
         } catch (Exception e) {
-            log.error("Quotation processing failed for request {}", request.getId(), e);
+            log.error(
+                    "Quotation processing failed for request {}",
+                    request.getId(),
+                    e);
+
             request.setStatus(RequestStatus.MANUAL_REVIEW_REQUIRED);
             request.setUpdatedAt(LocalDateTime.now());
             requestRepository.save(request);
-            return new SubmissionResult(request.getId(), request.getStatus().name(), null,
+
+            // The request and traveller data have already been accepted and saved.
+            // Consume the new-customer token to prevent duplicate submissions.
+            consumeNewCustomerOtpIfRequired(link, form, applicant);
+
+            return new SubmissionResult(
+                    request.getId(),
+                    request.getStatus().name(),
+                    null,
                     "We received your request and our team will review it. Status: "
                             + RequestStatusInfo.label(request.getStatus()) + ".");
         }
     }
 
+    private void consumeNewCustomerOtpIfRequired(
+            FormLinkService.FormLink link,
+            QuotationFormRequest form,
+            TravellerForm applicant) {
+
+        if (link != null) {
+            return;
+        }
+
+        boolean consumed = otp.consumePhoneVerification(
+                form.getVerificationToken(),
+                applicant.getPhone());
+
+        if (!consumed) {
+            log.warn(
+                    "Could not consume phone verification token after accepting travel form submission.");
+        }
+    }
+
     private ExtractedFieldData field(
-            String name, String value, FieldDataType type) {
+            String name,
+            String value,
+            FieldDataType type) {
+
         return new ExtractedFieldData(
-                name, value == null ? null : value.trim(),
-                type, FieldSource.MANUAL_ENTRY, 1.0, false);
+                name,
+                value == null ? null : value.trim(),
+                type,
+                FieldSource.MANUAL_ENTRY,
+                1.0,
+                false);
     }
 
     private String digitsOnly(String value) {
-        return value == null ? "" : value.replaceAll("[^0-9]", "");
+        return value == null
+                ? ""
+                : value.replaceAll("[^0-9]", "");
     }
 }
