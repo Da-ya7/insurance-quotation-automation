@@ -1,13 +1,37 @@
 
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 
 import {
   ApiService,
   ClientDto,
   ClientVersionDto
 } from '../../core/api.service';
+
+interface InsuranceQuotation {
+  quotationId: number;
+  quotationNumber: string;
+  versionNo: number;
+  premiumAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  currency: string;
+  quotationStatus: string;
+  createdAt: string | null;
+  sentAt: string | null;
+}
+
+interface ClientInsuranceDetail {
+  requestId: number;
+  policyType: string | null;
+  purposeOfTravel: string | null;
+  requestStatus: string;
+  requestCreatedAt: string | null;
+  additionalDetails: Record<string, string>;
+  quotations: InsuranceQuotation[];
+}
 
 @Component({
   selector: 'app-client-master',
@@ -16,164 +40,276 @@ import {
   templateUrl: './client-master.html',
   styleUrl: './client-master.css'
 })
-export class ClientMaster {
+export class ClientMaster implements OnInit {
 
   clients: ClientDto[] = [];
   filteredClients: ClientDto[] = [];
 
   selectedClient: ClientDto | null = null;
+
   clientVersions: ClientVersionDto[] = [];
 
-  searchText = '';
+  // Insurance details
+  insuranceDetails: ClientInsuranceDetail[] = [];
+  insuranceLoading = false;
+  insuranceError = '';
+
+  searchName = '';
+  searchPhone = '';
+  searchId = '';
+  searchEmail = '';
 
   loading = false;
-  versionsLoading = false;
-  clientsLoading = true;
-
-  searchSubmitted = false;
-  showPopup = false;
-
+  popupLoading = false;
   errorMessage = '';
-  versionError = '';
 
-  constructor(private api: ApiService) {
+  constructor(
+    private api: ApiService,
+    private http: HttpClient
+  ) {}
+
+  ngOnInit(): void {
     this.loadClients();
   }
 
-  // Load all clients from the backend
   loadClients(): void {
-    this.clientsLoading = true;
+    this.loading = true;
     this.errorMessage = '';
 
     this.api.clients().subscribe({
       next: (data: ClientDto[]) => {
-        this.clients = data ?? [];
-        this.clientsLoading = false;
-        this.filterClients();
+        this.clients = data || [];
+        this.filteredClients = [...this.clients];
+        this.loading = false;
+        this.onSearchChange();
       },
       error: (error: unknown) => {
-        console.error('Unable to load clients', error);
-
-        this.clientsLoading = false;
+        console.error('Unable to load clients:', error);
         this.errorMessage =
-          'Unable to load client details. Please check the connection and try again.';
+          'Unable to load client records. Please try again.';
+        this.loading = false;
       }
     });
   }
 
-  // Filter clients while typing
-  onSearchChange(): void {
-    this.searchSubmitted = false;
-    this.errorMessage = '';
-    this.filterClients();
-  }
-
-  // Search button action
-  searchClients(): void {
-    if (this.clientsLoading) {
-      return;
-    }
-
-    this.searchSubmitted = true;
-    this.filterClients();
-
-    if (this.searchText.trim() && this.filteredClients.length === 0) {
-      this.errorMessage = 'Client Not Found';
-    } else {
-      this.errorMessage = '';
-    }
-  }
-
-  // Search by name, phone, email or Client ID
-  filterClients(): void {
-    const query = this.searchText.trim().toLowerCase();
-
-    if (!query) {
-      this.filteredClients = [];
-      this.searchSubmitted = false;
-      return;
-    }
-
-    this.filteredClients = this.clients.filter(client =>
-      (client.name ?? '').toLowerCase().includes(query) ||
-      (client.phone ?? '').toLowerCase().includes(query) ||
-      (client.email ?? '').toLowerCase().includes(query) ||
-      (client.clientCode ?? '').toLowerCase().includes(query)
+  get hasSearchCriteria(): boolean {
+    return !!(
+      this.searchName.trim() ||
+      this.searchPhone.trim() ||
+      this.searchId.trim() ||
+      this.searchEmail.trim()
     );
   }
 
-  // Open the selected client's details popup
+  onSearchChange(): void {
+    const name = this.searchName.trim().toLowerCase();
+    const phone = this.searchPhone.trim().toLowerCase();
+    const id = this.searchId.trim().toLowerCase();
+    const email = this.searchEmail.trim().toLowerCase();
+
+    this.filteredClients = this.clients.filter(client => {
+
+      const matchesName =
+        !name || (client.name || '').toLowerCase().includes(name);
+
+      const matchesPhone =
+        !phone || (client.phone || '').toLowerCase().includes(phone);
+
+      const matchesId =
+        !id ||
+        String(client.id).toLowerCase().includes(id) ||
+        (client.clientCode || '').toLowerCase().includes(id);
+
+      const matchesEmail =
+        !email || (client.email || '').toLowerCase().includes(email);
+
+      return matchesName &&
+        matchesPhone &&
+        matchesId &&
+        matchesEmail;
+    });
+  }
+
+  clearSearch(): void {
+    this.searchName = '';
+    this.searchPhone = '';
+    this.searchId = '';
+    this.searchEmail = '';
+
+    this.filteredClients = [...this.clients];
+  }
+
+  // Open client popup and automatically load all details
   selectClient(client: ClientDto): void {
-    this.showPopup = true;
-    this.loading = true;
 
     this.selectedClient = client;
+
     this.clientVersions = [];
-    this.versionError = '';
+
+    this.insuranceDetails = [];
+    this.insuranceError = '';
+
+    this.popupLoading = true;
+    this.insuranceLoading = true;
+
+    this.errorMessage = '';
 
     // Load complete client information
     this.api.client(client.id).subscribe({
       next: (data: ClientDto) => {
-        this.selectedClient = data;
-        this.loading = false;
+        if (this.selectedClient?.id === client.id) {
+          this.selectedClient = data;
+          this.popupLoading = false;
+        }
       },
       error: (error: unknown) => {
-        console.error('Unable to load selected client', error);
+        console.error('Unable to load client details:', error);
 
-        this.loading = false;
-        this.selectedClient = client;
+        if (this.selectedClient?.id === client.id) {
+          this.popupLoading = false;
+        }
       }
     });
 
-    // Load client version history
+    // Automatically load client version history
     this.loadClientVersions(client.id);
+
+    // Automatically load insurance details
+    this.loadInsuranceDetails(client.id);
   }
 
-  // Load version history for the selected client
+  loadInsuranceDetails(clientId: number): void {
+
+    this.insuranceLoading = true;
+    this.insuranceError = '';
+    this.insuranceDetails = [];
+
+    this.http.get<ClientInsuranceDetail[]>(
+      `/api/clients/${clientId}/insurance-details`
+    ).subscribe({
+
+      next: (data: ClientInsuranceDetail[]) => {
+
+        if (this.selectedClient?.id !== clientId) {
+          return;
+        }
+
+        this.insuranceDetails = data || [];
+        this.insuranceLoading = false;
+      },
+
+      error: (error: unknown) => {
+
+        console.error(
+          'Unable to load client insurance details:',
+          error
+        );
+
+        if (this.selectedClient?.id === clientId) {
+          this.insuranceError =
+            'Unable to load insurance details. Please try again.';
+
+          this.insuranceLoading = false;
+        }
+      }
+    });
+  }
+
   loadClientVersions(clientId: number): void {
-    this.versionsLoading = true;
-    this.versionError = '';
 
     this.api.clientVersions(clientId).subscribe({
-      next: (data: ClientVersionDto[]) => {
-        this.clientVersions = data ?? [];
-        this.versionsLoading = false;
-      },
-      error: (error: unknown) => {
-        console.error('Unable to load client versions', error);
 
-        this.versionsLoading = false;
-        this.versionError =
-          'Client version history could not be loaded.';
+      next: (data: ClientVersionDto[]) => {
+
+        if (this.selectedClient?.id !== clientId) {
+          return;
+        }
+
+        this.clientVersions = (data || []).sort(
+          (a, b) => b.versionNo - a.versionNo
+        );
+      },
+
+      error: (error: unknown) => {
+
+        console.error(
+          'Unable to load client versions:',
+          error
+        );
+
+        if (this.selectedClient?.id === clientId) {
+          this.clientVersions = [];
+        }
       }
     });
   }
 
-  // Close the client details popup
   closePopup(): void {
-    this.showPopup = false;
+
     this.selectedClient = null;
+
     this.clientVersions = [];
 
-    this.loading = false;
-    this.versionsLoading = false;
+    this.insuranceDetails = [];
+    this.insuranceError = '';
+    this.insuranceLoading = false;
+
+    this.popupLoading = false;
   }
 
-  // Clear the search field
-  clearSearch(): void {
-    this.searchText = '';
-    this.filteredClients = [];
-
-    this.searchSubmitted = false;
-    this.errorMessage = '';
+  getClientInitial(
+    name: string | null | undefined
+  ): string {
+    return name?.trim().charAt(0).toUpperCase() || 'C';
   }
 
-  // Show matching client suggestions while typing
-  get showSuggestions(): boolean {
-    return (
-      this.searchText.trim().length > 0 &&
-      this.filteredClients.length > 0 &&
-      !this.showPopup
-    );
+  getIdentityNumber(
+    client: ClientDto | ClientVersionDto
+  ): string {
+    return client.identityNumberMasked || 'Not available';
+  }
+
+  getVerificationStatus(
+    verified: boolean | null | undefined
+  ): string {
+    return verified ? 'Verified' : 'Not verified';
+  }
+
+  getChangedFields(
+    fields: string | string[] | null | undefined
+  ): string {
+
+    if (Array.isArray(fields)) {
+      return fields.length
+        ? fields.join(', ')
+        : 'Not available';
+    }
+
+    return fields || 'Not available';
+  }
+
+  getVersionDate(
+    date: string | null | undefined
+  ): Date | null {
+    return date ? new Date(date) : null;
+  }
+
+  // FIX: Safely get object keys inside Angular HTML templates
+  getObjectKeys(value: Record<string, any> | null | undefined): string[] {
+    return value ? Object.keys(value) : [];
+  }
+
+  trackByVersion(
+    index: number,
+    version: ClientVersionDto
+  ): number {
+    return version.versionNo;
+  }
+
+  trackByInsurance(
+    index: number,
+    insurance: ClientInsuranceDetail
+  ): number {
+    return insurance.requestId;
   }
 }
