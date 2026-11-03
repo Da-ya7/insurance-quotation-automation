@@ -1,0 +1,1532 @@
+diff --git a/src/main/java/com/insurance/quotation/entity/Client.java b/src/main/java/com/insurance/quotation/entity/Client.java
+index 8ee3361..54445df 100644
+--- a/src/main/java/com/insurance/quotation/entity/Client.java
++++ b/src/main/java/com/insurance/quotation/entity/Client.java
+@@ -15,7 +15,7 @@ public class Client {
+     @Column(name = "name", length = 150)
+     private String name;
+ 
+-    @Column(name = "email", nullable = false, unique = true, length = 150)
++    @Column(name = "email", nullable = false, length = 150)
+     private String email;
+ 
+     @Column(name = "phone", length = 20)
+diff --git a/src/main/java/com/insurance/quotation/repository/ClientRepository.java b/src/main/java/com/insurance/quotation/repository/ClientRepository.java
+index d52f29b..f4490a9 100644
+--- a/src/main/java/com/insurance/quotation/repository/ClientRepository.java
++++ b/src/main/java/com/insurance/quotation/repository/ClientRepository.java
+@@ -1,13 +1,17 @@
++
+ package com.insurance.quotation.repository;
+ 
+ import com.insurance.quotation.entity.Client;
+ import org.springframework.data.jpa.repository.JpaRepository;
+ 
++import java.util.List;
+ import java.util.Optional;
+ 
+ public interface ClientRepository extends JpaRepository<Client, Long> {
+ 
++    // An email address may belong to multiple client records.
++    List<Client> findAllByEmailIgnoreCase(String email);
++
++    // Retained for compatibility with existing services.
+     Optional<Client> findByEmail(String email);
+ }
+-
+-
+diff --git a/src/main/java/com/insurance/quotation/service/automation/AutomationService.java b/src/main/java/com/insurance/quotation/service/automation/AutomationService.java
+index 708babf..8ad2746 100644
+--- a/src/main/java/com/insurance/quotation/service/automation/AutomationService.java
++++ b/src/main/java/com/insurance/quotation/service/automation/AutomationService.java
+@@ -20,7 +20,6 @@ import com.insurance.quotation.service.quotation.QuotationGenerationService;
+ import com.insurance.quotation.service.validation.ValidationService;
+ 
+ import org.springframework.stereotype.Service;
+-import org.springframework.transaction.annotation.Transactional;
+ 
+ import java.time.LocalDateTime;
+ import java.util.ArrayList;
+@@ -29,6 +28,8 @@ import java.util.LinkedHashMap;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Optional;
++import java.util.Set;
++import java.util.stream.Collectors;
+ 
+ @Service
+ public class AutomationService {
+@@ -38,7 +39,6 @@ public class AutomationService {
+     private final ValidationService validationService;
+     private final QuotationGenerationService quotationGenerationService;
+     private final QuotationEmailService quotationEmailService;
+-
+     private final ClientRepository clientRepository;
+     private final IncomingEmailRepository incomingEmailRepository;
+     private final QuotationRequestRepository quotationRequestRepository;
+@@ -66,20 +66,15 @@ public class AutomationService {
+         this.requestFieldValueRepository = requestFieldValueRepository;
+     }
+ 
+-    // Not one big transaction: a failure on one email must not undo or block others.
+     public void processIncomingEmails() {
+-
+         List<EmailMessage> emails =
+                 emailIngestionService.fetchIncomingEmails();
+ 
+         for (EmailMessage email : emails) {
+-
+             if (incomingEmailRepository.existsByMessageId(
+                     email.getMessageId())) {
+-
+                 emailIngestionService.markEmailAsProcessed(
+                         email.getMessageId());
+-
+                 continue;
+             }
+ 
+@@ -91,82 +86,129 @@ public class AutomationService {
+         }
+     }
+ 
+-    private void handleProcessingFailure(EmailMessage email, Exception e) {
+-        System.err.println("Failed to process email "
+-                + email.getMessageId() + ": " + e.getMessage());
++    private void handleProcessingFailure(
++            EmailMessage email, Exception e) {
++
++        System.err.println(
++                "Failed to process email "
++                        + email.getMessageId()
++                        + ": " + e.getMessage());
++
+         e.printStackTrace();
+ 
+-        incomingEmailRepository.findByMessageId(email.getMessageId())
+-                .ifPresent(saved -> {
+-                    saved.setProcessingStatus("FAILED");
+-                    incomingEmailRepository.save(saved);
++        incomingEmailRepository.findByMessageId(
++                email.getMessageId()).ifPresent(saved -> {
++
++            saved.setProcessingStatus("FAILED");
++            incomingEmailRepository.save(saved);
+ 
+-                    QuotationRequest req = saved.getQuotationRequest();
+-                    if (req != null) {
+-                        req.setStatus(RequestStatus.EMAIL_PROCESSING_FAILED);
+-                        req.setUpdatedAt(LocalDateTime.now());
+-                        quotationRequestRepository.save(req);
+-                    }
+-                });
++            QuotationRequest request =
++                    saved.getQuotationRequest();
++
++            if (request != null) {
++                request.setStatus(
++                        RequestStatus.EMAIL_PROCESSING_FAILED);
++                request.setUpdatedAt(LocalDateTime.now());
++                quotationRequestRepository.save(request);
++            }
++        });
+ 
+-        // Mark as processed so a broken email is not retried every minute.
+         try {
+-            emailIngestionService.markEmailAsProcessed(email.getMessageId());
++            emailIngestionService.markEmailAsProcessed(
++                    email.getMessageId());
+         } catch (Exception ignored) {
+-            // nothing more we can do
++            System.err.println(
++                    "Could not mark failed email as processed.");
+         }
+     }
+ 
+     private void processEmail(EmailMessage email) {
+ 
+-        // 0. Is this really a quotation request? Real customers often write
+-        // free text. If nothing usable is found and the sender has no pending
+-        // request, do NOT create a client/request. Store the email and point
+-        // the sender to the web form instead.
+-        boolean nothingUseful = emailExtractionService.extractFields(email)
+-                .stream()
+-                .noneMatch(f -> !f.isMissing()
+-                        && f.getFieldValue() != null
+-                        && !f.getFieldValue().isBlank());
+-
+-        boolean senderHasPendingRequest = clientRepository
+-                .findByEmail(email.getSenderEmail())
+-                .flatMap(this::findPendingRequest)
+-                .isPresent();
+-
+-        if (nothingUseful && !senderHasPendingRequest) {
+-            handleNonQuotationEmail(email);
+-            return;
+-        }
++        List<ExtractedFieldData> extractedFields =
++                emailExtractionService.extractFields(email);
+ 
+-        // 1. Find or create the customer.
+-        Client client = findOrCreateClient(email);
++        boolean nothingUseful = extractedFields.stream()
++                .noneMatch(field ->
++                        field != null
++                                && !field.isMissing()
++                                && field.getFieldValue() != null
++                                && !field.getFieldValue().isBlank());
+ 
+-        // 2. Reuse the customer's pending request when possible.
+-        Optional<QuotationRequest> pendingRequest =
+-                findPendingRequest(client);
++        String sender = email.getSenderEmail();
++        String extractedName =
++                getFieldValue(extractedFields, "name");
++
++        List<Client> senderClients =
++                findClientsByEmail(sender);
++
++        List<QuotationRequest> senderPendingRequests =
++                findPendingRequests(senderClients);
++
++        /*
++         * A reply can be linked only when we can identify
++         * one pending request with reasonable confidence.
++         */
++        Optional<QuotationRequest> pendingMatch =
++                findUnambiguousPendingRequest(
++                        senderClients,
++                        senderPendingRequests,
++                        extractedName);
++
++        boolean ambiguousReply =
++                isAmbiguousPendingRequest(
++                        senderClients,
++                        senderPendingRequests,
++                        extractedName,
++                        pendingMatch);
++
++        if (ambiguousReply) {
++            storeForManualReview(email);
++
++            System.out.println(
++                    "Email requires manual review because multiple "
++                            + "pending requests could match sender "
++                            + sender);
++
++            return;
++        }
+ 
+-        boolean isReply = pendingRequest.isPresent();
++        /*
++         * Emails with no useful quotation information and
++         * no pending request are handled as general emails.
++         */
++        if (nothingUseful && pendingMatch.isEmpty()) {
++            handleNonQuotationEmail(email);
++            return;
++        }
+ 
++        Client client;
+         QuotationRequest quotationRequest;
++        boolean isReply = pendingMatch.isPresent();
+ 
+         if (isReply) {
+-            quotationRequest = pendingRequest.get();
++            quotationRequest = pendingMatch.get();
++            client = quotationRequest.getClient();
+ 
+             quotationRequest.setStatus(
+                     RequestStatus.CLIENT_REPLY_RECEIVED);
+-
+             quotationRequest.setUpdatedAt(LocalDateTime.now());
+ 
++            quotationRequestRepository.save(quotationRequest);
++
+             System.out.println(
+-                    "Customer reply linked to existing request "
++                    "Customer reply linked to request "
+                             + quotationRequest.getId());
+-
+         } else {
+-            quotationRequest = new QuotationRequest();
++            Optional<Client> matchingClient =
++                    findClientByIdentity(senderClients, extractedName);
++
++            client = matchingClient.orElseGet(
++                    () -> createClient(sender, extractedName));
+ 
++            quotationRequest = new QuotationRequest();
+             quotationRequest.setClient(client);
+-            quotationRequest.setStatus(RequestStatus.EMAIL_RECEIVED);
++            quotationRequest.setStatus(
++                    RequestStatus.EMAIL_RECEIVED);
+             quotationRequest.setCreatedAt(LocalDateTime.now());
+             quotationRequest.setUpdatedAt(LocalDateTime.now());
+ 
+@@ -174,13 +216,11 @@ public class AutomationService {
+                     quotationRequestRepository.save(quotationRequest);
+         }
+ 
+-        // 3. Save the incoming email or customer reply in MySQL.
+         IncomingEmail incomingEmail = new IncomingEmail();
+-
+         incomingEmail.setQuotationRequest(quotationRequest);
+         incomingEmail.setMessageId(email.getMessageId());
+         incomingEmail.setInReplyTo(email.getInReplyTo());
+-        incomingEmail.setSenderEmail(email.getSenderEmail());
++        incomingEmail.setSenderEmail(sender);
+         incomingEmail.setSubject(email.getSubject());
+         incomingEmail.setBody(email.getBody());
+         incomingEmail.setProcessingStatus("RECEIVED");
+@@ -189,99 +229,108 @@ public class AutomationService {
+         incomingEmail =
+                 incomingEmailRepository.save(incomingEmail);
+ 
+-        // 4. Extract fields from the latest email.
+-        List<ExtractedFieldData> extractedFields =
+-                emailExtractionService.extractFields(email);
+-
+-        // 5. For a reply, combine new details with previous valid values.
+         if (isReply) {
+             extractedFields = mergeExistingValues(
+                     quotationRequest,
+                     extractedFields);
+         }
+ 
+-        // 6. Update customer information.
++        /*
++         * Prefer the applicant's email extracted from the
++         * message, then the sender, then the saved client email.
++         */
++        String recipientEmail =
++                getFieldValue(extractedFields, "email");
++
++        if (recipientEmail == null || recipientEmail.isBlank()) {
++            recipientEmail = sender;
++        }
++
++        if (recipientEmail == null || recipientEmail.isBlank()) {
++            recipientEmail = client.getEmail();
++        }
++
+         updateClient(client, extractedFields);
+ 
+-        // 7. Set the policy type before validation.
++        /*
++         * Existing database configuration contains TRAVEL
++         * required fields only. Keep the current default for
++         * compatibility with the existing demo.
++         */
+         String policyType =
+                 getFieldValue(extractedFields, "policyType");
+ 
+         if (policyType == null || policyType.isBlank()) {
+-        policyType = quotationRequest.getPolicyType();
++            policyType = quotationRequest.getPolicyType();
+         }
+ 
+         if (policyType == null || policyType.isBlank()) {
+-        policyType = "TRAVEL";
++            policyType = "TRAVEL";
+         }
+ 
+         quotationRequest.setPolicyType(policyType);
+-
+         quotationRequest.setUpdatedAt(LocalDateTime.now());
+ 
+         quotationRequest =
+                 quotationRequestRepository.save(quotationRequest);
+ 
+-        // 8. Validate the combined information.
+         ValidationService.ValidationResult result =
+                 validationService.validate(
+-                        quotationRequest,
+-                        extractedFields);
++                        quotationRequest, extractedFields);
+ 
+-        // 9. If information is still missing, email the customer.
+         if (!result.isValid()) {
++            quotationRequest.setStatus(
++                    RequestStatus.MISSING_INFORMATION);
++            quotationRequest.setUpdatedAt(LocalDateTime.now());
+ 
+-        // IMPORTANT: Save a pending status so the client's reply
+-        // can be linked to this same quotation request.
+-        quotationRequest.setStatus(RequestStatus.MISSING_INFORMATION);
+-        quotationRequest.setUpdatedAt(LocalDateTime.now());
+-        quotationRequestRepository.save(quotationRequest);
++            quotationRequestRepository.save(quotationRequest);
+ 
+-        quotationEmailService.sendMissingInformationEmail(
+-                client.getEmail(),
+-                result.getMissingFields(),
+-                result.getInvalidFields());
++            quotationEmailService.sendMissingInformationEmail(
++                    recipientEmail,
++                    result.getMissingFields(),
++                    result.getInvalidFields());
+ 
+-        incomingEmail.setProcessingStatus("PROCESSED");
+-        incomingEmailRepository.save(incomingEmail);
++            incomingEmail.setProcessingStatus("PROCESSED");
++            incomingEmailRepository.save(incomingEmail);
+ 
+-        emailIngestionService.markEmailAsProcessed(
+-                email.getMessageId());
++            emailIngestionService.markEmailAsProcessed(
++                    email.getMessageId());
+ 
+-        System.out.println(
+-                "Missing-information email sent to "
+-                        + client.getEmail());
++            System.out.println(
++                    "Missing-information email sent to "
++                            + recipientEmail);
+ 
+-        return;
++            return;
+         }
+ 
+-        // 10. Generate the quotation and PDF.
+         Quotation quotation =
+                 quotationGenerationService.generateQuotation(
+                         quotationRequest);
+ 
+-        // 11. Send the actual PDF to the customer.
+         try {
+-            quotationEmailService.sendQuotation(quotation);
++            quotationEmailService.sendQuotation(
++                    quotation, recipientEmail);
+         } catch (Exception sendError) {
+-            quotationRequest.setStatus(RequestStatus.EMAIL_SEND_FAILED);
++            quotationRequest.setStatus(
++                    RequestStatus.EMAIL_SEND_FAILED);
+             quotationRequest.setUpdatedAt(LocalDateTime.now());
++
+             quotationRequestRepository.save(quotationRequest);
+ 
+             incomingEmail.setProcessingStatus("FAILED");
+             incomingEmailRepository.save(incomingEmail);
+ 
+-            emailIngestionService.markEmailAsProcessed(email.getMessageId());
++            emailIngestionService.markEmailAsProcessed(
++                    email.getMessageId());
++
+             throw sendError;
+         }
+ 
+-        // 12. Mark the request as sent only after successful sending.
+         quotationRequest.setStatus(RequestStatus.QUOTATION_SENT);
+         quotationRequest.setUpdatedAt(LocalDateTime.now());
+ 
+         quotationRequestRepository.save(quotationRequest);
+ 
+-        // 13. Mark the incoming email as processed.
+         incomingEmail.setProcessingStatus("PROCESSED");
+         incomingEmailRepository.save(incomingEmail);
+ 
+@@ -289,18 +338,218 @@ public class AutomationService {
+                 email.getMessageId());
+ 
+         System.out.println(
+-                "Quotation generated and sent: "
++                "Quotation generated and sent to "
++                        + recipientEmail + ": "
+                         + quotation.getQuotationNumber());
+     }
+ 
+-    /** Email that is not a quotation request: keep it, reply once with the form link. */
+-    private void handleNonQuotationEmail(EmailMessage email) {
++    private List<Client> findClientsByEmail(String email) {
++        if (email == null || email.isBlank()) {
++            return List.of();
++        }
++
++        return clientRepository.findAllByEmailIgnoreCase(
++                email.trim());
++    }
++
++    private Optional<Client> findClientByIdentity(
++            List<Client> clients,
++            String extractedName) {
++
++        if (clients == null || clients.isEmpty()) {
++            return Optional.empty();
++        }
++
++        if (extractedName == null || extractedName.isBlank()) {
++            return clients.size() == 1
++                    ? Optional.of(clients.get(0))
++                    : Optional.empty();
++        }
++
++        List<Client> nameMatches = clients.stream()
++                .filter(client -> client.getName() != null)
++                .filter(client -> client.getName().trim()
++                        .equalsIgnoreCase(extractedName.trim()))
++                .toList();
++
++        return nameMatches.size() == 1
++                ? Optional.of(nameMatches.get(0))
++                : Optional.empty();
++    }
++
++    private Client createClient(String email, String name) {
++        if (email == null || email.isBlank()) {
++            throw new IllegalArgumentException(
++                    "Cannot create a client without an email address.");
++        }
++
++        Client client = new Client();
++        client.setEmail(email.trim());
++
++        if (name != null && !name.isBlank()) {
++            client.setName(name.trim());
++        }
++
++        client.setCreatedAt(LocalDateTime.now());
++        client.setUpdatedAt(LocalDateTime.now());
++
++        return clientRepository.save(client);
++    }
++
++    private List<QuotationRequest> findPendingRequests(
++            List<Client> clients) {
++
++        if (clients == null || clients.isEmpty()) {
++            return List.of();
++        }
++
++        Set<Long> clientIds = clients.stream()
++                .map(Client::getId)
++                .filter(id -> id != null)
++                .collect(Collectors.toSet());
+ 
++        if (clientIds.isEmpty()) {
++            return List.of();
++        }
++
++        List<QuotationRequest> pending = new ArrayList<>();
++
++        pending.addAll(
++                quotationRequestRepository.findByStatus(
++                        RequestStatus.MISSING_INFORMATION));
++
++        pending.addAll(
++                quotationRequestRepository.findByStatus(
++                        RequestStatus.WAITING_FOR_CLIENT));
++
++        Map<Long, QuotationRequest> uniqueRequests =
++                new LinkedHashMap<>();
++
++        for (QuotationRequest request : pending) {
++            if (request.getId() == null
++                    || request.getClient() == null
++                    || request.getClient().getId() == null) {
++                continue;
++            }
++
++            if (clientIds.contains(request.getClient().getId())) {
++                uniqueRequests.put(request.getId(), request);
++            }
++        }
++
++        return new ArrayList<>(uniqueRequests.values());
++    }
++
++    private Optional<QuotationRequest> findUnambiguousPendingRequest(
++            List<Client> clients,
++            List<QuotationRequest> pendingRequests,
++            String extractedName) {
++
++        if (pendingRequests == null || pendingRequests.isEmpty()) {
++            return Optional.empty();
++        }
++
++        /*
++         * If a name was supplied, match it to exactly one client
++         * before considering that client's pending requests.
++         */
++        if (extractedName != null && !extractedName.isBlank()) {
++            Optional<Client> matchedClient =
++                    findClientByIdentity(clients, extractedName);
++
++            if (matchedClient.isEmpty()) {
++                return Optional.empty();
++            }
++
++            List<QuotationRequest> clientRequests =
++                    pendingRequests.stream()
++                            .filter(request ->
++                                    request.getClient() != null
++                                            && matchedClient.get().getId()
++                                            .equals(request.getClient().getId()))
++                            .toList();
++
++            return clientRequests.size() == 1
++                    ? Optional.of(clientRequests.get(0))
++                    : Optional.empty();
++        }
++
++        /*
++         * Without a name, link only when there is exactly one
++         * pending request across all clients using this email.
++         */
++        return pendingRequests.size() == 1
++                ? Optional.of(pendingRequests.get(0))
++                : Optional.empty();
++    }
++
++    private boolean isAmbiguousPendingRequest(
++            List<Client> clients,
++            List<QuotationRequest> pendingRequests,
++            String extractedName,
++            Optional<QuotationRequest> pendingMatch) {
++
++        if (pendingRequests == null || pendingRequests.isEmpty()) {
++            return false;
++        }
++
++        if (pendingMatch.isPresent()) {
++            return false;
++        }
++
++        /*
++         * A name that matches an existing client but has multiple
++         * pending requests is ambiguous as well.
++         */
++        if (extractedName != null && !extractedName.isBlank()) {
++            Optional<Client> matchedClient =
++                    findClientByIdentity(clients, extractedName);
++
++            if (matchedClient.isPresent()) {
++                long matchingRequests = pendingRequests.stream()
++                        .filter(request ->
++                                request.getClient() != null
++                                        && matchedClient.get().getId()
++                                        .equals(request.getClient().getId()))
++                        .count();
++
++                return matchingRequests > 0;
++            }
++
++            /*
++             * If the name is new, do not attach the message to
++             * another person's pending request.
++             */
++            return false;
++        }
++
++        return pendingRequests.size() > 1;
++    }
++
++    private void storeForManualReview(EmailMessage email) {
++        IncomingEmail stored = new IncomingEmail();
++        stored.setQuotationRequest(null);
++        stored.setMessageId(email.getMessageId());
++        stored.setInReplyTo(email.getInReplyTo());
++        stored.setSenderEmail(email.getSenderEmail());
++        stored.setSubject(email.getSubject());
++        stored.setBody(email.getBody());
++        stored.setProcessingStatus("MANUAL_REVIEW_REQUIRED");
++        stored.setReceivedAt(email.getReceivedAt());
++
++        incomingEmailRepository.save(stored);
++
++        emailIngestionService.markEmailAsProcessed(
++                email.getMessageId());
++    }
++
++    private void handleNonQuotationEmail(EmailMessage email) {
+         String sender = email.getSenderEmail();
+ 
+-        // Only the first such email from a sender gets an automatic reply.
+-        boolean alreadyNotified = incomingEmailRepository
+-                .existsBySenderEmailAndQuotationRequestIsNull(sender);
++        boolean alreadyNotified =
++                incomingEmailRepository
++                        .existsBySenderEmailAndQuotationRequestIsNull(
++                                sender);
+ 
+         IncomingEmail stored = new IncomingEmail();
+         stored.setQuotationRequest(null);
+@@ -311,57 +560,39 @@ public class AutomationService {
+         stored.setBody(email.getBody());
+         stored.setProcessingStatus("PROCESSED");
+         stored.setReceivedAt(email.getReceivedAt());
++
+         incomingEmailRepository.save(stored);
+ 
+         if (!alreadyNotified && isHumanSender(sender)) {
+             try {
+                 quotationEmailService.sendFormLinkEmail(sender);
+             } catch (Exception e) {
+-                System.err.println("Could not send form link to "
+-                        + sender + ": " + e.getMessage());
++                System.err.println(
++                        "Could not send form link to " + sender
++                                + ": " + e.getMessage());
+             }
+         }
+ 
+-        emailIngestionService.markEmailAsProcessed(email.getMessageId());
++        emailIngestionService.markEmailAsProcessed(
++                email.getMessageId());
+ 
+-        System.out.println("Non-quotation email stored from " + sender);
++        System.out.println(
++                "Non-quotation email stored from " + sender);
+     }
+ 
+-    // Never auto-reply to robots or bounce messages (avoids mail loops).
+     private boolean isHumanSender(String sender) {
+         if (sender == null || sender.isBlank()) {
+             return false;
+         }
+-        String s = sender.toLowerCase();
+-        return !(s.contains("no-reply") || s.contains("noreply")
+-                || s.contains("donotreply") || s.contains("do-not-reply")
+-                || s.contains("mailer-daemon") || s.contains("postmaster"));
+-    }
+-
+-    private Optional<QuotationRequest> findPendingRequest(
+-            Client client) {
+-
+-        List<QuotationRequest> pendingRequests =
+-                new ArrayList<>();
+-
+-        pendingRequests.addAll(
+-                quotationRequestRepository.findByStatus(
+-                        RequestStatus.MISSING_INFORMATION));
+ 
+-        pendingRequests.addAll(
+-                quotationRequestRepository.findByStatus(
+-                        RequestStatus.WAITING_FOR_CLIENT));
++        String value = sender.toLowerCase();
+ 
+-        return pendingRequests.stream()
+-                .filter(request ->
+-                        request.getClient() != null
+-                                && request.getClient().getId() != null
+-                                && request.getClient().getId()
+-                                .equals(client.getId()))
+-                .max(Comparator.comparingLong(
+-                        request -> request.getId() == null
+-                                ? 0L
+-                                : request.getId()));
++        return !(value.contains("no-reply")
++                || value.contains("noreply")
++                || value.contains("donotreply")
++                || value.contains("do-not-reply")
++                || value.contains("mailer-daemon")
++                || value.contains("postmaster"));
+     }
+ 
+     private List<ExtractedFieldData> mergeExistingValues(
+@@ -371,13 +602,11 @@ public class AutomationService {
+         Map<String, ExtractedFieldData> combined =
+                 new LinkedHashMap<>();
+ 
+-        // Load the values already stored for this request.
+         List<RequestFieldValue> savedValues =
+                 requestFieldValueRepository.findByQuotationRequestId(
+                         quotationRequest.getId());
+ 
+         for (RequestFieldValue saved : savedValues) {
+-
+             if (saved.getRequiredField() == null
+                     || saved.getFieldValue() == null) {
+                 continue;
+@@ -390,33 +619,26 @@ public class AutomationService {
+                     ? saved.getSource()
+                     : FieldSource.EMAIL_EXTRACTED;
+ 
+-            combined.put(
+-                    normalize(fieldName),
++            combined.put(normalize(fieldName),
+                     new ExtractedFieldData(
+                             fieldName,
+                             saved.getFieldValue(),
+                             saved.getRequiredField().getDataType(),
+                             source,
+                             1.0,
+-                            false
+-                    )
+-            );
++                            false));
+         }
+ 
+-        // Only replace an existing value when the latest email
+-        // actually contains a nonblank value for that field.
+         for (ExtractedFieldData field : newlyExtractedFields) {
+-
+-            if (field.getFieldName() == null) {
++            if (field == null || field.getFieldName() == null) {
+                 continue;
+             }
+ 
+             String key = normalize(field.getFieldName());
+ 
+-            boolean hasValue =
+-                    !field.isMissing()
+-                            && field.getFieldValue() != null
+-                            && !field.getFieldValue().isBlank();
++            boolean hasValue = !field.isMissing()
++                    && field.getFieldValue() != null
++                    && !field.getFieldValue().isBlank();
+ 
+             if (hasValue || !combined.containsKey(key)) {
+                 combined.put(key, field);
+@@ -426,25 +648,6 @@ public class AutomationService {
+         return new ArrayList<>(combined.values());
+     }
+ 
+-    private Client findOrCreateClient(EmailMessage email) {
+-
+-        Optional<Client> existingClient =
+-                clientRepository.findByEmail(
+-                        email.getSenderEmail());
+-
+-        if (existingClient.isPresent()) {
+-            return existingClient.get();
+-        }
+-
+-        Client client = new Client();
+-
+-        client.setEmail(email.getSenderEmail());
+-        client.setCreatedAt(LocalDateTime.now());
+-        client.setUpdatedAt(LocalDateTime.now());
+-
+-        return clientRepository.save(client);
+-    }
+-
+     private void updateClient(
+             Client client,
+             List<ExtractedFieldData> fields) {
+@@ -453,15 +656,14 @@ public class AutomationService {
+         String phone = getFieldValue(fields, "phone");
+ 
+         if (name != null && !name.isBlank()) {
+-            client.setName(name);
++            client.setName(name.trim());
+         }
+ 
+         if (phone != null && !phone.isBlank()) {
+-            client.setPhone(phone);
++            client.setPhone(phone.trim());
+         }
+ 
+         client.setUpdatedAt(LocalDateTime.now());
+-
+         clientRepository.save(client);
+     }
+ 
+@@ -469,15 +671,19 @@ public class AutomationService {
+             List<ExtractedFieldData> fields,
+             String fieldName) {
+ 
++        if (fields == null) {
++            return null;
++        }
++
+         return fields.stream()
+-                .filter(field ->
+-                        fieldName.equalsIgnoreCase(
+-                                field.getFieldName()))
+-                .filter(field ->
+-                        !field.isMissing()
+-                                && field.getFieldValue() != null
+-                                && !field.getFieldValue().isBlank())
++                .filter(field -> field != null)
++                .filter(field -> fieldName.equalsIgnoreCase(
++                        field.getFieldName()))
++                .filter(field -> !field.isMissing()
++                        && field.getFieldValue() != null
++                        && !field.getFieldValue().isBlank())
+                 .map(ExtractedFieldData::getFieldValue)
++                .map(String::trim)
+                 .findFirst()
+                 .orElse(null);
+     }
+diff --git a/src/main/java/com/insurance/quotation/service/extraction/EmailExtractionService.java b/src/main/java/com/insurance/quotation/service/extraction/EmailExtractionService.java
+index 8a4f27f..016a805 100644
+--- a/src/main/java/com/insurance/quotation/service/extraction/EmailExtractionService.java
++++ b/src/main/java/com/insurance/quotation/service/extraction/EmailExtractionService.java
+@@ -14,11 +14,16 @@ import java.util.regex.Pattern;
+ @Service
+ public class EmailExtractionService {
+ 
+-    public List<ExtractedFieldData> extractFields(EmailMessage email) {
++    private static final Pattern EMAIL_PATTERN = Pattern.compile(
++            "[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
++    );
+ 
++    public List<ExtractedFieldData> extractFields(EmailMessage email) {
+         List<ExtractedFieldData> fields = new ArrayList<>();
+ 
+-        String body = email.getBody() == null ? "" : email.getBody();
++        String body = cleanBody(
++                email == null ? null : email.getBody()
++        );
+ 
+         fields.add(extract(body, "Name", "name", FieldDataType.TEXT));
+         fields.add(extract(body, "Email", "email", FieldDataType.EMAIL));
+@@ -34,6 +39,36 @@ public class EmailExtractionService {
+         return fields;
+     }
+ 
++    private String cleanBody(String body) {
++        if (body == null || body.isBlank()) {
++            return "";
++        }
++
++        return body
++                // Preserve line breaks from HTML emails.
++                .replaceAll("(?i)<br\\s*/?>", "\n")
++                .replaceAll(
++                        "(?i)</(?:p|div|li|tr|h[1-6])\\s*>",
++                        "\n"
++                )
++                // Remove remaining HTML tags.
++                .replaceAll("(?i)<[^>]+>", " ")
++                // Decode common HTML entities.
++                .replace("&nbsp;", " ")
++                .replace("&#160;", " ")
++                .replace("&amp;", "&")
++                .replace("&lt;", "<")
++                .replace("&gt;", ">")
++                .replace("&quot;", "\"")
++                .replace("&#39;", "'")
++                // Keep the visible text of Markdown mail links.
++                .replaceAll(
++                        "\\[([^\\]]+)]\\(mailto:[^)]+\\)",
++                        "$1"
++                )
++                .replaceAll("[ \\t]+", " ");
++    }
++
+     private ExtractedFieldData extract(
+             String body,
+             String label,
+@@ -41,18 +76,28 @@ public class EmailExtractionService {
+             FieldDataType dataType) {
+ 
+         Pattern pattern = Pattern.compile(
+-                "^\\s*" + Pattern.quote(label)
+-                        + "\\s*[:\\-–—]\\s*(.*?)\\s*$",
+-                Pattern.MULTILINE | Pattern.CASE_INSENSITIVE
++                "(?im)^\\s*" + Pattern.quote(label)
++                        + "\\s*[:-–—]\\s*(.*?)\\s*$"
+         );
+ 
+         Matcher matcher = pattern.matcher(body);
+ 
+         if (matcher.find()) {
+-
+             String value = matcher.group(1).trim();
+ 
+-            if (!value.isEmpty()) {
++            // Extract the actual address if the value includes
++            // display text or email-link formatting.
++            if (dataType == FieldDataType.EMAIL) {
++                Matcher emailMatcher = EMAIL_PATTERN.matcher(value);
++
++                if (emailMatcher.find()) {
++                    value = emailMatcher.group().toLowerCase();
++                } else {
++                    return missing(fieldName, dataType);
++                }
++            }
++
++            if (!value.isBlank()) {
+                 return new ExtractedFieldData(
+                         fieldName,
+                         value,
+@@ -64,6 +109,13 @@ public class EmailExtractionService {
+             }
+         }
+ 
++        return missing(fieldName, dataType);
++    }
++
++    private ExtractedFieldData missing(
++            String fieldName,
++            FieldDataType dataType) {
++
+         return new ExtractedFieldData(
+                 fieldName,
+                 null,
+diff --git a/src/main/java/com/insurance/quotation/service/quotation/QuotationEmailService.java b/src/main/java/com/insurance/quotation/service/quotation/QuotationEmailService.java
+index e272bad..328d4ae 100644
+--- a/src/main/java/com/insurance/quotation/service/quotation/QuotationEmailService.java
++++ b/src/main/java/com/insurance/quotation/service/quotation/QuotationEmailService.java
+@@ -4,15 +4,26 @@ package com.insurance.quotation.service.quotation;
+ import com.insurance.quotation.entity.Quotation;
+ import com.insurance.quotation.mailbox.provider.GmailMailboxClient;
+ import com.insurance.quotation.repository.QuotationRepository;
++
++import org.springframework.beans.factory.annotation.Value;
+ import org.springframework.stereotype.Service;
+ import org.springframework.transaction.annotation.Transactional;
+-import java.util.List;
+ 
+ import java.time.LocalDateTime;
++import java.util.List;
++import java.util.regex.Pattern;
+ 
+ @Service
+ public class QuotationEmailService {
+ 
++    private static final Pattern EMAIL_PATTERN = Pattern.compile(
++            "^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+"
++                    + "@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}"
++                    + "[A-Za-z0-9])?"
++                    + "(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}"
++                    + "[A-Za-z0-9])?)+$"
++    );
++
+     private final GmailMailboxClient gmailMailboxClient;
+     private final QuotationRepository quotationRepository;
+     private final boolean demoMode;
+@@ -21,8 +32,10 @@ public class QuotationEmailService {
+     public QuotationEmailService(
+             GmailMailboxClient gmailMailboxClient,
+             QuotationRepository quotationRepository,
+-            @org.springframework.beans.factory.annotation.Value("${mailbox.mode:demo}") String mailboxMode,
+-            @org.springframework.beans.factory.annotation.Value("${app.public-form-url:http://localhost:4200/client-quotation}") String formUrl) {
++            @Value("${mailbox.mode:demo}") String mailboxMode,
++            @Value("${app.public-form-url:http://localhost:4200/client-quotation}")
++            String formUrl) {
++
+         this.gmailMailboxClient = gmailMailboxClient;
+         this.quotationRepository = quotationRepository;
+         this.demoMode = !"gmail".equalsIgnoreCase(mailboxMode);
+@@ -34,42 +47,45 @@ public class QuotationEmailService {
+             List<String> missingFields,
+             List<String> invalidFields) {
+ 
++        validateRecipient(recipient);
++
+         if (demoMode) {
+-            System.out.println("[DEMO MAIL] Missing-information email to "
+-                    + recipient + " missing=" + missingFields
+-                    + " invalid=" + invalidFields);
++            System.out.println(
++                    "[DEMO MAIL] Missing-information email to "
++                            + recipient
++                            + " missing=" + missingFields
++                            + " invalid=" + invalidFields);
+             return;
+         }
+ 
+         gmailMailboxClient.sendMissingInformationEmail(
+                 recipient,
+                 missingFields,
+-                invalidFields
+-        );
++                invalidFields);
+     }
+ 
+-    /** Reply to an email that was not a quotation request: point to the web form. */
+     public void sendFormLinkEmail(String recipient) {
+ 
++        validateRecipient(recipient);
++
+         if (demoMode) {
+-            System.out.println("[DEMO MAIL] Form link " + formUrl
+-                    + " would be sent to " + recipient);
++            System.out.println(
++                    "[DEMO MAIL] Form link " + formUrl
++                            + " would be sent to " + recipient);
+             return;
+         }
+ 
+         gmailMailboxClient.sendFormLinkEmail(recipient, formUrl);
+     }
+ 
++    /**
++     * Backward-compatible method: sends to the client's registered email.
++     */
+     @Transactional
+     public void sendQuotation(Quotation quotation) {
+ 
+-        if (quotation.getPdfPath() == null
+-                || quotation.getPdfPath().isBlank()) {
+-            throw new IllegalStateException(
+-                    "Cannot send quotation: PDF path is missing.");
+-        }
+-
+-        if (quotation.getQuotationRequest() == null
++        if (quotation == null
++                || quotation.getQuotationRequest() == null
+                 || quotation.getQuotationRequest().getClient() == null) {
+             throw new IllegalStateException(
+                     "Cannot send quotation: client details are missing.");
+@@ -79,25 +95,53 @@ public class QuotationEmailService {
+                 .getClient()
+                 .getEmail();
+ 
+-        if (recipient == null || recipient.isBlank()) {
++        sendQuotation(quotation, recipient);
++    }
++
++    /**
++     * Sends the quotation PDF to an explicitly selected recipient.
++     * The caller can supply the applicant's email extracted from the request.
++     */
++    @Transactional
++    public void sendQuotation(
++            Quotation quotation,
++            String recipient) {
++
++        if (quotation == null) {
++            throw new IllegalArgumentException(
++                    "Quotation cannot be null.");
++        }
++
++        if (quotation.getPdfPath() == null
++                || quotation.getPdfPath().isBlank()) {
+             throw new IllegalStateException(
+-                    "Cannot send quotation: client email is missing.");
++                    "Cannot send quotation: PDF path is missing.");
++        }
++
++        validateRecipient(recipient);
++
++        if (quotation.getQuotationNumber() == null
++                || quotation.getQuotationNumber().isBlank()) {
++            throw new IllegalStateException(
++                    "Cannot send quotation: quotation number is missing.");
+         }
+ 
+         if (demoMode) {
+-            System.out.println("[DEMO MAIL] Quotation "
+-                    + quotation.getQuotationNumber() + " would be sent to "
+-                    + recipient + " with " + quotation.getPdfPath());
++            System.out.println(
++                    "[DEMO MAIL] Quotation "
++                            + quotation.getQuotationNumber()
++                            + " would be sent to "
++                            + recipient
++                            + " with "
++                            + quotation.getPdfPath());
+         } else {
+-            // Gmail API sends the PDF and throws an exception if sending fails.
+             gmailMailboxClient.sendQuotationEmail(
+                     recipient,
+                     quotation.getQuotationNumber(),
+-                    quotation.getPdfPath()
+-            );
++                    quotation.getPdfPath());
+         }
+ 
+-        // Update the database only after Gmail accepts the send request.
++        // Mark as sent only after the mail provider accepts the send.
+         quotation.setStatus("SENT");
+         quotation.setSentAt(LocalDateTime.now());
+ 
+@@ -109,4 +153,14 @@ public class QuotationEmailService {
+                         + " for "
+                         + quotation.getQuotationNumber());
+     }
++
++    private void validateRecipient(String recipient) {
++
++        if (recipient == null
++                || recipient.isBlank()
++                || !EMAIL_PATTERN.matcher(recipient.trim()).matches()) {
++            throw new IllegalArgumentException(
++                    "A valid recipient email address is required.");
++        }
++    }
+ }
+diff --git a/src/main/java/com/insurance/quotation/service/validation/ValidationService.java b/src/main/java/com/insurance/quotation/service/validation/ValidationService.java
+index e57633c..8a153be 100644
+--- a/src/main/java/com/insurance/quotation/service/validation/ValidationService.java
++++ b/src/main/java/com/insurance/quotation/service/validation/ValidationService.java
+@@ -1,6 +1,6 @@
++
+ package com.insurance.quotation.service.validation;
+ 
+-import java.time.LocalDateTime;
+ import com.insurance.quotation.entity.MissingField;
+ import com.insurance.quotation.entity.QuotationRequest;
+ import com.insurance.quotation.entity.RequiredField;
+@@ -12,21 +12,28 @@ import com.insurance.quotation.repository.QuotationRequestRepository;
+ import com.insurance.quotation.repository.RequiredFieldRepository;
+ import com.insurance.quotation.repository.RequestFieldValueRepository;
+ import com.insurance.quotation.service.extraction.ExtractedFieldData;
++
+ import org.springframework.stereotype.Service;
+ import org.springframework.transaction.annotation.Transactional;
+ 
+ import java.time.LocalDate;
++import java.time.LocalDateTime;
+ import java.time.format.DateTimeParseException;
+ import java.util.ArrayList;
+ import java.util.HashMap;
+-import java.util.HashSet;
+ import java.util.List;
+ import java.util.Map;
+-import java.util.Set;
+ 
+ @Service
+ public class ValidationService {
+ 
++    private static final String EMAIL_REGEX =
++            "^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+"
++            + "@[A-Za-z0-9]"
++            + "(?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
++            + "(?:\\.[A-Za-z0-9]"
++            + "(?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$";
++
+     private final RequiredFieldRepository requiredFieldRepository;
+     private final RequestFieldValueRepository requestFieldValueRepository;
+     private final MissingFieldRepository missingFieldRepository;
+@@ -50,7 +57,13 @@ public class ValidationService {
+             List<ExtractedFieldData> extractedFields) {
+ 
+         if (quotationRequest == null) {
+-            throw new IllegalArgumentException("Quotation request cannot be null");
++            throw new IllegalArgumentException(
++                    "Quotation request cannot be null");
++        }
++
++        if (quotationRequest.getId() == null) {
++            throw new IllegalArgumentException(
++                    "Quotation request must be saved before validation");
+         }
+ 
+         if (extractedFields == null) {
+@@ -59,15 +72,15 @@ public class ValidationService {
+ 
+         quotationRequest.setStatus(RequestStatus.VALIDATING);
+ 
+-        List<RequiredField> requiredFields =
+-                requiredFieldRepository.findAll();
+-
+-        List<RequiredField> applicableFields = requiredFields.stream()
+-                .filter(field -> Boolean.TRUE.equals(field.getIsActive()))
+-                .filter(field -> isApplicableToPolicy(
+-                        field,
+-                        quotationRequest.getPolicyType()))
+-                .toList();
++        List<RequiredField> applicableFields =
++                requiredFieldRepository.findAll().stream()
++                        .filter(field ->
++                                Boolean.TRUE.equals(field.getIsActive()))
++                        .filter(field ->
++                                isApplicableToPolicy(
++                                        field,
++                                        quotationRequest.getPolicyType()))
++                        .toList();
+ 
+         if (applicableFields.isEmpty()) {
+             throw new IllegalStateException(
+@@ -75,92 +88,103 @@ public class ValidationService {
+                             + quotationRequest.getPolicyType());
+         }
+ 
+-        Map<String, ExtractedFieldData> extractedFieldMap = new HashMap<>();
++        Map<String, ExtractedFieldData> extractedFieldMap =
++                new HashMap<>();
+ 
+         for (ExtractedFieldData field : extractedFields) {
+-            if (field.getFieldName() != null) {
++            if (field != null && field.getFieldName() != null) {
+                 extractedFieldMap.put(
+                         normalize(field.getFieldName()),
+-                        field
+-                );
++                        field);
+             }
+         }
+ 
+         List<String> missingFields = new ArrayList<>();
+         List<String> invalidFields = new ArrayList<>();
+-        Set<String> validFieldNames = new HashSet<>();
+ 
+         for (RequiredField requiredField : applicableFields) {
+ 
+-            String fieldName = normalize(requiredField.getFieldName());
++            String fieldName = normalize(
++                    requiredField.getFieldName());
+ 
+             ExtractedFieldData extracted =
+                     extractedFieldMap.get(fieldName);
+ 
++            // Missing or blank values are reported as missing.
+             if (extracted == null
+                     || extracted.isMissing()
+                     || isBlank(extracted.getFieldValue())) {
+ 
+-                missingFields.add(requiredField.getDisplayLabel());
++                missingFields.add(
++                        requiredField.getDisplayLabel());
++
+                 createMissingFieldIfNeeded(
+                         quotationRequest,
+-                        requiredField
+-                );
++                        requiredField);
++
+                 continue;
+             }
+ 
++            String value = extracted.getFieldValue().trim();
++
++            // A supplied but incorrectly formatted value is invalid.
+             if (!isValidValue(
+-                    extracted.getFieldValue(),
++                    value,
+                     requiredField.getDataType())) {
+ 
+-                invalidFields.add(requiredField.getDisplayLabel());
++                invalidFields.add(
++                        requiredField.getDisplayLabel());
++
+                 createMissingFieldIfNeeded(
+                         quotationRequest,
+-                        requiredField
+-                );
++                        requiredField);
++
+                 continue;
+             }
+ 
++            // Save only validated values. A valid reply replaces
++            // the earlier value for the same required field.
+             saveRequestFieldValue(
+                     quotationRequest,
+                     requiredField,
+-                    extracted
+-            );
++                    extracted);
+ 
+             resolveExistingMissingField(
+                     quotationRequest,
+-                    requiredField
+-            );
+-
+-            validFieldNames.add(fieldName);
++                    requiredField);
+         }
+ 
+-        if (!missingFields.isEmpty() || !invalidFields.isEmpty()) {
++        if (!missingFields.isEmpty()
++                || !invalidFields.isEmpty()) {
+ 
+             quotationRequest.setStatus(
+-                    RequestStatus.MISSING_INFORMATION
+-            );
++                    RequestStatus.MISSING_INFORMATION);
++
++            quotationRequest.setUpdatedAt(
++                    LocalDateTime.now());
+ 
+-            quotationRequestRepository.save(quotationRequest);
++            quotationRequestRepository.save(
++                    quotationRequest);
+ 
+             return new ValidationResult(
+                     false,
+                     missingFields,
+-                    invalidFields
+-            );
++                    invalidFields);
+         }
+ 
+         quotationRequest.setStatus(
+-                RequestStatus.READY_FOR_QUOTATION
+-        );
++                RequestStatus.READY_FOR_QUOTATION);
++
++        quotationRequest.setUpdatedAt(
++                LocalDateTime.now());
+ 
+-        quotationRequestRepository.save(quotationRequest);
++        quotationRequestRepository.save(
++                quotationRequest);
+ 
+         return new ValidationResult(
+                 true,
+                 List.of(),
+-                List.of()
+-        );
++                List.of());
+     }
+ 
+     private boolean isApplicableToPolicy(
+@@ -197,13 +221,10 @@ public class ValidationService {
+ 
+         return switch (dataType) {
+ 
+-            case TEXT ->
+-                    !trimmed.isBlank();
++            case TEXT -> true;
+ 
+             case EMAIL ->
+-                    trimmed.matches(
+-                            "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$"
+-                    );
++                    trimmed.matches(EMAIL_REGEX);
+ 
+             case PHONE ->
+                     trimmed.matches("^\\d{10,15}$");
+@@ -230,23 +251,29 @@ public class ValidationService {
+         List<RequestFieldValue> existingValues =
+                 requestFieldValueRepository
+                         .findByQuotationRequestId(
+-                                quotationRequest.getId()
+-                        );
+-
+-        RequestFieldValue requestFieldValue = existingValues.stream()
+-                .filter(value ->
+-                        value.getRequiredField() != null
+-                                && requiredField.getId()
+-                                .equals(value.getRequiredField().getId()))
+-                .findFirst()
+-                .orElseGet(RequestFieldValue::new);
+-
+-        requestFieldValue.setQuotationRequest(quotationRequest);
+-        requestFieldValue.setRequiredField(requiredField);
++                                quotationRequest.getId());
++
++        RequestFieldValue requestFieldValue =
++                existingValues.stream()
++                        .filter(value ->
++                                value.getRequiredField() != null
++                                        && requiredField.getId().equals(
++                                                value.getRequiredField()
++                                                        .getId()))
++                        .findFirst()
++                        .orElseGet(RequestFieldValue::new);
++
++        requestFieldValue.setQuotationRequest(
++                quotationRequest);
++
++        requestFieldValue.setRequiredField(
++                requiredField);
++
+         requestFieldValue.setFieldValue(
+-                extracted.getFieldValue().trim()
+-        );
+-        requestFieldValue.setSource(extracted.getSource());
++                extracted.getFieldValue().trim());
++
++        requestFieldValue.setSource(
++                extracted.getSource());
+ 
+         LocalDateTime now = LocalDateTime.now();
+ 
+@@ -256,7 +283,8 @@ public class ValidationService {
+ 
+         requestFieldValue.setUpdatedAt(now);
+ 
+-        requestFieldValueRepository.save(requestFieldValue);
++        requestFieldValueRepository.save(
++                requestFieldValue);
+     }
+ 
+     private void createMissingFieldIfNeeded(
+@@ -269,23 +297,15 @@ public class ValidationService {
+         boolean alreadyOpen = existingMissingFields.stream()
+                 .anyMatch(missingField ->
+                         missingField.getQuotationRequest() != null
+-                                && quotationRequest.getId()
+-                                .equals(
+-                                        missingField
+-                                                .getQuotationRequest()
+-                                                .getId()
+-                                )
++                                && quotationRequest.getId().equals(
++                                        missingField.getQuotationRequest()
++                                                .getId())
+                                 && missingField.getRequiredField() != null
+-                                && requiredField.getId()
+-                                .equals(
+-                                        missingField
+-                                                .getRequiredField()
+-                                                .getId()
+-                                )
++                                && requiredField.getId().equals(
++                                        missingField.getRequiredField()
++                                                .getId())
+                                 && "OPEN".equalsIgnoreCase(
+-                                        missingField.getStatus()
+-                                )
+-                );
++                                        missingField.getStatus()));
+ 
+         if (alreadyOpen) {
+             return;
+@@ -293,8 +313,12 @@ public class ValidationService {
+ 
+         MissingField missingField = new MissingField();
+ 
+-        missingField.setQuotationRequest(quotationRequest);
+-        missingField.setRequiredField(requiredField);
++        missingField.setQuotationRequest(
++                quotationRequest);
++
++        missingField.setRequiredField(
++                requiredField);
++
+         missingField.setStatus("OPEN");
+ 
+         missingFieldRepository.save(missingField);
+@@ -311,33 +335,27 @@ public class ValidationService {
+ 
+             boolean sameRequest =
+                     missingField.getQuotationRequest() != null
+-                            && quotationRequest.getId()
+-                            .equals(
+-                                    missingField
+-                                            .getQuotationRequest()
+-                                            .getId()
+-                            );
++                            && quotationRequest.getId().equals(
++                                    missingField.getQuotationRequest()
++                                            .getId());
+ 
+             boolean sameField =
+                     missingField.getRequiredField() != null
+-                            && requiredField.getId()
+-                            .equals(
+-                                    missingField
+-                                            .getRequiredField()
+-                                            .getId()
+-                            );
+-
+-            boolean open =
++                            && requiredField.getId().equals(
++                                    missingField.getRequiredField()
++                                            .getId());
++
++            boolean isOpen =
+                     "OPEN".equalsIgnoreCase(
+-                            missingField.getStatus()
+-                    );
++                            missingField.getStatus());
+ 
+-            if (sameRequest && sameField && open) {
++            if (sameRequest && sameField && isOpen) {
+                 missingField.setStatus("RESOLVED");
+                 missingField.setResolvedAt(
+-                        java.time.LocalDateTime.now()
+-                );
+-                missingFieldRepository.save(missingField);
++                        LocalDateTime.now());
++
++                missingFieldRepository.save(
++                        missingField);
+             }
+         }
+     }
+@@ -380,4 +398,4 @@ public class ValidationService {
+             return invalidFields;
+         }
+     }
+-}
+\ No newline at end of file
++}
