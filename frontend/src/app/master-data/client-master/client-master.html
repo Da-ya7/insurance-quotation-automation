@@ -1,440 +1,811 @@
 
 <div class="client-master-page">
 
-  <div class="page-heading">
+  <!-- PAGE HEADER -->
+  <div class="page-header">
     <div>
+      <span class="page-eyebrow">MASTER DATA MANAGEMENT</span>
       <h2>Client Master</h2>
-      <p>Search and view complete registered client information</p>
+      <p>Search and view registered client information and version history.</p>
     </div>
 
     <div class="total-clients">
-      <span>Total Clients</span>
-      <strong>{{ clients.length }}</strong>
+      <div class="total-icon">👥</div>
+      <div>
+        <span>Total Clients</span>
+        <h3>{{ clients.length }}</h3>
+      </div>
     </div>
   </div>
 
+  <!-- SEARCH SECTION -->
   <div class="search-card">
-    <label for="clientSearch">Search Client</label>
+    <div class="search-heading">
+      <div>
+        <h3>Search Client Records</h3>
+        <p>Enter one or more details to find a client.</p>
+      </div>
+      <button class="clear-btn" type="button" (click)="clearSearch()">
+        <span>↻</span> Clear
+      </button>
+    </div>
 
     <div class="search-row">
-      <div class="search-input-wrapper">
-        <span class="search-icon">⌕</span>
 
-        <input
-          id="clientSearch"
-          type="text"
-          [(ngModel)]="searchText"
-          (ngModelChange)="onSearchChange()"
-          (keyup.enter)="searchClients()"
-          placeholder="Enter name, phone number, email or Client ID"
-          autocomplete="off"
-        />
-
-        <button
-          *ngIf="searchText"
-          type="button"
-          class="clear-button"
-          (click)="clearSearch()"
-          aria-label="Clear search">
-          ×
-        </button>
+      <div class="search-field">
+        <label>Client Name</label>
+        <input type="text"
+          placeholder="Enter client name"
+          [(ngModel)]="searchName"
+          (ngModelChange)="onSearchChange()">
       </div>
 
-      <button
-        type="button"
-        class="search-button"
-        (click)="searchClients()">
-        Search
-      </button>
+      <div class="search-field">
+        <label>Phone Number</label>
+        <input type="text"
+          placeholder="Enter phone number"
+          [(ngModel)]="searchPhone"
+          (ngModelChange)="onSearchChange()">
+      </div>
+
+      <div class="search-field">
+        <label>Client ID</label>
+        <input type="text"
+          placeholder="Enter client ID"
+          [(ngModel)]="searchId"
+          (ngModelChange)="onSearchChange()">
+      </div>
+
+      <div class="search-field">
+        <label>Email Address</label>
+        <input type="text"
+          placeholder="Enter email address"
+          [(ngModel)]="searchEmail"
+          (ngModelChange)="onSearchChange()">
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CLIENT TABLE -->
+  <div class="client-table-card">
+
+    <div class="table-heading">
+      <div>
+        <h3>Client Records</h3>
+        <p>Registered client information</p>
+      </div>
+
+      <span class="record-count">
+        {{ filteredClients.length }} Records
+      </span>
     </div>
 
-    <div class="suggestions" *ngIf="showSuggestions">
-      <button
-        type="button"
-        class="suggestion-item"
-        *ngFor="let client of filteredClients"
-        (click)="selectClient(client)">
-
-        <span class="suggestion-avatar">
-          {{ (client.name || 'C').charAt(0).toUpperCase() }}
-        </span>
-
-        <span class="suggestion-details">
-          <strong>{{ client.name || 'Name not available' }}</strong>
-          <small>
-            {{ client.clientCode }} · {{ client.phone || client.email }}
-          </small>
-        </span>
-
-        <span class="suggestion-arrow">›</span>
-      </button>
-    </div>
-
-    <div class="search-message" *ngIf="clientsLoading">
+    <div *ngIf="loading" class="loading-message">
+      <div class="loader"></div>
       Loading client records...
     </div>
 
-    <div class="search-message error" *ngIf="errorMessage">
+    <div *ngIf="errorMessage && !selectedClient" class="error-message">
       {{ errorMessage }}
     </div>
 
-    <div
-      class="search-results"
-      *ngIf="searchSubmitted && filteredClients.length > 0">
+    <div *ngIf="!loading && !errorMessage" class="table-wrapper">
 
-      <h3>Search Results ({{ filteredClients.length }})</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Client ID</th>
+            <th>Client Name</th>
+            <th>Email Address</th>
+            <th>Phone Number</th>
+            <th>Version</th>
+            <th>Requests</th>
+            <th>Action</th>
+          </tr>
+        </thead>
 
-      <button
-        type="button"
-        class="result-item"
-        *ngFor="let client of filteredClients"
-        (click)="selectClient(client)">
+        <tbody>
 
-        <span>
-          <strong>{{ client.name || 'Name not available' }}</strong>
-          <small>{{ client.clientCode }} · {{ client.email }}</small>
-        </span>
+          <tr *ngFor="let client of filteredClients">
 
-        <span class="view-details">View Details →</span>
-      </button>
+            <td>
+              <span class="client-code">
+                {{ client.clientCode || ('CL-' + client.id) }}
+              </span>
+            </td>
+
+            <td>
+              <div class="client-name-cell">
+                <div class="small-avatar">
+                  {{ getClientInitial(client.name) }}
+                </div>
+                <span>{{ client.name || 'Not available' }}</span>
+              </div>
+            </td>
+
+            <td>{{ client.email }}</td>
+
+            <td>{{ client.phone || 'Not available' }}</td>
+
+            <td>
+              <span class="version-badge">
+                v{{ client.versionNo || 1 }}
+              </span>
+            </td>
+
+            <td>
+              <span class="request-count">
+                {{ client.requestCount ?? 0 }}
+              </span>
+            </td>
+
+            <td>
+              <button type="button"
+                class="view-btn"
+                (click)="selectClient(client)">
+                <span>◉</span> View Details
+              </button>
+            </td>
+
+          </tr>
+
+          <tr *ngIf="filteredClients.length === 0">
+            <td colspan="7" class="empty-state">
+              <div class="empty-icon">🔍</div>
+              <h3>No Client Records Found</h3>
+              <p>No clients match your search criteria.</p>
+            </td>
+          </tr>
+
+        </tbody>
+      </table>
+
     </div>
-  </div>
-
-  <div class="empty-information" *ngIf="!searchText && !clientsLoading">
-    <div class="empty-icon">⌕</div>
-    <h3>Search for a Client</h3>
-    <p>
-      Enter a client name, phone number, email address or Client ID
-      to view the complete available details.
-    </p>
   </div>
 
 </div>
 
 
-<!-- CLIENT DETAILS POPUP -->
+<!-- ========================================= -->
+<!-- CLIENT MASTER RECORD POPUP                -->
+<!-- ========================================= -->
+
 <div
   class="popup-overlay"
-  *ngIf="showPopup"
+  *ngIf="selectedClient as client"
   (click)="closePopup()">
 
-  <div
-    class="client-popup"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="clientPopupTitle"
+  <div class="client-popup"
     (click)="$event.stopPropagation()">
 
+    <!-- POPUP HEADER -->
     <div class="popup-header">
+
       <div>
-        <span class="popup-label">CLIENT MASTER RECORD</span>
-        <h2 id="clientPopupTitle">Client Details</h2>
-        <p *ngIf="selectedClient">
-          Client ID: {{ selectedClient.clientCode }}
-        </p>
+        <span class="popup-eyebrow">CLIENT MASTER RECORD</span>
+        <h2>Client Details</h2>
+        <p>Client ID: {{ client.clientCode || ('CL-' + client.id) }}</p>
       </div>
 
-      <button
-        type="button"
-        class="popup-close-icon"
+      <button type="button"
+        class="popup-close"
         (click)="closePopup()"
         aria-label="Close popup">
         ×
       </button>
+
     </div>
 
-    <div class="popup-content">
 
-      <div class="loading-message" *ngIf="loading">
-        Loading client details...
+    <!-- POPUP BODY -->
+    <div class="popup-body">
+
+      <div *ngIf="popupLoading" class="popup-loading">
+        <div class="loader"></div>
+        Retrieving client information...
       </div>
 
-      <ng-container *ngIf="selectedClient as client">
 
-        <!-- CLIENT SUMMARY -->
-        <div class="client-summary">
-          <div class="client-avatar">
-            {{ (client.name || 'C').charAt(0).toUpperCase() }}
-          </div>
+      <!-- CLIENT PROFILE -->
+      <div class="client-profile">
 
-          <div class="client-summary-info">
-            <h3>{{ client.name || 'Name not available' }}</h3>
-            <p>{{ client.email }}</p>
-            <span>Client ID: {{ client.clientCode }}</span>
-          </div>
+        <div class="profile-avatar">
+          {{ getClientInitial(client.name) }}
+        </div>
 
-          <div class="version-badge">
-            Version {{ client.versionNo }}
+        <div class="profile-information">
+          <h3>{{ client.name || 'Not available' }}</h3>
+          <p>{{ client.email || 'Not available' }}</p>
+          <span>
+            Client ID: {{ client.clientCode || ('CL-' + client.id) }}
+          </span>
+        </div>
+
+        <div class="profile-version">
+          Version {{ client.versionNo || 1 }}
+        </div>
+
+      </div>
+
+
+      <!-- 01 PERSONAL DETAILS -->
+      <section class="detail-section">
+
+        <div class="section-heading">
+          <span class="section-number">01</span>
+          <div>
+            <h3>Personal Details</h3>
+            <p>Basic client information</p>
           </div>
         </div>
 
-        <!-- 1. PERSONAL DETAILS -->
-        <section class="detail-section">
-          <div class="section-heading">
-            <span class="section-number">01</span>
-            <h3>Personal Details</h3>
+        <div class="details-grid">
+
+          <div class="detail-item">
+            <label>Client ID</label>
+            <strong>{{ client.clientCode || ('CL-' + client.id) }}</strong>
           </div>
 
-          <div class="details-grid">
-            <div class="detail-field">
-              <label>Client ID</label>
-              <strong>{{ client.clientCode }}</strong>
-            </div>
-
-            <div class="detail-field">
-              <label>Full Name</label>
-              <strong>{{ client.name || 'Not available' }}</strong>
-            </div>
-
-            <div class="detail-field">
-              <label>Email Address</label>
-              <strong>{{ client.email }}</strong>
-            </div>
-
-            <div class="detail-field">
-              <label>Phone Number</label>
-              <strong>{{ client.phone || 'Not available' }}</strong>
-            </div>
-
-            <div class="detail-field">
-              <label>Date of Birth</label>
-              <strong>{{ client.dateOfBirth || 'Not available' }}</strong>
-            </div>
-
-            <div class="detail-field">
-              <label>Gender</label>
-              <strong>{{ client.gender || 'Not available' }}</strong>
-            </div>
-
-            <div class="detail-field">
-              <label>Nationality</label>
-              <strong>{{ client.nationality || 'Not available' }}</strong>
-            </div>
-
-            <div class="detail-field">
-              <label>Country of Residence</label>
-              <strong>{{ client.countryOfResidence || 'Not available' }}</strong>
-            </div>
+          <div class="detail-item">
+            <label>Full Name</label>
+            <strong>{{ client.name || 'Not available' }}</strong>
           </div>
-        </section>
 
-        <!-- 2. IDENTITY DOCUMENT DETAILS -->
-        <section class="detail-section">
-          <div class="section-heading">
-            <span class="section-number">02</span>
+          <div class="detail-item">
+            <label>Email Address</label>
+            <strong>{{ client.email || 'Not available' }}</strong>
+          </div>
+
+          <div class="detail-item">
+            <label>Phone Number</label>
+            <strong>{{ client.phone || 'Not available' }}</strong>
+          </div>
+
+          <div class="detail-item">
+            <label>Date of Birth</label>
+            <strong>{{ client.dateOfBirth || 'Not available' }}</strong>
+          </div>
+
+          <div class="detail-item">
+            <label>Gender</label>
+            <strong>{{ client.gender || 'Not available' }}</strong>
+          </div>
+
+          <div class="detail-item">
+            <label>Nationality</label>
+            <strong>{{ client.nationality || 'Not available' }}</strong>
+          </div>
+
+          <div class="detail-item">
+            <label>Country of Residence</label>
+            <strong>{{ client.countryOfResidence || 'Not available' }}</strong>
+          </div>
+
+        </div>
+      </section>
+
+
+      <!-- 02 IDENTITY DOCUMENT DETAILS -->
+      <section class="detail-section">
+
+        <div class="section-heading">
+          <span class="section-number">02</span>
+          <div>
             <h3>Identity Document Details</h3>
+            <p>Client identification information</p>
+          </div>
+        </div>
+
+        <div class="details-grid">
+
+          <div class="detail-item">
+            <label>Document Type</label>
+            <strong>{{ client.identityType || 'Not available' }}</strong>
           </div>
 
-          <div class="details-grid">
-            <div class="detail-field">
-              <label>Document Type</label>
-              <strong>{{ client.identityType || 'Not available' }}</strong>
-            </div>
-
-            <div class="detail-field">
-              <label>Issuing Country</label>
-              <strong>{{ client.identityCountry || 'Not available' }}</strong>
-            </div>
-
-            <div class="detail-field">
-              <label>Document Number</label>
-              <strong>{{ client.identityNumberMasked || 'Not available' }}</strong>
-            </div>
-
-            <div class="detail-field">
-              <label>Phone Verification</label>
-              <strong>{{ client.phoneVerified ? 'Verified' : 'Not verified' }}</strong>
-            </div>
+          <div class="detail-item">
+            <label>Issuing Country</label>
+            <strong>{{ client.identityCountry || 'Not available' }}</strong>
           </div>
 
-          <p class="security-note">
-            <span>ⓘ</span>
-            For security, the complete identity document number is not displayed.
-          </p>
-        </section>
+          <div class="detail-item">
+            <label>Document Number</label>
+            <strong class="masked-number">
+              {{ getIdentityNumber(client) }}
+            </strong>
+          </div>
 
-        <!-- 3. INSURANCE DETAILS -->
-        <section class="detail-section">
-          <div class="section-heading">
-            <span class="section-number">03</span>
+          <div class="detail-item">
+            <label>Phone Verification</label>
+            <span class="status-badge"
+              [class.verified]="client.phoneVerified">
+              {{ getVerificationStatus(client.phoneVerified) }}
+            </span>
+          </div>
+
+        </div>
+
+        <div class="security-notice">
+          <span>ⓘ</span>
+          For security, the complete identity document number is not displayed.
+        </div>
+
+      </section>
+
+
+      <!-- 03 INSURANCE DETAILS -->
+      <section class="detail-section">
+
+        <div class="section-heading">
+          <span class="section-number">03</span>
+          <div>
             <h3>Insurance Details</h3>
+            <p>Insurance requests and quotation information</p>
           </div>
+        </div>
 
-          <div class="unavailable-information">
-            Insurance policy details are not included in the current Client API.
-          </div>
-        </section>
+        <!-- LOADING -->
+        <div *ngIf="insuranceLoading" class="loading-message">
+          <div class="loader"></div>
+          Loading insurance details...
+        </div>
 
-        <!-- 4. PREVIOUS REQUESTS AND QUOTATIONS -->
-        <section class="detail-section">
-          <div class="section-heading">
-            <span class="section-number">04</span>
-            <h3>Previous Requests and Quotations</h3>
-          </div>
+        <!-- ERROR -->
+        <div *ngIf="insuranceError" class="error-message">
+          {{ insuranceError }}
+        </div>
 
-          <div class="details-grid">
-            <div class="detail-field">
-              <label>Total Quotation Requests</label>
-              <strong>{{ client.requestCount }}</strong>
-            </div>
-          </div>
+        <!-- NO INSURANCE DATA -->
+        <div
+          *ngIf="!insuranceLoading && !insuranceError && insuranceDetails.length === 0"
+          class="information-placeholder">
 
-          <div class="unavailable-information">
-            Individual request and quotation details are not included in the current Client API.
-          </div>
-        </section>
+          <span class="placeholder-icon">🛡</span>
 
-        <!-- 5. CLIENT HISTORY -->
-        <section class="detail-section">
-          <div class="section-heading">
-            <span class="section-number">05</span>
-            <h3>Client History</h3>
-          </div>
+          <p>No insurance requests or quotation details are available for this client.</p>
 
-          <div class="details-grid">
-            <div class="detail-field">
-              <label>Current Version</label>
-              <strong>{{ client.versionNo }}</strong>
-            </div>
+        </div>
 
-            <div class="detail-field">
-              <label>Total Requests</label>
-              <strong>{{ client.requestCount }}</strong>
-            </div>
-          </div>
-        </section>
+        <!-- INSURANCE RECORDS -->
+        <div
+          class="insurance-records"
+          *ngIf="!insuranceLoading && insuranceDetails.length > 0">
 
-        <!-- 6. CLIENT VERSION HISTORY -->
-        <section class="detail-section">
-          <div class="section-heading">
-            <span class="section-number">06</span>
-            <h3>Client Version History</h3>
-          </div>
+          <div
+            class="version-card"
+            *ngFor="let insurance of insuranceDetails"
+            [attr.data-request-id]="insurance.requestId">
 
-          <div class="loading-message" *ngIf="versionsLoading">
-            Loading version history...
-          </div>
+            <div class="version-card-header">
 
-          <div class="unavailable-information error" *ngIf="versionError">
-            {{ versionError }}
-          </div>
-
-          <div class="version-list" *ngIf="!versionsLoading && !versionError">
-
-            <div
-              class="version-item"
-              *ngFor="let version of clientVersions">
-
-              <div class="version-item-top">
-                <strong>Version {{ version.versionNo }}</strong>
-                <span>{{ version.createdAt | date:'dd MMM yyyy, hh:mm a' }}</span>
+              <div class="version-title">
+                <span class="version-dot"></span>
+                <h4>Insurance Request #{{ insurance.requestId }}</h4>
               </div>
+
+              <span class="version-badge">
+                {{ insurance.requestStatus || 'Not available' }}
+              </span>
+
+            </div>
+
+            <div class="details-grid">
+
+              <div class="detail-item">
+                <label>Insurance Type</label>
+                <strong>{{ insurance.policyType || 'Not available' }}</strong>
+              </div>
+
+              <div class="detail-item">
+                <label>Purpose of Travel</label>
+                <strong>{{ insurance.purposeOfTravel || 'Not available' }}</strong>
+              </div>
+
+              <div class="detail-item">
+                <label>Request Date</label>
+                <strong>
+                  {{ insurance.requestCreatedAt
+                    ? (insurance.requestCreatedAt | date:'dd MMM yyyy')
+                    : 'Not available' }}
+                </strong>
+              </div>
+
+            </div>
+
+            <!-- ADDITIONAL REQUEST INFORMATION -->
+            <div
+              class="additional-insurance-details"
+              *ngIf="getObjectKeys(insurance.additionalDetails).length > 0">
+
+              <h4>Additional Insurance Information</h4>
 
               <div class="details-grid">
-                <div class="detail-field">
-                  <label>Name</label>
-                  <strong>{{ version.name || 'Not available' }}</strong>
+
+                <div
+                  class="detail-item"
+                  *ngFor="let field of insurance.additionalDetails | keyvalue">
+
+                  <label>{{ field.key }}</label>
+                  <strong>{{ field.value || 'Not available' }}</strong>
+
                 </div>
 
-                <div class="detail-field">
-                  <label>Email</label>
-                  <strong>{{ version.email || 'Not available' }}</strong>
-                </div>
-
-                <div class="detail-field">
-                  <label>Phone</label>
-                  <strong>{{ version.phone || 'Not available' }}</strong>
-                </div>
-
-                <div class="detail-field">
-                  <label>Gender</label>
-                  <strong>{{ version.gender || 'Not available' }}</strong>
-                </div>
-
-                <div class="detail-field">
-                  <label>Nationality</label>
-                  <strong>{{ version.nationality || 'Not available' }}</strong>
-                </div>
-
-                <div class="detail-field">
-                  <label>Identity Document</label>
-                  <strong>{{ version.identityNumberMasked || 'Not available' }}</strong>
-                </div>
-
-                <div class="detail-field">
-                  <label>Change Source</label>
-                  <strong>{{ version.changeSource || 'Not available' }}</strong>
-                </div>
-
-                <div class="detail-field">
-                  <label>Changed By</label>
-                  <strong>{{ version.changedBy || 'Not available' }}</strong>
-                </div>
-
-                <div class="detail-field">
-                  <label>Changed Fields</label>
-                  <strong>{{ version.changedFields || 'Not available' }}</strong>
-                </div>
-
-                <div class="detail-field">
-                  <label>OTP Verification</label>
-                  <strong>{{ version.otpVerified ? 'Verified' : 'Not verified' }}</strong>
-                </div>
               </div>
+
             </div>
 
-            <div class="unavailable-information" *ngIf="clientVersions.length === 0">
-              No client version history is available.
+            <!-- QUOTATION INFORMATION -->
+            <div class="quotation-information">
+
+              <h4>Quotation Information</h4>
+
+              <div
+                *ngIf="insurance.quotations.length === 0"
+                class="information-placeholder">
+
+                <p>No quotation has been generated for this request.</p>
+
+              </div>
+
+              <div
+                class="version-timeline"
+                *ngIf="insurance.quotations.length > 0">
+
+                <div
+                  class="version-card"
+                  *ngFor="let quotation of insurance.quotations">
+
+                  <div class="version-card-header">
+
+                    <div class="version-title">
+                      <span class="version-dot"></span>
+                      <h4>Quotation Version {{ quotation.versionNo }}</h4>
+                    </div>
+
+                    <span class="latest-badge">
+                      {{ quotation.quotationStatus || 'Not available' }}
+                    </span>
+
+                  </div>
+
+                  <div class="details-grid">
+
+                    <div class="detail-item">
+                      <label>Quotation Number</label>
+                      <strong>
+                        {{ quotation.quotationNumber || 'Not available' }}
+                      </strong>
+                    </div>
+
+                    <div class="detail-item">
+                      <label>Premium Amount</label>
+                      <strong>
+                        {{ quotation.premiumAmount != null
+                          ? (quotation.premiumAmount | currency:quotation.currency:'symbol':'1.2-2')
+                          : 'Not available' }}
+                      </strong>
+                    </div>
+
+                    <div class="detail-item">
+                      <label>Tax Amount</label>
+                      <strong>
+                        {{ quotation.taxAmount != null
+                          ? (quotation.taxAmount | currency:quotation.currency:'symbol':'1.2-2')
+                          : 'Not available' }}
+                      </strong>
+                    </div>
+
+                    <div class="detail-item">
+                      <label>Total Amount</label>
+                      <strong>
+                        {{ quotation.totalAmount != null
+                          ? (quotation.totalAmount | currency:quotation.currency:'symbol':'1.2-2')
+                          : 'Not available' }}
+                      </strong>
+                    </div>
+
+                    <div class="detail-item">
+                      <label>Currency</label>
+                      <strong>{{ quotation.currency || 'Not available' }}</strong>
+                    </div>
+
+                    <div class="detail-item">
+                      <label>Created Date</label>
+                      <strong>
+                        {{ quotation.createdAt
+                          ? (quotation.createdAt | date:'dd MMM yyyy, hh:mm a')
+                          : 'Not available' }}
+                      </strong>
+                    </div>
+
+                    <div class="detail-item">
+                      <label>Sent Date</label>
+                      <strong>
+                        {{ quotation.sentAt
+                          ? (quotation.sentAt | date:'dd MMM yyyy, hh:mm a')
+                          : 'Not sent' }}
+                      </strong>
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
             </div>
+
           </div>
-        </section>
 
-        <!-- 7. DOCUMENTS -->
-        <section class="detail-section">
-          <div class="section-heading">
-            <span class="section-number">07</span>
+        </div>
+
+      </section>
+
+
+      <!-- 04 PREVIOUS REQUESTS AND QUOTATIONS -->
+      <section class="detail-section">
+
+        <div class="section-heading">
+          <span class="section-number">04</span>
+          <div>
+            <h3>Previous Requests and Quotations</h3>
+            <p>Client quotation request summary</p>
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="summary-icon">📄</div>
+          <div>
+            <label>Total Quotation Requests</label>
+            <h2>{{ client.requestCount ?? 0 }}</h2>
+          </div>
+        </div>
+
+        <div class="information-placeholder"
+          *ngIf="!insuranceLoading && insuranceDetails.length === 0">
+
+          <p>No previous requests are available.</p>
+
+        </div>
+
+        <div
+          class="previous-request-list"
+          *ngIf="insuranceDetails.length > 0">
+
+          <div
+            class="history-summary-card"
+            *ngFor="let request of insuranceDetails">
+
+            <label>Request #{{ request.requestId }}</label>
+
+            <h3>{{ request.policyType || 'Insurance Request' }}</h3>
+
+            <p>
+              {{ request.requestStatus || 'Not available' }}
+            </p>
+
+            <span>
+              {{ request.quotations.length }} Quotation Version(s)
+            </span>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- 05 CLIENT HISTORY -->
+      <section class="detail-section">
+
+        <div class="section-heading">
+          <span class="section-number">05</span>
+          <div>
+            <h3>Client History</h3>
+            <p>Client activity summary</p>
+          </div>
+        </div>
+
+        <div class="history-summary-grid">
+
+          <div class="history-summary-card">
+            <span class="history-icon">🔄</span>
+            <label>Current Version</label>
+            <h2>{{ client.versionNo || 1 }}</h2>
+          </div>
+
+          <div class="history-summary-card">
+            <span class="history-icon">📋</span>
+            <label>Total Requests</label>
+            <h2>{{ client.requestCount ?? 0 }}</h2>
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- 06 CLIENT VERSION HISTORY -->
+      <section class="detail-section">
+
+        <div class="section-heading">
+          <span class="section-number">06</span>
+          <div>
+            <h3>Client Version History</h3>
+            <p>Previous and updated client information</p>
+          </div>
+        </div>
+
+        <div *ngIf="clientVersions.length === 0"
+          class="information-placeholder">
+
+          <span class="placeholder-icon">📚</span>
+          <p>No client version history is available.</p>
+
+        </div>
+
+        <div class="version-timeline"
+          *ngIf="clientVersions.length > 0">
+
+          <div
+            class="version-card"
+            *ngFor="let version of clientVersions; let i = index;
+                   trackBy: trackByVersion">
+
+            <div class="version-card-header">
+
+              <div class="version-title">
+                <span class="version-dot"></span>
+                <h4>Version {{ version.versionNo }}</h4>
+              </div>
+
+              <span class="latest-badge" *ngIf="i === 0">
+                Latest
+              </span>
+
+            </div>
+
+            <div class="version-date">
+              {{ version.createdAt
+                ? (version.createdAt | date:'dd MMM yyyy, hh:mm a')
+                : 'Not available' }}
+            </div>
+
+            <div class="version-details-grid">
+
+              <div class="version-detail">
+                <label>Name</label>
+                <strong>{{ version.name || 'Not available' }}</strong>
+              </div>
+
+              <div class="version-detail">
+                <label>Email</label>
+                <strong>{{ version.email || 'Not available' }}</strong>
+              </div>
+
+              <div class="version-detail">
+                <label>Phone</label>
+                <strong>{{ version.phone || 'Not available' }}</strong>
+              </div>
+
+              <div class="version-detail">
+                <label>Gender</label>
+                <strong>{{ version.gender || 'Not available' }}</strong>
+              </div>
+
+              <div class="version-detail">
+                <label>Nationality</label>
+                <strong>{{ version.nationality || 'Not available' }}</strong>
+              </div>
+
+              <div class="version-detail">
+                <label>Identity Document</label>
+                <strong>{{ getIdentityNumber(version) }}</strong>
+              </div>
+
+              <div class="version-detail">
+                <label>Change Source</label>
+                <strong>{{ version.changeSource || 'Not available' }}</strong>
+              </div>
+
+              <div class="version-detail">
+                <label>Changed By</label>
+                <strong>{{ version.changedBy || 'Not available' }}</strong>
+              </div>
+
+              <div class="version-detail full-width">
+                <label>Changed Fields</label>
+                <strong>
+                  {{ getChangedFields(version.changedFields) }}
+                </strong>
+              </div>
+
+              <div class="version-detail">
+                <label>OTP Verification</label>
+                <span class="status-badge"
+                  [class.verified]="version.otpVerified">
+                  {{ getVerificationStatus(version.otpVerified) }}
+                </span>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- 07 DOCUMENTS -->
+      <section class="detail-section">
+
+        <div class="section-heading">
+          <span class="section-number">07</span>
+          <div>
             <h3>Documents</h3>
+            <p>Uploaded client documents</p>
           </div>
+        </div>
 
-          <div class="unavailable-information">
-            Uploaded document details are not included in the current Client API.
-          </div>
-        </section>
+        <div class="information-placeholder">
+          <span class="placeholder-icon">📁</span>
+          <p>
+            Uploaded document details are not included in the current
+            Client API.
+          </p>
+        </div>
 
-        <!-- 8. CLIENT STATUS -->
-        <section class="detail-section">
-          <div class="section-heading">
-            <span class="section-number">08</span>
+      </section>
+
+
+      <!-- 08 CLIENT STATUS -->
+      <section class="detail-section">
+
+        <div class="section-heading">
+          <span class="section-number">08</span>
+          <div>
             <h3>Client Status</h3>
+            <p>Client verification and record status</p>
+          </div>
+        </div>
+
+        <div class="status-information">
+
+          <div class="status-row">
+            <span>Phone Verification</span>
+            <span class="status-badge"
+              [class.verified]="client.phoneVerified">
+              {{ getVerificationStatus(client.phoneVerified) }}
+            </span>
           </div>
 
-          <div class="details-grid">
-            <div class="detail-field">
-              <label>Phone Verification</label>
-              <strong>{{ client.phoneVerified ? 'Verified' : 'Not verified' }}</strong>
-            </div>
-
-            <div class="detail-field">
-              <label>Client Version</label>
-              <strong>{{ client.versionNo }}</strong>
-            </div>
+          <div class="status-row">
+            <span>Client Version</span>
+            <strong>{{ client.versionNo || 1 }}</strong>
           </div>
 
-          <div class="unavailable-information">
-            A separate active/inactive client status is not returned by the current API.
-          </div>
-        </section>
+        </div>
 
-      </ng-container>
-    </div>
+        <div class="security-notice">
+          <span>ⓘ</span>
+          A separate active/inactive client status is not returned
+          by the current API.
+        </div>
 
-    <div class="popup-footer">
-      <button
-        type="button"
-        class="close-button"
-        (click)="closePopup()">
-        Close
-      </button>
+      </section>
+
+
+      <!-- POPUP FOOTER -->
+      <div class="popup-footer">
+        <button type="button"
+          class="close-btn"
+          (click)="closePopup()">
+          Close
+        </button>
+      </div>
+
     </div>
 
   </div>
