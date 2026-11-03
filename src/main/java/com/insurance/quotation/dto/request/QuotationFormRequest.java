@@ -23,6 +23,9 @@ public class QuotationFormRequest {
     @Size(max = 19, message = "Maximum 20 travellers are allowed")
     private List<TravellerForm> additionalTravellers = new ArrayList<>();
 
+    // Issued by the backend after successful phone OTP verification.
+    private String verificationToken;
+
     @NotBlank(message = "Departure country is required")
     @Size(max = 100)
     private String departureCountry;
@@ -41,18 +44,69 @@ public class QuotationFormRequest {
     @Size(max = 60)
     private String purposeOfTravel;
 
-    public TravellerForm getApplicant() { return applicant; }
-    public void setApplicant(TravellerForm applicant) { this.applicant = applicant; }
-    public List<TravellerForm> getAdditionalTravellers() { return additionalTravellers; }
-    public void setAdditionalTravellers(List<TravellerForm> t) { this.additionalTravellers = t == null ? new ArrayList<>() : t; }
-    public String getDepartureCountry() { return departureCountry; }
-    public void setDepartureCountry(String v) { this.departureCountry = v; }
-    public String getDestinationCountry() { return destinationCountry; }
-    public void setDestinationCountry(String v) { this.destinationCountry = v; }
-    public LocalDate getTravelStartDate() { return travelStartDate; }
-    public void setTravelStartDate(LocalDate v) { this.travelStartDate = v; }
-    public LocalDate getTravelEndDate() { return travelEndDate; }
-    public void setTravelEndDate(LocalDate v) { this.travelEndDate = v; }
-    public String getPurposeOfTravel() { return purposeOfTravel; }
-    public void setPurposeOfTravel(String v) { this.purposeOfTravel = v; }
+    public TravellerForm getApplicant() {
+        return applicant;
+    }
+
+    public void setApplicant(TravellerForm applicant) {
+        this.applicant = applicant;
+    }
+
+    public List<TravellerForm> getAdditionalTravellers() {
+        return additionalTravellers;
+    }
+
+    public void setAdditionalTravellers(List<TravellerForm> travellers) {
+        this.additionalTravellers = travellers == null
+                ? new ArrayList<>()
+                : travellers;
+    }
+
+    public String getVerificationToken() {
+        return verificationToken;
+    }
+
+    public void setVerificationToken(String verificationToken) {
+        this.verificationToken = verificationToken;
+    }
+
+    public String getDepartureCountry() {
+        return departureCountry;
+    }
+
+    public void setDepartureCountry(String departureCountry) {
+        this.departureCountry = departureCountry;
+    }
+
+    public String getDestinationCountry() {
+        return destinationCountry;
+    }
+
+    public void setDestinationCountry(String destinationCountry) {
+        this.destinationCountry = destinationCountry;
+    }
+
+    public LocalDate getTravelStartDate() {
+        return travelStartDate;
+    }
+
+    public void setTravelStartDate(LocalDate travelStartDate) {
+        this.travelStartDate = travelStartDate;
+    }
+
+    public LocalDate getTravelEndDate() {
+        return travelEndDate;
+    }
+
+    public void setTravelEndDate(LocalDate travelEndDate) {
+        this.travelEndDate = travelEndDate;
+    }
+
+    public String getPurposeOfTravel() {
+        return purposeOfTravel;
+    }
+
+    public void setPurposeOfTravel(String purposeOfTravel) {
+        this.purposeOfTravel = purposeOfTravel;
+    }
 }

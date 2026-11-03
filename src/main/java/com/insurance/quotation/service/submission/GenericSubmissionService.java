@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.service.submission;
 
 import java.time.LocalDate;
@@ -9,7 +10,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.insurance.quotation.entity.Client;
 import com.insurance.quotation.entity.QuotationRequest;
@@ -41,17 +44,41 @@ import com.insurance.quotation.service.validation.ValidationService;
 public class GenericSubmissionService {
 
     public record Applicant(
-            String name, String email, String phone, LocalDate dateOfBirth,
-            String gender, String nationality, String countryOfResidence,
-            String identityCountry, String identityType, String identityNumber) {
+            String name,
+            String email,
+            String phone,
+            LocalDate dateOfBirth,
+            String gender,
+            String nationality,
+            String countryOfResidence,
+            String identityCountry,
+            String identityType,
+            String identityNumber) {
     }
 
-    public record Submission(String insuranceType, Applicant applicant, Map<String, String> fields) {
+    public record Submission(
+            String insuranceType,
+            Applicant applicant,
+            Map<String, String> fields,
+            String verificationToken) {
+
+        // Retains compatibility with existing Java callers using 3 arguments.
+        public Submission(
+                String insuranceType,
+                Applicant applicant,
+                Map<String, String> fields) {
+            this(insuranceType, applicant, fields, null);
+        }
     }
 
     public record Result(
-            Long requestId, String status, String statusLabel, String quotationNumber,
-            String message, List<String> missingFields, List<String> blockedFields) {
+            Long requestId,
+            String status,
+            String statusLabel,
+            String quotationNumber,
+            String message,
+            List<String> missingFields,
+            List<String> blockedFields) {
     }
 
     /** Fields collected in the applicant block, not in the dynamic list. */
@@ -72,12 +99,17 @@ public class GenericSubmissionService {
     private final QuotationWorkflowService workflow;
 
     public GenericSubmissionService(
-            FormLinkService formLinks, OtpService otp, MasterDataService masterData,
-            ClientMasterService clientMaster, ClientRepository clientRepository,
-            QuotationRequestRepository requestRepository, QuotationRepository quotationRepository,
+            FormLinkService formLinks,
+            OtpService otp,
+            MasterDataService masterData,
+            ClientMasterService clientMaster,
+            ClientRepository clientRepository,
+            QuotationRequestRepository requestRepository,
+            QuotationRepository quotationRepository,
             RequiredFieldRepository requiredFieldRepository,
             RequestFieldValueRepository fieldValueRepository,
             QuotationWorkflowService workflow) {
+
         this.formLinks = formLinks;
         this.otp = otp;
         this.masterData = masterData;
@@ -92,153 +124,337 @@ public class GenericSubmissionService {
 
     public Result submit(String token, String pathType, Submission body) {
 
+        if (body == null || body.applicant() == null) {
+            throw new IllegalArgumentException(
+                    "Applicant details are required.");
+        }
+
         FormLinkService.FormLink link = null;
+
         if (token != null && !token.isBlank()) {
             link = formLinks.find(token)
-                    .orElseThrow(() -> new IllegalArgumentException("This link is not valid."));
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "This link is not valid."));
+
             if (link.isExpired()) {
                 throw new IllegalArgumentException(
                         "This link has expired. Please reply to our email to get a new one.");
             }
         }
 
-        if (body == null || body.applicant() == null) {
-            throw new IllegalArgumentException("Applicant details are required.");
-        }
         Applicant a = body.applicant();
+
+        // ============================================================
+        // 1. MANDATORY PHONE OTP VERIFICATION
+        // ============================================================
+
+        if (isBlank(a.phone())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "A verified phone number is required.");
+        }
+
+        boolean otpOk;
+
+        if (link != null) {
+            // Returning customer: verification must belong to this link.
+            otpOk = otp.isVerified(link.token());
+        } else {
+            // New customer: verification token must match submitted phone.
+            otpOk = otp.isPhoneVerified(
+                    body.verificationToken(),
+                    a.phone());
+        }
+
+        if (!otpOk) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Please verify your phone number before submitting the form.");
+        }
+
+        // ============================================================
+        // 2. RETURNING CUSTOMER PREFILL
+        // ============================================================
+
         if (link != null && link.clientId() != null) {
-            Client known = clientRepository.findById(link.clientId()).orElse(null);
-            if (known != null && (isBlank(a.name()) || isBlank(a.email()))) {
+            Client known = clientRepository.findById(link.clientId())
+                    .orElse(null);
+
+            if (known != null
+                    && (isBlank(a.name()) || isBlank(a.email()))) {
+
                 a = new Applicant(
                         isBlank(a.name()) ? known.getName() : a.name(),
                         isBlank(a.email()) ? known.getEmail() : a.email(),
-                        a.phone(), a.dateOfBirth(), a.gender(), a.nationality(),
-                        a.countryOfResidence(), a.identityCountry(), a.identityType(),
+                        a.phone(),
+                        a.dateOfBirth(),
+                        a.gender(),
+                        a.nationality(),
+                        a.countryOfResidence(),
+                        a.identityCountry(),
+                        a.identityType(),
                         a.identityNumber());
             }
         }
+
         if (isBlank(a.name()) || isBlank(a.email())) {
-            throw new IllegalArgumentException("Name and email are required.");
+            throw new IllegalArgumentException(
+                    "Name and email are required.");
         }
 
-        String type = firstNonBlank(body.insuranceType(), pathType,
+        // ============================================================
+        // 3. VALIDATE INSURANCE TYPE
+        // ============================================================
+
+        String type = firstNonBlank(
+                body.insuranceType(),
+                pathType,
                 link == null ? null : link.insuranceType());
+
         InsuranceTypeDef def = masterData.insuranceType(type)
                 .filter(InsuranceTypeDef::active)
-                .orElseThrow(() -> new IllegalArgumentException("Please choose a valid insurance type."));
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Please choose a valid insurance type."));
+
         if ("TRAVEL".equals(def.code())) {
-            throw new IllegalArgumentException("Travel insurance uses the travel quotation form.");
+            throw new IllegalArgumentException(
+                    "Travel insurance uses the travel quotation form.");
         }
 
-        // ---- client master: new or returning, OTP rules for edits ----
-        boolean otpOk = link != null && otp.isVerified(link.token());
-        ClientMasterService.ClientDetails details = new ClientMasterService.ClientDetails(
-                a.name(), a.email().trim().toLowerCase(Locale.ROOT), digits(a.phone()),
-                a.dateOfBirth(), a.gender(), a.nationality(), a.countryOfResidence(),
-                a.identityCountry(), a.identityType(), a.identityNumber());
+        // ============================================================
+        // 4. CLIENT MASTER
+        // ============================================================
+
+        ClientMasterService.ClientDetails details =
+                new ClientMasterService.ClientDetails(
+                        a.name(),
+                        a.email().trim().toLowerCase(Locale.ROOT),
+                        digits(a.phone()),
+                        a.dateOfBirth(),
+                        a.gender(),
+                        a.nationality(),
+                        a.countryOfResidence(),
+                        a.identityCountry(),
+                        a.identityType(),
+                        a.identityNumber());
 
         ClientMasterService.ApplyResult applied;
+
         if (link != null && link.clientId() != null) {
             Client linked = clientRepository.findById(link.clientId())
-                    .orElseThrow(() -> new IllegalArgumentException("This link is not valid."));
-            applied = clientMaster.apply(linked, details, "FORM", "CUSTOMER_FORM", otpOk);
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "This link is not valid."));
+
+            applied = clientMaster.apply(
+                    linked, details, "FORM", "CUSTOMER_FORM", otpOk);
         } else {
-            applied = clientMaster.findOrCreateAndApply(details, "FORM", "CUSTOMER_FORM", otpOk);
+            applied = clientMaster.findOrCreateAndApply(
+                    details, "FORM", "CUSTOMER_FORM", otpOk);
         }
+
         Client client = applied.client();
 
         if (applied.hasBlockedChanges()) {
-            return new Result(null, "OTP_REQUIRED", "Verification needed", null,
+            return new Result(
+                    null,
+                    "OTP_REQUIRED",
+                    "Verification needed",
+                    null,
                     link == null
                             ? "Your details are already saved. Use the personal link from our email to change them."
                             : "To change saved personal details please verify the code sent to your registered phone.",
-                    List.of(), applied.blocked());
+                    List.of(),
+                    applied.blocked());
         }
 
-        // ---- request (reuse the one tied to the link) ----
-        QuotationRequest request = link != null && link.requestId() != null
-                ? requestRepository.findById(link.requestId()).orElse(null) : null;
+        // ============================================================
+        // 5. QUOTATION REQUEST
+        // ============================================================
+
+        QuotationRequest request =
+                link != null && link.requestId() != null
+                        ? requestRepository.findById(link.requestId())
+                                .orElse(null)
+                        : null;
+
         if (request == null) {
             request = new QuotationRequest();
             request.setClient(client);
             request.setCreatedAt(LocalDateTime.now());
             request.setStatus(RequestStatus.EMAIL_RECEIVED);
         }
+
         request.setPolicyType(def.code());
         request.setUpdatedAt(LocalDateTime.now());
         request = requestRepository.save(request);
+
         if (link != null && link.requestId() == null) {
             formLinks.attachRequest(link.id(), request.getId());
         }
 
         boolean hadQuotation = quotationRepository
-                .findFirstByQuotationRequestIdOrderByVersionNoDesc(request.getId()).isPresent();
+                .findFirstByQuotationRequestIdOrderByVersionNoDesc(
+                        request.getId())
+                .isPresent();
 
-        // ---- fields: applicant from the client master, rest from the form (then saved answers) ----
+        // ============================================================
+        // 6. DYNAMIC INSURANCE FIELDS
+        // ============================================================
+
         List<RequiredField> forType = requiredFieldRepository
-                .findByIsActiveTrueOrderBySortOrderAscIdAsc().stream()
-                .filter(f -> ValidationService.appliesTo(f, def.code())).toList();
+                .findByIsActiveTrueOrderBySortOrderAscIdAsc()
+                .stream()
+                .filter(f -> ValidationService.appliesTo(f, def.code()))
+                .toList();
 
         Map<String, String> saved = new HashMap<>();
-        for (RequestFieldValue v : fieldValueRepository.findByQuotationRequestId(request.getId())) {
+
+        for (RequestFieldValue v :
+                fieldValueRepository.findByQuotationRequestId(
+                        request.getId())) {
+
             if (v.getRequiredField() != null) {
-                saved.put(v.getRequiredField().getFieldName(), v.getFieldValue());
+                saved.put(
+                        v.getRequiredField().getFieldName(),
+                        v.getFieldValue());
             }
         }
-        Map<String, String> given = body.fields() == null ? Map.of() : body.fields();
+
+        Map<String, String> given =
+                body.fields() == null ? Map.of() : body.fields();
 
         List<ExtractedFieldData> fields = new ArrayList<>();
+
         for (RequiredField rf : forType) {
             String n = rf.getFieldName();
+
             String value = switch (n) {
                 case "name" -> client.getName();
                 case "email" -> client.getEmail();
                 case "phone" -> client.getPhone();
-                case "dateOfBirth" -> client.getDateOfBirth() == null ? null : client.getDateOfBirth().toString();
+                case "dateOfBirth" ->
+                        client.getDateOfBirth() == null
+                                ? null
+                                : client.getDateOfBirth().toString();
                 case "policyType" -> def.code();
-                case "identityType", "identityNumber", "identityCountry" -> null;   // workflow uses the client master
+                case "identityType", "identityNumber", "identityCountry" -> null;
                 default -> firstNonBlank(given.get(n), saved.get(n));
             };
-            fields.add(new ExtractedFieldData(n,
-                    value == null ? null : ValueNormalizer.normalize(value, rf.getDataType()),
-                    rf.getDataType(), FieldSource.MANUAL_ENTRY, 1.0, isBlank(value)));
+
+            fields.add(new ExtractedFieldData(
+                    n,
+                    value == null
+                            ? null
+                            : ValueNormalizer.normalize(
+                                    value, rf.getDataType()),
+                    rf.getDataType(),
+                    FieldSource.MANUAL_ENTRY,
+                    1.0,
+                    isBlank(value)));
         }
+
+        // ============================================================
+        // 7. QUOTATION WORKFLOW
+        // ============================================================
 
         QuotationWorkflowService.Outcome outcome =
                 workflow.process(request, client, fields, hadQuotation);
 
-        if (link != null && outcome.result() == QuotationWorkflowService.Result.QUOTATION_SENT) {
+        // Consume a new-customer token after the workflow has returned.
+        consumeNewCustomerOtpIfRequired(link, body, a);
+
+        if (link != null
+                && outcome.result()
+                == QuotationWorkflowService.Result.QUOTATION_SENT) {
             formLinks.markUsed(link.id());
         }
 
         Long id = request.getId();
         String label = RequestStatusInfo.label(request.getStatus());
+
         return switch (outcome.result()) {
-            case QUOTATION_SENT -> new Result(id, "QUOTATION_SENT", label,
-                    outcome.quotation().getQuotationNumber(),
-                    "Your quotation " + outcome.quotation().getQuotationNumber()
-                            + " has been emailed to " + client.getEmail() + ".",
-                    List.of(), List.of());
+
+            case QUOTATION_SENT ->
+                    new Result(
+                            id,
+                            "QUOTATION_SENT",
+                            label,
+                            outcome.quotation().getQuotationNumber(),
+                            "Your quotation "
+                                    + outcome.quotation().getQuotationNumber()
+                                    + " has been emailed to "
+                                    + client.getEmail() + ".",
+                            List.of(),
+                            List.of());
+
             case MISSING_INFORMATION -> {
-                List<String> all = new ArrayList<>(outcome.missingFields());
+                List<String> all =
+                        new ArrayList<>(outcome.missingFields());
+
                 all.addAll(outcome.invalidFields());
-                yield new Result(id, "MISSING_INFORMATION", label, null,
-                        "We still need a few details: " + String.join(", ", all) + ".",
-                        all, List.of());
+
+                yield new Result(
+                        id,
+                        "MISSING_INFORMATION",
+                        label,
+                        null,
+                        "We still need a few details: "
+                                + String.join(", ", all) + ".",
+                        all,
+                        List.of());
             }
-            case EMAIL_SEND_FAILED -> new Result(id, "EMAIL_SEND_FAILED", label,
-                    outcome.quotation() == null ? null : outcome.quotation().getQuotationNumber(),
-                    "Your quotation was created but the email could not be sent. Our team will send it to you.",
-                    List.of(), List.of());
-            case QUOTATION_GENERATION_FAILED -> new Result(id, "QUOTATION_GENERATION_FAILED", label, null,
-                    "We received your request but could not create the quotation yet. Our team will contact you.",
-                    List.of(), List.of());
+
+            case EMAIL_SEND_FAILED ->
+                    new Result(
+                            id,
+                            "EMAIL_SEND_FAILED",
+                            label,
+                            outcome.quotation() == null
+                                    ? null
+                                    : outcome.quotation().getQuotationNumber(),
+                            "Your quotation was created but the email could not be sent. Our team will send it to you.",
+                            List.of(),
+                            List.of());
+
+            case QUOTATION_GENERATION_FAILED ->
+                    new Result(
+                            id,
+                            "QUOTATION_GENERATION_FAILED",
+                            label,
+                            null,
+                            "We received your request but could not create the quotation yet. Our team will contact you.",
+                            List.of(),
+                            List.of());
         };
+    }
+
+    private void consumeNewCustomerOtpIfRequired(
+            FormLinkService.FormLink link,
+            Submission body,
+            Applicant applicant) {
+
+        if (link != null) {
+            return;
+        }
+
+        boolean consumed = otp.consumePhoneVerification(
+                body.verificationToken(),
+                applicant.phone());
+
+        if (!consumed) {
+            // The workflow has already returned. Record this for investigation.
+            // The submission result should not be discarded at this stage.
+            org.slf4j.LoggerFactory.getLogger(
+                    GenericSubmissionService.class).warn(
+                    "Could not consume phone verification token after accepting generic form submission.");
+        }
     }
 
     /** Finds the current client of a link (for prefill). */
     public Optional<Client> clientOf(FormLinkService.FormLink link) {
-        return link.clientId() == null ? Optional.empty() : clientRepository.findById(link.clientId());
+        return link.clientId() == null
+                ? Optional.empty()
+                : clientRepository.findById(link.clientId());
     }
 
     private static String digits(String v) {
