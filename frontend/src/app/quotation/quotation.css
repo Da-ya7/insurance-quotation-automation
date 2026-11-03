@@ -81,7 +81,7 @@
 
 .overview {
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  grid-template-columns: 1.6fr 1fr 1fr;
   background: #ffffff;
   border: 1px solid #e3e7ee;
   border-radius: 12px;
@@ -375,6 +375,10 @@
   box-shadow: 0 4px 12px rgba(30, 40, 60, 0.05);
 }
 
+.quotation-card.x-row-selected {
+  background: #f3f7ff;
+}
+
 /* =====================================
    QUOTATION TOP
 ===================================== */
@@ -392,6 +396,11 @@
   font-size: 12px;
   font-weight: 700;
   color: #5267d8;
+}
+
+.ver {
+  margin-left: 8px;
+  vertical-align: middle;
 }
 
 .status {
@@ -573,49 +582,85 @@
 }
 
 /* =====================================
-   PAGINATION
+   PAGINATION - 5 RECORDS PER PAGE
 ===================================== */
 
 .pagination {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
-  padding: 13px 3px;
-  font-size: 10px;
+  padding: 15px 3px;
+  font-size: 11px;
   color: #8c95a4;
 }
 
-.pagination div {
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pagination-buttons span {
+  font-size: 11px;
+  color: #687284;
+  white-space: nowrap;
+}
+
+.pagination-buttons button {
+  min-width: 75px;
+  height: 33px;
+  padding: 0 12px;
+  border: 1px solid #dfe3ea;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #5267d8;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.pagination-buttons button:hover:not(:disabled) {
+  background: #eef1ff;
+  border-color: #5267d8;
+}
+
+.pagination-buttons button:disabled {
+  background: #f4f5f7;
+  border-color: #e5e7eb;
+  color: #b7bdc7;
+  cursor: not-allowed;
+}
+
+/* =====================================
+   DETAILS PANEL
+===================================== */
+
+.detail-panel {
+  margin-top: 20px;
+}
+
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.detail-head h3 {
+  margin: 0;
+}
+
+.detail-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-}
-
-.pagination button {
-  width: 29px;
-  height: 29px;
-  border: 1px solid #dfe3ea;
-  border-radius: 5px;
-  background: #ffffff;
-  color: #687284;
-  font-size: 10px;
-  cursor: pointer;
-}
-
-.pagination button:hover:not(:disabled) {
-  background: #f4f6fa;
-}
-
-.pagination button.current {
-  background: #5267d8;
-  border-color: #5267d8;
-  color: #ffffff;
-}
-
-.pagination button:disabled {
-  color: #c5cad2;
-  cursor: not-allowed;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 /* =====================================
@@ -744,6 +789,11 @@
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .pagination-buttons {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
 @media (max-width: 380px) {
@@ -762,11 +812,3 @@
     flex-direction: column;
   }
 }
-
-/* ---- additions ---- */
-.ver { margin-left: 8px; vertical-align: middle; }
-.detail-panel { margin-top: 20px; }
-.detail-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.detail-head h3 { margin: 0; }
-.detail-actions { display: flex; gap: 10px; margin-top: 14px; }
-.quotation-card.x-row-selected { background: #f3f7ff; }

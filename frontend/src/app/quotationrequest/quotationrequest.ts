@@ -5,7 +5,10 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, forkJoin, of } from 'rxjs';
 import { ApiService, RequestDetailDto, RequestDto, RequestSummary } from '../core/api.service';
-import { avatarColor, groupClass, groupLabel, initials, kindClass, kindLabel, money, shortDate, simpleStatusClass, statusLabel } from '../core/format';
+import {
+  avatarColor, groupClass, groupLabel, initials, kindClass, kindLabel,
+  money, shortDate, simpleStatusClass, statusLabel
+} from '../core/format';
 import { errorMessage } from '../core/http-error';
 import { goBackOrHome } from '../core/nav';
 import { startPolling } from '../core/polling';
@@ -35,6 +38,10 @@ export class Quotationrequest {
   readonly statusClass = simpleStatusClass;
   readonly money = money;
   readonly shortDate = shortDate;
+
+  // Pagination: show 5 requests on each page.
+  readonly pageSize = 5;
+  currentPage = 0;
 
   readonly groups = [
     { value: '', label: 'All groups' },
@@ -73,11 +80,15 @@ export class Quotationrequest {
     ({ list, summary, detail }) => {
       this.requests = list;
       this.summary = summary;
+
       list.forEach(r => this.statusOptions.set(r.status, r.statusLabel));
+
       if (detail) {
         this.detail = detail;
         this.detailError = '';
       }
+
+      this.adjustPage();
       this.loading = false;
       this.errorMessage = '';
       this.lastUpdated = new Date();
@@ -96,29 +107,43 @@ export class Quotationrequest {
       const s = params.get('status') ?? '';
       const idParam = params.get('id');
       const id = idParam && /^\d+$/.test(idParam) ? Number(idParam) : null;
+
       const changed = g !== this.group || s !== this.status || id !== this.selectedId;
+
+      if (g !== this.group || s !== this.status) {
+        this.currentPage = 0;
+      }
+
       if (id !== this.selectedId) {
         this.detail = null;
         this.detailError = '';
       }
+
       this.group = g;
       this.status = s;
       this.selectedId = id;
+
       if (changed) {
         this.poller.refresh();
+
         if (id !== null) {
-          setTimeout(() => document.getElementById('request-detail')?.scrollIntoView({ behavior: 'smooth' }), 300);
+          setTimeout(() => {
+            document.getElementById('request-detail')
+              ?.scrollIntoView({ behavior: 'smooth' });
+          }, 300);
         }
       }
     });
   }
 
   get statusList(): { value: string; label: string }[] {
-    return [...this.statusOptions.entries()].map(([value, label]) => ({ value, label }));
+    return [...this.statusOptions.entries()]
+      .map(([value, label]) => ({ value, label }));
   }
 
   get filteredRequests(): RequestDto[] {
     const search = this.searchText.trim().toLowerCase();
+
     return this.requests.filter(r =>
       !search ||
       r.reference.toLowerCase().includes(search) ||
@@ -126,19 +151,77 @@ export class Quotationrequest {
       (r.clientCode ?? '').toLowerCase().includes(search) ||
       (r.destination ?? '').toLowerCase().includes(search) ||
       (r.insuranceType ?? '').toLowerCase().includes(search) ||
-      r.clientEmail.toLowerCase().includes(search));
+      (r.clientEmail ?? '').toLowerCase().includes(search)
+    );
+  }
+
+  get paginatedRequests(): RequestDto[] {
+    const start = this.currentPage * this.pageSize;
+    return this.filteredRequests.slice(start, start + this.pageSize);
+  }
+
+  get totalPages(): number {
+    return Math.ceil(this.filteredRequests.length / this.pageSize);
+  }
+
+  get showingFrom(): number {
+    return this.filteredRequests.length === 0
+      ? 0
+      : this.currentPage * this.pageSize + 1;
+  }
+
+  get showingTo(): number {
+    return Math.min(
+      (this.currentPage + 1) * this.pageSize,
+      this.filteredRequests.length
+    );
   }
 
   get fieldEntries(): { key: string; value: string }[] {
-    return Object.entries(this.detail?.fields ?? {}).map(([key, value]) => ({ key, value }));
+    return Object.entries(this.detail?.fields ?? {})
+      .map(([key, value]) => ({ key, value }));
+  }
+
+  onSearchChange(): void {
+    this.currentPage = 0;
+  }
+
+  previousPage(): void {
+    if (this.currentPage > 0) {
+      this.currentPage--;
+    }
+  }
+
+  nextPage(): void {
+    if (this.currentPage + 1 < this.totalPages) {
+      this.currentPage++;
+    }
+  }
+
+  private adjustPage(): void {
+    const pages = this.totalPages;
+
+    if (pages === 0) {
+      this.currentPage = 0;
+    } else if (this.currentPage >= pages) {
+      this.currentPage = pages - 1;
+    }
   }
 
   navigateQuery(params: Record<string, string | null>): void {
-    this.router.navigate([], { relativeTo: this.route, queryParams: params, queryParamsHandling: 'merge' });
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: params,
+      queryParamsHandling: 'merge'
+    });
   }
 
   applyFilters(): void {
-    this.navigateQuery({ group: this.group || null, status: this.status || null });
+    this.currentPage = 0;
+    this.navigateQuery({
+      group: this.group || null,
+      status: this.status || null
+    });
   }
 
   filterGroup(group: string): void {
@@ -162,6 +245,7 @@ export class Quotationrequest {
 
   clearFilters(): void {
     this.searchText = '';
+    this.currentPage = 0;
     this.navigateQuery({ group: null, status: null });
   }
 
