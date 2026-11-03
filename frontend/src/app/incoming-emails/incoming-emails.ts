@@ -1,3 +1,4 @@
+
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -32,12 +33,17 @@ export class IncomingEmails {
   readonly statusClass = simpleStatusClass;
   readonly statusLabel = statusLabel;
 
+  readonly pageSize = 10;
+
+  currentPage = 0;
+
   readonly kinds = [
     { value: '', label: 'All kinds' },
     { value: 'NEW_REQUEST', label: 'New request' },
     { value: 'CLIENT_REPLY', label: 'Client reply' },
     { value: 'UNRELATED', label: 'Unrelated' }
   ];
+
   readonly statuses = [
     { value: '', label: 'All statuses' },
     { value: 'RECEIVED', label: 'Pending' },
@@ -64,9 +70,13 @@ export class IncomingEmails {
     ({ list, summary }) => {
       this.emails = list;
       this.summary = summary;
-      if (this.selectedId === null && list.length > 0) {
-        this.selectedId = list[0].id;
+
+      if (!this.emails.some(email => email.id === this.selectedId)) {
+        this.selectedId = list.length > 0 ? list[0].id : null;
       }
+
+      this.adjustPage();
+
       this.loading = false;
       this.errorMessage = '';
       this.lastUpdated = new Date();
@@ -84,9 +94,12 @@ export class IncomingEmails {
       const k = params.get('kind') ?? '';
       const s = params.get('status') ?? '';
       const changed = k !== this.kind || s !== this.status;
+
       this.kind = k;
       this.status = s;
+
       if (changed) {
+        this.currentPage = 0;
         this.loading = true;
         this.poller.refresh();
       }
@@ -95,24 +108,60 @@ export class IncomingEmails {
 
   get filteredEmails(): EmailDto[] {
     const q = this.searchText.trim().toLowerCase();
+
     return this.emails.filter(e =>
       !q ||
       e.senderEmail.toLowerCase().includes(q) ||
       (e.subject ?? '').toLowerCase().includes(q) ||
       (e.clientName ?? '').toLowerCase().includes(q) ||
-      (e.clientCode ?? '').toLowerCase().includes(q));
+      (e.clientCode ?? '').toLowerCase().includes(q)
+    );
+  }
+
+  get paginatedEmails(): EmailDto[] {
+    const start = this.currentPage * this.pageSize;
+    return this.filteredEmails.slice(start, start + this.pageSize);
+  }
+
+  get totalPages(): number {
+    return Math.ceil(this.filteredEmails.length / this.pageSize);
   }
 
   get selectedEmail(): EmailDto | undefined {
     return this.emails.find(e => e.id === this.selectedId);
   }
 
+  onSearchChange(): void {
+    this.currentPage = 0;
+  }
+
+  previousPage(): void {
+    if (this.currentPage > 0) {
+      this.currentPage--;
+    }
+  }
+
+  nextPage(): void {
+    if (this.currentPage + 1 < this.totalPages) {
+      this.currentPage++;
+    }
+  }
+
+  private adjustPage(): void {
+    const lastPage = Math.max(0, this.totalPages - 1);
+
+    if (this.currentPage > lastPage) {
+      this.currentPage = lastPage;
+    }
+  }
+
   selectEmail(email: EmailDto): void {
     this.selectedId = email.id;
   }
 
-  // Filters live in the URL so links such as ?kind=NEW_REQUEST&status=FAILED work.
   applyFilters(): void {
+    this.currentPage = 0;
+
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { kind: this.kind || null, status: this.status || null },
@@ -128,6 +177,7 @@ export class IncomingEmails {
 
   clearFilters(): void {
     this.searchText = '';
+    this.currentPage = 0;
     this.quickFilter('', '');
   }
 

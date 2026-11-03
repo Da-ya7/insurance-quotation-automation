@@ -1,3 +1,4 @@
+
 /* =========================================
    INCOMING EMAILS PAGE
 ========================================= */
@@ -20,15 +21,10 @@
   color: #172033;
 }
 
-/* =========================================
-   HEADER
-   Back arrow LEFT, title and subtitle RIGHT
-========================================= */
+/* HEADER */
 
 .top-header {
   display: flex;
-  flex-direction: row;
-  justify-content: flex-start;
   align-items: center;
   gap: 14px;
   margin-bottom: 26px;
@@ -38,28 +34,21 @@
   width: 40px;
   height: 40px;
   flex: 0 0 40px;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   padding: 0;
   border: 1px solid #e0e5ec;
   border-radius: 9px;
   background: #ffffff;
   color: #344054;
-
-  font-family: Arial, Helvetica, sans-serif;
   font-size: 24px;
-  line-height: 1;
   cursor: pointer;
-
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition: background 0.2s ease;
 }
 
 .back-btn:hover {
   background: #f0f4fa;
-  border-color: #cbd5e1;
 }
 
 .back-btn:focus-visible {
@@ -87,9 +76,7 @@
   line-height: 1.5;
 }
 
-/* =========================================
-   SUMMARY CARDS
-========================================= */
+/* SUMMARY CARDS */
 
 .summary-section {
   display: grid;
@@ -102,16 +89,13 @@
   display: flex;
   align-items: center;
   gap: 15px;
-
   min-width: 0;
   min-height: 86px;
   padding: 18px 20px;
-
   background: #ffffff;
   border: 1px solid #edf0f4;
   border-radius: 12px;
   box-shadow: 0 3px 12px rgba(16, 24, 40, 0.035);
-
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
@@ -120,24 +104,25 @@
   transform: translateY(-1px);
 }
 
+.summary-card.clickable {
+  cursor: pointer;
+}
+
+.summary-card.clickable:hover {
+  border-color: #cbdaf8;
+}
+
 .summary-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-
   width: 45px;
   height: 45px;
   flex: 0 0 45px;
-
   border-radius: 11px;
   background: #eef4ff;
   color: #2563eb;
   font-size: 20px;
-}
-
-.pending-icon {
-  background: #fff7ed;
-  color: #ea580c;
 }
 
 .processed-icon {
@@ -166,30 +151,23 @@
   overflow-wrap: anywhere;
 }
 
-/* =========================================
-   MAIN EMAIL CONTAINER
-========================================= */
+/* MAIN EMAIL CONTAINER */
 
 .email-container {
   display: grid;
   grid-template-columns: minmax(0, 42fr) minmax(0, 58fr);
   align-items: stretch;
-
   width: 100%;
   min-width: 0;
   min-height: 650px;
-
   background: #ffffff;
   border: 1px solid #edf0f4;
   border-radius: 14px;
   overflow: hidden;
-
   box-shadow: 0 3px 16px rgba(16, 24, 40, 0.045);
 }
 
-/* =========================================
-   LEFT EMAIL LIST
-========================================= */
+/* LEFT EMAIL LIST */
 
 .email-list {
   min-width: 0;
@@ -202,7 +180,6 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-
   min-height: 88px;
   padding: 20px 22px;
   border-bottom: 1px solid #edf0f4;
@@ -224,18 +201,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-
   width: 36px;
   height: 36px;
   flex: 0 0 36px;
-
   border: none;
   border-radius: 9px;
   background: #f3f6fa;
   color: #344054;
   font-size: 18px;
   cursor: pointer;
-
   transition: background 0.2s ease, transform 0.3s ease;
 }
 
@@ -249,23 +223,18 @@
   outline-offset: 2px;
 }
 
-/* =========================================
-   SEARCH BOX
-========================================= */
+/* SEARCH */
 
 .search-box {
   display: flex;
   align-items: center;
   gap: 9px;
-
   height: 42px;
   margin: 18px;
   padding: 0 12px;
-
   border: 1px solid #e1e6ed;
   border-radius: 9px;
   background: #ffffff;
-
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -285,11 +254,9 @@
   min-width: 0;
   height: 100%;
   padding: 0;
-
   border: none;
   outline: none;
   background: transparent;
-
   color: #263044;
   font-family: inherit;
   font-size: 13px;
@@ -299,67 +266,47 @@
   color: #9aa2b1;
 }
 
-/* =========================================
-   FILTER BUTTONS
-========================================= */
+/* FILTER DROPDOWNS */
 
-.filters {
+.filter-selects {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   padding: 0 18px 15px;
+  flex-wrap: wrap;
 }
 
-.filter {
-  min-height: 36px;
-  padding: 8px 12px;
-
+.x-select {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
   border: 1px solid #e1e6ed;
   border-radius: 7px;
   background: #ffffff;
-
   color: #667085;
   font-family: inherit;
   font-size: 11px;
   cursor: pointer;
-
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-.filter:hover {
-  background: #f3f6fa;
-  border-color: #cbd5e1;
-}
-
-.filter.active {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #ffffff;
-}
-
-.filter:focus-visible {
+.x-select:focus {
   outline: 2px solid #93b4f8;
   outline-offset: 2px;
 }
 
-/* =========================================
-   EMAIL ITEMS
-========================================= */
+/* EMAIL ITEMS */
 
 .email-item {
   position: relative;
   display: flex;
   align-items: flex-start;
   gap: 12px;
-
   min-width: 0;
   padding: 18px;
-
   border-top: 1px solid #edf0f4;
   background: #ffffff;
   cursor: pointer;
-
   transition: background 0.2s ease;
 }
 
@@ -378,24 +325,19 @@
   outline-offset: -2px;
 }
 
-/* =========================================
-   EMAIL AVATARS
-========================================= */
+/* AVATARS */
 
 .email-avatar,
 .large-avatar {
   display: flex;
   align-items: center;
   justify-content: center;
-
   width: 40px;
   height: 40px;
   flex: 0 0 40px;
-
   border-radius: 50%;
   background: #e0e7ff;
   color: #4338ca;
-
   font-size: 12px;
   font-weight: 700;
 }
@@ -418,9 +360,7 @@
   color: #15803d;
 }
 
-/* =========================================
-   EMAIL DETAILS
-========================================= */
+/* EMAIL DETAILS */
 
 .email-details {
   flex: 1;
@@ -449,14 +389,6 @@
   white-space: nowrap;
 }
 
-.email-address {
-  margin-top: 4px;
-  color: #8992a3;
-  font-size: 11px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
 .email-subject {
   margin-top: 9px;
   color: #354052;
@@ -474,71 +406,26 @@
   margin-top: 10px;
 }
 
-/* =========================================
-   CATEGORY TAGS
-========================================= */
+/* EMAIL BADGES */
 
-.tag {
-  display: inline-flex;
-  align-items: center;
-
-  max-width: 100%;
-  padding: 5px 8px;
-
-  border-radius: 6px;
+.email-item .x-badge {
   font-size: 10px;
-  line-height: 1.3;
-  font-weight: 600;
-  overflow-wrap: anywhere;
+  padding: 3px 8px;
 }
 
-.tag.quotation {
-  background: #eff6ff;
-  color: #2563eb;
+.preview-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.tag.renewal {
-  background: #f5f3ff;
-  color: #7c3aed;
+.x-muted {
+  color: #8992a3;
+  font-size: 11px;
 }
 
-.tag.claim {
-  background: #fff7ed;
-  color: #c2410c;
-}
-
-/* =========================================
-   EMAIL STATUS
-========================================= */
-
-.status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  max-width: 100%;
-  padding: 5px 9px;
-
-  border-radius: 12px;
-  font-size: 10px;
-  line-height: 1.3;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.status.processed {
-  background: #ecfdf5;
-  color: #059669;
-}
-
-.status.pending {
-  background: #fff7ed;
-  color: #ea580c;
-}
-
-/* =========================================
-   RIGHT EMAIL PREVIEW
-========================================= */
+/* RIGHT EMAIL PREVIEW */
 
 .email-preview {
   min-width: 0;
@@ -551,7 +438,6 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 15px;
-
   padding-bottom: 22px;
   border-bottom: 1px solid #edf0f4;
 }
@@ -563,7 +449,6 @@
 .preview-label {
   display: block;
   margin-bottom: 8px;
-
   color: #8a93a3;
   font-size: 10px;
   letter-spacing: 1px;
@@ -579,9 +464,7 @@
   overflow-wrap: anywhere;
 }
 
-/* =========================================
-   SENDER DETAILS
-========================================= */
+/* SENDER DETAILS */
 
 .sender-section {
   display: flex;
@@ -618,33 +501,19 @@
   overflow-wrap: anywhere;
 }
 
-/* =========================================
-   EMAIL BODY
-========================================= */
+/* EMAIL BODY */
 
-.email-body {
+.x-pre {
   padding: 5px 0 25px;
   border-bottom: 1px solid #edf0f4;
-
   color: #4b5563;
   font-size: 14px;
   line-height: 1.85;
-
   overflow-wrap: anywhere;
-  white-space: normal;
+  white-space: pre-wrap;
 }
 
-.email-body p {
-  margin: 0 0 14px;
-}
-
-.email-body p:last-child {
-  margin-bottom: 0;
-}
-
-/* =========================================
-   DETECTED INFORMATION
-========================================= */
+/* PROCESSING DETAILS */
 
 .detected-section {
   padding: 22px 0;
@@ -668,7 +537,6 @@
   min-width: 0;
   min-height: 70px;
   padding: 13px;
-
   border: 1px solid #edf0f4;
   border-radius: 9px;
   background: #f8fafc;
@@ -691,72 +559,61 @@
   overflow-wrap: anywhere;
 }
 
-/* =========================================
-   ACTION BUTTONS
-========================================= */
-
-.action-section {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  padding-top: 5px;
+.info-box small {
+  display: block;
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 11px;
 }
 
-.primary-btn,
-.secondary-btn {
-  display: inline-flex;
+.last-error {
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+
+/* PAGINATION */
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
+  gap: 12px;
+  padding: 15px 18px;
+  border-top: 1px solid #edf0f4;
+  background: #ffffff;
+}
 
-  min-height: 39px;
-  padding: 10px 17px;
-
+.pagination button {
+  min-width: 85px;
+  min-height: 36px;
+  padding: 7px 14px;
+  border: 1px solid #dce3ec;
   border-radius: 7px;
+  background: #ffffff;
+  color: #344054;
   font-family: inherit;
   font-size: 12px;
-  font-weight: 600;
-  text-align: center;
   cursor: pointer;
-
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
-.primary-btn {
-  border: 1px solid #2563eb;
-  background: #2563eb;
-  color: #ffffff;
-}
-
-.primary-btn:hover {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-}
-
-.secondary-btn {
-  border: 1px solid #2563eb;
-  background: #ffffff;
+.pagination button:hover:not(:disabled) {
+  background: #eff6ff;
+  border-color: #93b4f8;
   color: #2563eb;
 }
 
-.secondary-btn:hover {
-  background: #eff6ff;
+.pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.primary-btn:active,
-.secondary-btn:active {
-  transform: scale(0.98);
-}
-
-.primary-btn:focus-visible,
-.secondary-btn:focus-visible {
+.pagination button:focus-visible {
   outline: 2px solid #93b4f8;
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
-/* =========================================
-   EMPTY STATES
-========================================= */
+/* EMPTY STATES */
 
 .empty-emails {
   padding: 30px 18px;
@@ -774,9 +631,7 @@
   text-align: center;
 }
 
-/* =========================================
-   LONG CONTENT PROTECTION
-========================================= */
+/* COMMON PROTECTION */
 
 .email-list,
 .email-preview,
@@ -788,9 +643,7 @@
   font-family: inherit;
 }
 
-/* =========================================
-   TABLETS AND SMALL LAPTOPS
-========================================= */
+/* TABLETS AND SMALL LAPTOPS */
 
 @media (max-width: 1200px) {
   .incoming-page {
@@ -815,9 +668,7 @@
   }
 }
 
-/* =========================================
-   STACK EMAIL LIST AND PREVIEW
-========================================= */
+/* STACK EMAIL LIST AND PREVIEW */
 
 @media (max-width: 1000px) {
   .summary-section {
@@ -842,9 +693,7 @@
   }
 }
 
-/* =========================================
-   MOBILE
-========================================= */
+/* MOBILE */
 
 @media (max-width: 600px) {
   .incoming-page {
@@ -919,14 +768,12 @@
     margin: 14px;
   }
 
-  .filters {
+  .filter-selects {
     gap: 6px;
     padding: 0 14px 13px;
   }
 
-  .filter {
-    min-height: 33px;
-    padding: 7px 10px;
+  .x-select {
     font-size: 10px;
   }
 
@@ -960,11 +807,15 @@
     font-size: 18px;
   }
 
+  .preview-badges {
+    justify-content: flex-start;
+  }
+
   .sender-section {
     padding: 18px 0;
   }
 
-  .email-body {
+  .x-pre {
     font-size: 13px;
     line-height: 1.8;
   }
@@ -986,20 +837,12 @@
     font-size: 11px;
   }
 
-  .action-section {
-    gap: 8px;
-  }
-
-  .primary-btn,
-  .secondary-btn {
-    padding: 10px 12px;
-    font-size: 11px;
+  .pagination {
+    padding: 12px 14px;
   }
 }
 
-/* =========================================
-   VERY SMALL MOBILE
-========================================= */
+/* VERY SMALL MOBILE */
 
 @media (max-width: 380px) {
   .incoming-page {
@@ -1032,32 +875,7 @@
     white-space: normal;
   }
 
-  .filters {
-    gap: 5px;
-    padding-right: 12px;
-    padding-left: 12px;
-  }
-
-  .filter {
-    padding: 7px 9px;
-  }
-
   .detected-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .primary-btn,
-  .secondary-btn {
-    width: 100%;
-  }
 }
-
-/* ---- additions ---- */
-.summary-section { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
-.summary-card.clickable { cursor: pointer; }
-.failed-icon { background: #fdeaea; color: #b91c1c; }
-.filter-selects { display: flex; gap: 8px; padding: 0 20px 12px; flex-wrap: wrap; }
-.preview-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-.info-box small { display: block; color: #6b7280; font-size: 11px; margin-top: 2px; }
-.last-error { margin-top: 12px; word-break: break-word; }
-.email-item .x-badge { font-size: 10px; padding: 2px 8px; }

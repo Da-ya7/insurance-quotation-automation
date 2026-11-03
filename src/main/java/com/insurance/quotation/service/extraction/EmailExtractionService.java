@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.service.extraction;
 
 import com.insurance.quotation.entity.RequiredField;
@@ -8,8 +9,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -21,6 +22,28 @@ public class EmailExtractionService {
             Pattern.CASE_INSENSITIVE
     );
 
+    private static final String[][] IDENTITY_LABELS = {
+            {"Aadhaar Number", "AADHAAR", "IN"},
+            {"Aadhaar", "AADHAAR", "IN"},
+            {"Aadhar Number", "AADHAAR", "IN"},
+            {"Aadhar", "AADHAAR", "IN"},
+            {"PAN Number", "PAN", "IN"},
+            {"PAN", "PAN", "IN"},
+            {"Voter ID", "VOTER_ID", "IN"},
+            {"Emirates ID", "EMIRATES_ID", "AE"},
+            {"SSN", "SSN", "US"},
+            {"NRIC", "NRIC", "SG"},
+            {"Passport Number", "PASSPORT", null},
+            {"Passport No", "PASSPORT", null},
+            {"Passport", "PASSPORT", null},
+            {"Driving Licence Number", "DRIVERS_LICENSE", null},
+            {"Driving License Number", "DRIVERS_LICENSE", null}
+    };
+
+    /**
+     * Existing fixed-field extraction.
+     * Keeps compatibility with callers using extractFields(email).
+     */
     public List<ExtractedFieldData> extractFields(EmailMessage email) {
         List<ExtractedFieldData> fields = new ArrayList<>();
 
@@ -42,61 +65,67 @@ public class EmailExtractionService {
         return fields;
     }
 
-    /** [label shown in the email, identity document code, issuing country or null] */
-    private static final String[][] IDENTITY_LABELS = {
-            {"Aadhaar Number", "AADHAAR", "IN"}, {"Aadhaar", "AADHAAR", "IN"},
-            {"Aadhar Number", "AADHAAR", "IN"}, {"Aadhar", "AADHAAR", "IN"},
-            {"PAN Number", "PAN", "IN"}, {"PAN", "PAN", "IN"},
-            {"Voter ID", "VOTER_ID", "IN"},
-            {"Emirates ID", "EMIRATES_ID", "AE"},
-            {"SSN", "SSN", "US"},
-            {"NRIC", "NRIC", "SG"},
-            {"Passport Number", "PASSPORT", null}, {"Passport No", "PASSPORT", null},
-            {"Passport", "PASSPORT", null},
-            {"Driving Licence Number", "DRIVERS_LICENSE", null},
-            {"Driving License Number", "DRIVERS_LICENSE", null},
-    };
-
     /**
-     * Extracts exactly the fields configured in the database for the insurance
-     * type (label = display label), plus the identity document (Aadhaar, PAN,
-     * passport ...). Values are normalised: dates -> YYYY-MM-DD, phone -> digits.
+     * Dynamic extraction using fields configured in the database.
      */
     public List<ExtractedFieldData> extractFields(
-            EmailMessage email, List<RequiredField> requiredFields) {
+            EmailMessage email,
+            List<RequiredField> requiredFields) {
 
         String body = email == null || email.getBody() == null
-                ? "" : normalizeBody(email.getBody());
+                ? ""
+                : normalizeBody(email.getBody());
 
         Map<String, ExtractedFieldData> result = new LinkedHashMap<>();
 
-        for (RequiredField rf : requiredFields) {
-            String value = firstValue(body, rf.getDisplayLabel(), humanize(rf.getFieldName()));
-            if (value == null || value.isBlank()) {
-                result.put(rf.getFieldName(), missingField(rf.getFieldName(), rf.getDataType()));
-                continue;
+        if (requiredFields != null) {
+            for (RequiredField rf : requiredFields) {
+                String value = firstValue(
+                        body,
+                        rf.getDisplayLabel(),
+                        humanize(rf.getFieldName())
+                );
+
+                if (value == null || value.isBlank()) {
+                    result.put(
+                            rf.getFieldName(),
+                            missingField(rf.getFieldName(), rf.getDataType())
+                    );
+                    continue;
+                }
+
+                if (rf.getDataType() == FieldDataType.EMAIL) {
+                    Matcher matcher = EMAIL_PATTERN.matcher(value);
+                    value = matcher.find() ? matcher.group().trim() : value;
+                }
+
+                result.put(
+                        rf.getFieldName(),
+                        new ExtractedFieldData(
+                                rf.getFieldName(),
+                                ValueNormalizer.normalize(value, rf.getDataType()),
+                                rf.getDataType(),
+                                FieldSource.EMAIL_EXTRACTED,
+                                0.95,
+                                false
+                        )
+                );
             }
-            if (rf.getDataType() == FieldDataType.EMAIL) {
-                Matcher m = EMAIL_PATTERN.matcher(value);
-                value = m.find() ? m.group().trim() : value;
-            }
-            result.put(rf.getFieldName(), new ExtractedFieldData(
-                    rf.getFieldName(),
-                    ValueNormalizer.normalize(value, rf.getDataType()),
-                    rf.getDataType(), FieldSource.EMAIL_EXTRACTED, 0.95, false));
         }
 
-        // ---- identity document ----
+        // Extract identity document information.
         String type = firstValue(body, "Identity Type", "ID Type", "Document Type");
         String number = firstValue(body, "Identity Number", "ID Number", "Document Number");
         String country = firstValue(body, "Identity Country", "ID Country", "Country of Issue");
 
         if (number == null) {
             for (String[] entry : IDENTITY_LABELS) {
-                String v = extractLabelValue(body, entry[0]);
-                if (v != null && !v.isBlank()) {
-                    number = v;
+                String value = extractLabelValue(body, entry[0]);
+
+                if (value != null && !value.isBlank()) {
+                    number = value;
                     type = entry[1];
+
                     if (country == null) {
                         country = entry[2];
                     }
@@ -104,6 +133,7 @@ public class EmailExtractionService {
                 }
             }
         }
+
         putIdentity(result, "identityType", type);
         putIdentity(result, "identityNumber", number);
         putIdentity(result, "identityCountry", country);
@@ -111,11 +141,23 @@ public class EmailExtractionService {
         return new ArrayList<>(result.values());
     }
 
-    private void putIdentity(Map<String, ExtractedFieldData> result, String name, String value) {
+    private void putIdentity(
+            Map<String, ExtractedFieldData> result,
+            String name,
+            String value) {
+
         if (value != null && !value.isBlank()) {
-            result.put(name, new ExtractedFieldData(
-                    name, value.trim(), FieldDataType.TEXT,
-                    FieldSource.EMAIL_EXTRACTED, 0.9, false));
+            result.put(
+                    name,
+                    new ExtractedFieldData(
+                            name,
+                            value.trim(),
+                            FieldDataType.TEXT,
+                            FieldSource.EMAIL_EXTRACTED,
+                            0.9,
+                            false
+                    )
+            );
         } else if (!result.containsKey(name)) {
             result.put(name, missingField(name, FieldDataType.TEXT));
         }
@@ -126,18 +168,26 @@ public class EmailExtractionService {
             if (label == null || label.isBlank()) {
                 continue;
             }
-            String v = extractLabelValue(body, label);
-            if (v != null && !v.isBlank()) {
-                return v;
+
+            String value = extractLabelValue(body, label);
+
+            if (value != null && !value.isBlank()) {
+                return value;
             }
         }
+
         return null;
     }
 
-    /** vehicleRegistrationNumber -> Vehicle Registration Number */
     private static String humanize(String fieldName) {
+        if (fieldName == null) {
+            return "";
+        }
+
         String spaced = fieldName.replaceAll("([a-z])([A-Z])", "$1 $2");
-        return spaced.isEmpty() ? spaced
+
+        return spaced.isEmpty()
+                ? spaced
                 : Character.toUpperCase(spaced.charAt(0)) + spaced.substring(1);
     }
 
@@ -199,7 +249,6 @@ public class EmailExtractionService {
 
         String value = matcher.group(1).trim();
 
-        // Support Markdown links such as [person@example.com](mailto:person@example.com)
         Matcher mailto = Pattern.compile(
                 "(?i)mailto:([^\\s)]+)"
         ).matcher(value);
@@ -208,7 +257,6 @@ public class EmailExtractionService {
             return mailto.group(1).trim();
         }
 
-        // Remove basic Markdown link wrappers, if present.
         value = value.replaceAll("\\[([^\\]]*)\\]\\([^)]*\\)", "$1");
 
         return value.trim();
