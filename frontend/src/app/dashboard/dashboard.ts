@@ -17,8 +17,22 @@ interface StatCard {
   query?: Record<string, string>;
 }
 
-interface ChartPoint { x: number; y: number; label: string; requests: number; quotations: number; }
-interface GroupRow { group: string; label: string; count: number; percentage: number; color: string; link: Record<string, string>; }
+interface ChartPoint {
+  x: number;
+  y: number;
+  label: string;
+  requests: number;
+  quotations: number;
+}
+
+interface GroupRow {
+  group: string;
+  label: string;
+  count: number;
+  percentage: number;
+  color: string;
+  link: Record<string, string>;
+}
 
 @Component({
   selector: 'app-dashboard',
@@ -50,7 +64,6 @@ export class Dashboard {
 
   loading = true;
   errorMessage = '';
-  lastUpdated: Date | null = null;
 
   readonly W = 900;
   readonly H = 350;
@@ -78,17 +91,18 @@ export class Dashboard {
 
   get filteredItems() {
     const search = this.searchQuery.toLowerCase().trim();
-    return search ? this.searchItems.filter(i => i.name.toLowerCase().includes(search)) : [];
+    return search
+      ? this.searchItems.filter(i => i.name.toLowerCase().includes(search))
+      : [];
   }
 
-  // Refreshes every 30 s (stopped automatically on destroy) and on demand.
+  // Automatic refresh every 30 seconds.
   private poller = startPolling(
     () => this.api.dashboardStats(),
     stats => {
       this.apply(stats);
       this.loading = false;
       this.errorMessage = '';
-      this.lastUpdated = new Date();
       this.cdr.markForCheck();
     },
     message => {
@@ -104,23 +118,42 @@ export class Dashboard {
 
   private apply(s: DashboardStats): void {
     this.stats = s;
+
+    // Only four dashboard cards
     this.cards = [
-      { title: 'Incoming Emails', icon: '📧', value: s.totalEmails, note: `${s.newRequestEmails} new requests · ${s.replyEmails} replies`,
-        link: '/incoming-emails' },
-      { title: 'Quotation Requests', icon: '📋', value: s.quotationRequests, note: `${s.requestsProcessing} processing`,
-        link: '/quotation-requests' },
-      { title: 'Missing Details', icon: '⚠️', value: s.requestsMissing, note: `${s.openMissingFields} open field(s)`, warn: s.requestsMissing > 0,
-        link: '/missing-information', query: { status: 'OPEN' } },
-      { title: 'Quotations Sent', icon: '📄', value: s.quotationsSent, note: `${s.quotationsNotSent} not sent yet`,
-        link: '/quotations', query: { status: 'SENT' } },
-      { title: 'Needs Attention', icon: '🚨', value: s.requestsNeedAttention, note: 'Failed or manual review', warn: s.requestsNeedAttention > 0,
-        link: '/quotation-requests', query: { group: 'NEEDS_ATTENTION' } },
-      { title: 'Clients', icon: '👥', value: s.clients, note: 'Registered clients', link: '/clients' },
-      { title: 'Failed Emails', icon: '✖', value: s.failedEmails, note: `${s.pendingEmails} pending · ${s.processedEmails} processed`, warn: s.failedEmails > 0,
-        link: '/incoming-emails', query: { status: 'FAILED' } },
-      { title: 'Quotations Not Sent', icon: '⏳', value: s.quotationsNotSent, note: `${s.quotationsTotal} quotations in total`,
-        link: '/quotations', query: { status: 'DRAFT' } }
+      {
+        title: 'Incoming Emails',
+        icon: '📧',
+        value: s.totalEmails,
+        note: `${s.newRequestEmails} new requests · ${s.replyEmails} replies`,
+        link: '/incoming-emails'
+      },
+      {
+        title: 'Quotation Requests',
+        icon: '📋',
+        value: s.quotationRequests,
+        note: `${s.requestsProcessing} processing`,
+        link: '/quotation-requests'
+      },
+      {
+        title: 'Missing Details',
+        icon: '⚠️',
+        value: s.requestsMissing,
+        note: `${s.openMissingFields} open field(s)`,
+        warn: s.requestsMissing > 0,
+        link: '/missing-information',
+        query: { status: 'OPEN' }
+      },
+      {
+        title: 'Quotations Sent',
+        icon: '📄',
+        value: s.quotationsSent,
+        note: `${s.quotationsNotSent} not sent yet`,
+        link: '/quotations',
+        query: { status: 'SENT' }
+      }
     ];
+
     this.buildChart(s);
     this.buildGroups(s);
   }
@@ -128,7 +161,9 @@ export class Dashboard {
   private buildGroups(s: DashboardStats): void {
     const rows = s.requestsByGroup ?? [];
     const total = rows.reduce((sum, r) => sum + r.count, 0);
+
     this.hasGroupData = total > 0;
+
     this.groupRows = rows.map(r => ({
       group: r.group,
       label: r.label || groupLabel(r.group),
@@ -141,25 +176,58 @@ export class Dashboard {
 
   private buildChart(s: DashboardStats): void {
     const days = s.dailyRequests ?? [];
-    const rawMax = Math.max(0, ...days.map(d => Math.max(d.requests, d.quotations)));
+    const rawMax = Math.max(
+      0,
+      ...days.map(d => Math.max(d.requests, d.quotations))
+    );
+
     this.hasChartData = rawMax > 0;
+
     const max = this.niceMax(rawMax);
     const n = days.length;
-    const stepX = n > 1 ? (this.right - this.left) / (n - 1) : 0;
-    const yOf = (v: number) => this.bottom - (v / max) * (this.bottom - this.top);
-    const xOf = (i: number) => (n > 1 ? this.left + i * stepX : (this.left + this.right) / 2);
+
+    const stepX = n > 1
+      ? (this.right - this.left) / (n - 1)
+      : 0;
+
+    const yOf = (v: number) =>
+      this.bottom - (v / max) * (this.bottom - this.top);
+
+    const xOf = (i: number) =>
+      n > 1
+        ? this.left + i * stepX
+        : (this.left + this.right) / 2;
 
     const pts = (key: 'requests' | 'quotations'): ChartPoint[] =>
       days.map((d, i) => ({
-        x: xOf(i), y: yOf(d[key]), label: d.date, requests: d.requests, quotations: d.quotations
+        x: xOf(i),
+        y: yOf(d[key]),
+        label: d.date,
+        requests: d.requests,
+        quotations: d.quotations
       }));
+
     this.requestPoints = pts('requests');
     this.quotationPoints = pts('quotations');
-    this.requestLine = this.requestPoints.map(p => `${p.x},${p.y}`).join(' ');
-    this.quotationLine = this.quotationPoints.map(p => `${p.x},${p.y}`).join(' ');
 
-    this.yTicks = [0, 1, 2, 3, 4].map(i => ({ y: yOf((max / 4) * i), label: Math.round((max / 4) * i * 100) / 100 }));
-    this.xLabels = days.map((d, i) => ({ x: xOf(i), label: d.date.slice(5) }))
+    this.requestLine = this.requestPoints
+      .map(p => `${p.x},${p.y}`)
+      .join(' ');
+
+    this.quotationLine = this.quotationPoints
+      .map(p => `${p.x},${p.y}`)
+      .join(' ');
+
+    this.yTicks = [0, 1, 2, 3, 4].map(i => ({
+      y: yOf((max / 4) * i),
+      label: Math.round((max / 4) * i * 100) / 100
+    }));
+
+    this.xLabels = days
+      .map((d, i) => ({
+        x: xOf(i),
+        label: d.date.slice(5)
+      }))
       .filter((_, i) => n <= 7 || i % 2 === 0 || i === n - 1);
   }
 
@@ -167,6 +235,7 @@ export class Dashboard {
     if (v <= 4) {
       return 4;
     }
+
     return Math.ceil(v / 4) * 4;
   }
 

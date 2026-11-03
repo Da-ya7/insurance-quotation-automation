@@ -1,49 +1,32 @@
 <!-- =====================================================
      DASHBOARD MAIN CONTENT
-
      Sidebar is handled by Layout.
-     Do NOT add another sidebar here.
      ===================================================== -->
 
 <div class="dashboard-page">
 
-  <!-- ================= TOP HEADER ================= -->
-
+  <!-- TOP HEADER -->
   <header class="top-header">
 
-    <!-- Updated Header Title -->
-
     <div class="header-title">
-
-      <h1>
-        Dashboard
-      </h1>
-
-      
+      <h1>Dashboard</h1>
     </div>
-
-    <!-- Header Actions -->
 
     <div class="header-actions">
 
-      <!-- ================= SEARCH ================= -->
-
+      <!-- SEARCH -->
       <div class="search-container">
 
         <div class="search-box">
-
           <span>🔍</span>
-
           <input
             type="text"
             [(ngModel)]="searchQuery"
             placeholder="Search..."
           />
-
         </div>
 
         <!-- SEARCH RESULTS -->
-
         <div
           class="search-results"
           *ngIf="searchQuery.trim() && filteredItems.length > 0">
@@ -54,39 +37,31 @@
             (click)="goToPage(item.route)">
 
             <span class="result-icon">🔍</span>
-
             <span>{{ item.name }}</span>
 
           </div>
-
         </div>
 
         <!-- NO RESULTS -->
-
         <div
           class="search-results no-results"
           *ngIf="searchQuery.trim() && filteredItems.length === 0">
 
           <div class="search-result-item">
-
             <span class="result-icon">🔍</span>
-
             <span>No results found</span>
-
           </div>
 
         </div>
 
       </div>
 
-      <!-- ================= NOTIFICATION ================= -->
-
+      <!-- NOTIFICATION -->
       <button class="notification-btn">
         🔔
       </button>
 
-      <!-- ================= PROFILE ================= -->
-
+      <!-- PROFILE -->
       <div class="profile-container">
 
         <button
@@ -98,34 +73,27 @@
           </div>
 
           <div class="profile-info">
-
             <strong>{{ userName }}</strong>
-
-            <span>{{ role === 'ADMIN' ? 'Administrator' : (role === 'OPERATIONS' ? 'Operations' : 'Staff') }}</span>
-
+            <span>
+              {{ role === 'ADMIN' ? 'Administrator' : (role === 'OPERATIONS' ? 'Operations' : 'Staff') }}
+            </span>
           </div>
 
           <span>▼</span>
-
         </button>
 
         <!-- PROFILE DROPDOWN -->
-
         <div
           class="profile-dropdown"
           *ngIf="showProfileMenu">
 
           <button
             (click)="goToPage('/settings'); showProfileMenu = false">
-
             ⚙️ Settings
-
           </button>
 
           <button (click)="logout()">
-
             🚪 Logout
-
           </button>
 
         </div>
@@ -133,47 +101,48 @@
       </div>
 
     </div>
-
   </header>
 
-  <!-- ================= DASHBOARD CONTENT ================= -->
-
+  <!-- DASHBOARD CONTENT -->
   <section class="dashboard-content">
 
-    <!-- REFRESH BAR -->
-    <div class="refresh-bar">
-      <span class="x-muted" *ngIf="lastUpdated">Last updated {{ lastUpdated | date:'mediumTime' }} · auto-refresh every 30 s</span>
-      <button type="button" class="x-btn x-sm" (click)="refresh()">↻ Refresh</button>
-    </div>
+    <p class="x-banner x-error" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </p>
 
-    <p class="x-banner x-error" *ngIf="errorMessage">{{ errorMessage }}</p>
-    <p class="x-muted" *ngIf="loading">Loading dashboard...</p>
+    <p class="x-muted" *ngIf="loading">
+      Loading dashboard...
+    </p>
 
-    <!-- ================= KPI CARDS (all clickable) ================= -->
-
+    <!-- FOUR KPI CARDS ONLY -->
     <div class="stats-grid" *ngIf="stats">
 
-      <a class="stat-card stat-link"
-         *ngFor="let c of cards"
-         [routerLink]="c.link"
-         [queryParams]="c.query">
+      <a
+        class="stat-card stat-link"
+        *ngFor="let c of cards"
+        [routerLink]="c.link"
+        [queryParams]="c.query">
 
         <div class="stat-icon">{{ c.icon }}</div>
 
         <div class="stat-details">
           <span class="stat-title">{{ c.title }}</span>
           <h3>{{ c.value }}</h3>
-          <span [class.stat-warning]="c.warn" [class.stat-change]="!c.warn">{{ c.note }}</span>
+          <span
+            [class.stat-warning]="c.warn"
+            [class.stat-change]="!c.warn">
+            {{ c.note }}
+          </span>
         </div>
 
       </a>
 
     </div>
 
-    <!-- ================= CHART + STATUS BREAKDOWN ================= -->
-
+    <!-- CHART + REQUEST STATUS -->
     <div class="dashboard-grid" *ngIf="stats">
 
+      <!-- CHART -->
       <div class="chart-card">
 
         <div class="card-header">
@@ -181,6 +150,7 @@
             <h3>Requests &amp; Quotations per day</h3>
             <p>Last 14 days</p>
           </div>
+
           <div class="legend" *ngIf="hasChartData">
             <span><i class="dot dot-req"></i> Requests</span>
             <span><i class="dot dot-quo"></i> Quotations</span>
@@ -193,32 +163,80 @@
             No requests or quotations in the last 14 days.
           </div>
 
-          <svg *ngIf="hasChartData" [attr.viewBox]="'0 0 ' + W + ' ' + H" class="activity-chart"
-               role="img" aria-label="Requests and quotations per day">
+          <svg
+            *ngIf="hasChartData"
+            [attr.viewBox]="'0 0 ' + W + ' ' + H"
+            class="activity-chart"
+            role="img"
+            aria-label="Requests and quotations per day">
 
             <g *ngFor="let t of yTicks">
-              <line [attr.x1]="60" [attr.x2]="850" [attr.y1]="t.y" [attr.y2]="t.y"></line>
-              <text [attr.x]="50" [attr.y]="t.y + 4" text-anchor="end">{{ t.label }}</text>
+              <line
+                [attr.x1]="60"
+                [attr.x2]="850"
+                [attr.y1]="t.y"
+                [attr.y2]="t.y">
+              </line>
+
+              <text
+                [attr.x]="50"
+                [attr.y]="t.y + 4"
+                text-anchor="end">
+                {{ t.label }}
+              </text>
             </g>
 
-            <polyline [attr.points]="requestLine" fill="none" stroke-width="3" class="line-req"></polyline>
-            <polyline [attr.points]="quotationLine" fill="none" stroke-width="3" class="line-quo"></polyline>
+            <polyline
+              [attr.points]="requestLine"
+              fill="none"
+              stroke-width="3"
+              class="line-req">
+            </polyline>
 
-            <circle *ngFor="let p of requestPoints" [attr.cx]="p.x" [attr.cy]="p.y" r="4.5" class="pt-req">
-              <title>{{ p.label }}: {{ p.requests }} request(s), {{ p.quotations }} quotation(s)</title>
-            </circle>
-            <circle *ngFor="let p of quotationPoints" [attr.cx]="p.x" [attr.cy]="p.y" r="4.5" class="pt-quo">
-              <title>{{ p.label }}: {{ p.requests }} request(s), {{ p.quotations }} quotation(s)</title>
+            <polyline
+              [attr.points]="quotationLine"
+              fill="none"
+              stroke-width="3"
+              class="line-quo">
+            </polyline>
+
+            <circle
+              *ngFor="let p of requestPoints"
+              [attr.cx]="p.x"
+              [attr.cy]="p.y"
+              r="4.5"
+              class="pt-req">
+
+              <title>
+                {{ p.label }}: {{ p.requests }} request(s), {{ p.quotations }} quotation(s)
+              </title>
             </circle>
 
-            <text *ngFor="let l of xLabels" [attr.x]="l.x" [attr.y]="320" text-anchor="middle">{{ l.label }}</text>
+            <circle
+              *ngFor="let p of quotationPoints"
+              [attr.cx]="p.x"
+              [attr.cy]="p.y"
+              r="4.5"
+              class="pt-quo">
+
+              <title>
+                {{ p.label }}: {{ p.requests }} request(s), {{ p.quotations }} quotation(s)
+              </title>
+            </circle>
+
+            <text
+              *ngFor="let l of xLabels"
+              [attr.x]="l.x"
+              [attr.y]="320"
+              text-anchor="middle">
+              {{ l.label }}
+            </text>
 
           </svg>
-
         </div>
-
       </div>
 
+      <!-- REQUEST STATUS -->
       <div class="category-card">
 
         <div class="card-header">
@@ -230,12 +248,15 @@
 
         <div class="category-list">
 
-          <div class="x-empty" *ngIf="!hasGroupData">No quotation requests yet.</div>
+          <div class="x-empty" *ngIf="!hasGroupData">
+            No quotation requests yet.
+          </div>
 
-          <a class="category-item stat-link"
-             *ngFor="let g of groupRows"
-             routerLink="/quotation-requests"
-             [queryParams]="g.link">
+          <a
+            class="category-item stat-link"
+            *ngFor="let g of groupRows"
+            routerLink="/quotation-requests"
+            [queryParams]="g.link">
 
             <div class="category-top">
               <span>{{ g.label }}</span>
@@ -243,7 +264,11 @@
             </div>
 
             <div class="progress-bar">
-              <div class="progress" [style.width.%]="g.percentage" [style.background]="g.color"></div>
+              <div
+                class="progress"
+                [style.width.%]="g.percentage"
+                [style.background]="g.color">
+              </div>
             </div>
 
             <span class="percentage">{{ g.percentage }}%</span>
@@ -251,11 +276,9 @@
           </a>
 
         </div>
-
       </div>
 
     </div>
 
   </section>
-
 </div>

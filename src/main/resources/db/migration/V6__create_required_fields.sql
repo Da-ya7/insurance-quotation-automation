@@ -6,4 +6,4 @@ CREATE TABLE required_fields (
     policy_type VARCHAR(60) NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT uq_required_fields_name UNIQUE (field_name)
-);
+);123
