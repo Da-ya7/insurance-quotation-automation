@@ -113,6 +113,113 @@ public class PublicFormController {
             String code
     ) {}
 
+    
+@PostMapping("/profile-edit-otp/send")
+public ResponseEntity<?> sendProfileEditOtp(
+        @RequestBody ProfileEditOtpSendRequest body) {
+
+    if (body == null || body.verificationToken() == null
+            || body.verificationToken().isBlank()) {
+        return ResponseEntity.badRequest().body(Map.of(
+                "sent", false,
+                "message", "Phone verification is required."
+        ));
+    }
+
+    // Get the original OTP-verified phone. Never accept an edited
+    // phone number from the browser for this second verification.
+    String registeredPhone = otp.getVerifiedPhone(body.verificationToken());
+
+    if (registeredPhone == null) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "sent", false,
+                "message", "Your original phone verification has expired. Please verify again."
+        ));
+    }
+
+    try {
+        OtpService.NewCustomerSendResult result =
+                otp.sendNewCustomerOtp(registeredPhone);
+
+        return ResponseEntity.ok(Map.of(
+                "sent", true,
+                "challengeId", result.challengeId(),
+                "phoneMasked", result.phoneMasked(),
+                "expiresInSeconds", result.expiresInSeconds()
+        ));
+
+    } catch (OtpService.OtpException e) {
+        HttpStatus status = switch (e.getReason()) {
+            case NO_PHONE, INVALID_CHALLENGE -> HttpStatus.BAD_REQUEST;
+            case TOO_MANY_REQUESTS -> HttpStatus.TOO_MANY_REQUESTS;
+            case SEND_FAILED -> HttpStatus.BAD_GATEWAY;
+        };
+
+        return ResponseEntity.status(status).body(Map.of(
+                "sent", false,
+                "message", e.getMessage()
+        ));
+    }
+}
+
+@PostMapping("/profile-edit-otp/verify")
+public ResponseEntity<?> verifyProfileEditOtp(
+        @RequestBody ProfileEditOtpVerifyRequest body) {
+
+    if (body == null
+            || body.verificationToken() == null
+            || body.verificationToken().isBlank()
+            || body.challengeId() == null
+            || body.challengeId().isBlank()
+            || body.code() == null
+            || body.code().isBlank()) {
+
+        return ResponseEntity.badRequest().body(Map.of(
+                "verified", false,
+                "message", "Verification details are incomplete."
+        ));
+    }
+
+    String registeredPhone = otp.getVerifiedPhone(body.verificationToken());
+
+    if (registeredPhone == null) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "verified", false,
+                "message", "Your original phone verification has expired. Please verify again."
+        ));
+    }
+
+    OtpService.NewCustomerVerifyResult result =
+            otp.verifyNewCustomerOtp(body.challengeId(), body.code());
+
+    if (!result.verified() || result.verificationToken() == null) {
+        return ResponseEntity.badRequest().body(Map.of(
+                "verified", false,
+                "attemptsLeft", result.attemptsLeft(),
+                "message", result.message()
+        ));
+    }
+
+    // Ensure the second OTP was actually sent to the original
+    // registered phone, not to another phone number.
+    String secondVerifiedPhone =
+            otp.getVerifiedPhone(result.verificationToken());
+
+    if (secondVerifiedPhone == null
+            || !registeredPhone.equals(secondVerifiedPhone)) {
+        return ResponseEntity.badRequest().body(Map.of(
+                "verified", false,
+                "message", "The verification code does not belong to your registered phone number."
+        ));
+    }
+
+    return ResponseEntity.ok(Map.of(
+            "verified", true,
+            "verificationToken", result.verificationToken()
+    ));
+}
+
+
     // ---------------- dynamic form definition ----------------
 
     public record FormField(String fieldName, String displayLabel, String dataType,

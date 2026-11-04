@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.dto.request;
 
 import java.time.LocalDate;
@@ -28,16 +29,6 @@ public class QuotationFormRequest {
 
     // Separate OTP token used to authorize edits to saved Client Master details.
     private String profileEditVerificationToken;
-
-    private String profileEditVerificationToken;
-
-    public String getProfileEditVerificationToken() {
-    return profileEditVerificationToken;
-    }
-
-    public void setProfileEditVerificationToken(String profileEditVerificationToken) {
-        this.profileEditVerificationToken = profileEditVerificationToken;
-    }
 
     @NotBlank(message = "Departure country is required")
     @Size(max = 100)
