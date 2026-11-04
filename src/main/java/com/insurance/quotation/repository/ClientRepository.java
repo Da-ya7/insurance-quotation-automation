@@ -9,6 +9,8 @@ import com.insurance.quotation.entity.Client;
 
 public interface ClientRepository extends JpaRepository<Client, Long> {
 
+    List<Client> findAllByPhone(String phone);
+
     /** Several different people may share one email address. */
     List<Client> findAllByEmailIgnoreCase(String email);
 

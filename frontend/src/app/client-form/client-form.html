@@ -186,9 +186,23 @@
         <div class="cf-card">
           <h2>{{ form()!.label }}</h2>
 
-          <div class="cf-alert cf-alert-ok">
-            Phone verified successfully. You can now complete your application.
-          </div>
+          @if (customerType() === 'EXISTING') {
+            <div class="cf-alert cf-alert-info">
+              <strong>Welcome back!</strong>
+              Your existing customer details have been retrieved.
+              Please review your information and complete the insurance details.
+            </div>
+          } @else if (customerType() === 'NEW') {
+            <div class="cf-alert cf-alert-ok">
+              <strong>Phone verified successfully.</strong>
+              Please complete all three sections of your application.
+            </div>
+          } @else {
+            <div class="cf-alert cf-alert-ok">
+              Phone verified successfully. You can now complete your application.
+            </div>
+          }
+
         </div>
 
         <!-- PERSONAL DETAILS -->

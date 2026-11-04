@@ -1,9 +1,11 @@
 package com.insurance.quotation.controller;
 
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +32,7 @@ import com.insurance.quotation.service.master.MasterDataService;
 import com.insurance.quotation.service.otp.OtpService;
 import com.insurance.quotation.service.submission.GenericSubmissionService;
 import com.insurance.quotation.service.validation.ValidationService;
+import com.insurance.quotation.repository.ClientRepository;
 
 /** Everything the public (no login) forms need. */
 @RestController
@@ -43,12 +46,18 @@ public class PublicFormController {
     private final RequiredFieldRepository requiredFieldRepository;
     private final RequestFieldValueRepository fieldValueRepository;
     private final MissingFieldRepository missingFieldRepository;
+    private final ClientRepository clientRepository;
 
     public PublicFormController(
-            MasterDataService masterData, FormLinkService formLinks, OtpService otp,
-            GenericSubmissionService submissions, RequiredFieldRepository requiredFieldRepository,
+            MasterDataService masterData,
+            FormLinkService formLinks,
+            OtpService otp,
+            GenericSubmissionService submissions,
+            RequiredFieldRepository requiredFieldRepository,
             RequestFieldValueRepository fieldValueRepository,
-            MissingFieldRepository missingFieldRepository) {
+            MissingFieldRepository missingFieldRepository,
+            ClientRepository clientRepository) {
+
         this.masterData = masterData;
         this.formLinks = formLinks;
         this.otp = otp;
@@ -56,6 +65,7 @@ public class PublicFormController {
         this.requiredFieldRepository = requiredFieldRepository;
         this.fieldValueRepository = fieldValueRepository;
         this.missingFieldRepository = missingFieldRepository;
+        this.clientRepository = clientRepository;
     }
 
     // ---------------- master data for dropdowns ----------------
@@ -92,6 +102,16 @@ public class PublicFormController {
         return masterData.identityTypesForCountry(country, true).stream()
                 .map(t -> new IdentityOption(t.code(), t.label(), t.example())).toList();
     }
+
+    // ----
+
+    public record ProfileEditOtpSendRequest(String verificationToken) {}
+
+    public record ProfileEditOtpVerifyRequest(
+            String verificationToken,
+            String challengeId,
+            String code
+    ) {}
 
     // ---------------- dynamic form definition ----------------
 
@@ -156,7 +176,8 @@ public class PublicFormController {
     public ResponseEntity<?> verifyNewCustomerOtp(
             @RequestBody NewCustomerOtpVerifyRequest body) {
 
-        if (body == null || body.challengeId() == null || body.code() == null) {
+        if (body == null || body.challengeId() == null
+                || body.code() == null || body.code().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of(
                     "verified", false,
                     "message", "Challenge ID and OTP are required."
@@ -175,10 +196,68 @@ public class PublicFormController {
                 ));
             }
 
-            return ResponseEntity.ok(Map.of(
-                    "verified", true,
-                    "verificationToken", result.verificationToken()
-            ));
+            String verificationToken = result.verificationToken();
+
+            // Never trust a phone number supplied by the browser for lookup.
+            String verifiedPhone = otp.getVerifiedPhone(verificationToken);
+
+            if (verifiedPhone == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "verified", false,
+                        "message", "OTP verification expired. Please verify again."
+                ));
+            }
+
+            // Normalize both stored and verified phone numbers.
+            List<Client> matches = clientRepository.findAll().stream()
+                    .filter(client -> client.getPhone() != null)
+                    .filter(client -> client.getPhone()
+                            .replaceAll("\\D", "")
+                            .equals(verifiedPhone))
+                    .toList();
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("verified", true);
+            response.put("verificationToken", verificationToken);
+
+            if (matches.isEmpty()) {
+                response.put("customerType", "NEW");
+                response.put("client", null);
+
+            } else if (matches.size() > 1) {
+                // Shared phone: do not disclose or automatically select a profile.
+                response.put("customerType", "AMBIGUOUS");
+                response.put("client", null);
+                response.put("message",
+                        "Multiple customer records use this phone number. "
+                        + "Additional verification is required.");
+
+            } else {
+                Client client = matches.get(0);
+
+                Map<String, Object> profile = new LinkedHashMap<>();
+                profile.put("clientId", client.getId());
+                profile.put("clientCode", client.getClientCode());
+                profile.put("name", client.getName());
+                profile.put("email", client.getEmail());
+                profile.put("phoneMasked", maskCustomerPhone(client.getPhone()));
+                profile.put("dateOfBirth", client.getDateOfBirth());
+                profile.put("gender", client.getGender());
+                profile.put("nationality", client.getNationality());
+                profile.put("countryOfResidence", client.getCountryOfResidence());
+                profile.put("identityCountry", client.getIdentityCountry());
+                profile.put("identityType", client.getIdentityType());
+
+                String last4 = client.getIdentityNumberLast4();
+                profile.put("identityNumberMasked",
+                        last4 == null || last4.isBlank()
+                                ? null : "••••" + last4);
+
+                response.put("customerType", "EXISTING");
+                response.put("client", profile);
+            }
+
+            return ResponseEntity.ok(response);
 
         } catch (OtpService.OtpException e) {
             return ResponseEntity.badRequest().body(Map.of(
@@ -187,6 +266,7 @@ public class PublicFormController {
             ));
         }
     }
+
 
     // ---------------- personal form links ----------------
 
@@ -300,5 +380,19 @@ public class PublicFormController {
             throw new ResponseStatusException(HttpStatus.GONE, "This link has expired.");
         }
         return link;
+    }
+
+    private String maskCustomerPhone(String phone) {
+        if (phone == null || phone.isBlank()) {
+            return "";
+        }
+
+        String digits = phone.replaceAll("\\D", "");
+
+        if (digits.length() <= 4) {
+            return "••••";
+        }
+
+        return "••••••" + digits.substring(digits.length() - 4);
     }
 }

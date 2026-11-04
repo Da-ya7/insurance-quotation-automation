@@ -2,9 +2,17 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
+
 import {
-  ApiService, ApplicantPayload, FormLink, PublicCountry, PublicForm,
-  PublicIdentityType, PublicInsuranceType, SubmissionResult
+  ApiService,
+  ApplicantPayload,
+  ExistingCustomerProfile,
+  FormLink,
+  PublicCountry,
+  PublicForm,
+  PublicIdentityType,
+  PublicInsuranceType,
+  SubmissionResult
 } from '../core/api.service';
 import { errorMessage } from '../core/http-error';
 
@@ -46,6 +54,8 @@ export class ClientForm {
   // New-customer OTP challenge and verification token.
   challengeId = signal<string | null>(null);
   verificationToken = signal<string | null>(null);
+  customerType = signal<'NEW' | 'EXISTING' | 'AMBIGUOUS' | null>(null);
+
 
   token: string | null = null;
 
@@ -166,6 +176,27 @@ export class ClientForm {
     }
   }
 
+  private applyNewCustomerPrefill(c: ExistingCustomerProfile) {
+    // Preserve the phone number entered and verified by the customer.
+    const verifiedPhone = this.a.phone;
+
+    this.a.name = c.name;
+    this.a.email = c.email;
+    this.a.phone = verifiedPhone;
+    this.a.dateOfBirth = c.dateOfBirth;
+    this.a.gender = c.gender;
+    this.a.nationality = c.nationality;
+    this.a.countryOfResidence = c.countryOfResidence;
+    this.a.identityCountry = c.identityCountry;
+    this.a.identityType = c.identityType;
+
+    // Never prefill a masked ID as if it were the actual ID number.
+    this.a.identityNumber = null;
+
+    // Load the identity types for the customer's saved identity country.
+    this.refreshIdTypes();
+  }
+
   onNewPhoneChange() {
     // A newly entered phone number requires a fresh OTP challenge.
     if (!this.token) {
@@ -175,6 +206,7 @@ export class ClientForm {
       this.challengeId.set(null);
       this.verificationToken.set(null);
       this.unlocked.set(false);
+      this.customerType.set(null);
     }
   }
 
@@ -238,7 +270,9 @@ export class ClientForm {
     this.busy.set(true);
     this.otpMsg.set('');
 
-    // Returning customer: verify the personal form-link OTP.
+    // ------------------------------------------------------------
+    // Returning customer: preserve the existing email form-link flow.
+    // ------------------------------------------------------------
     if (this.token) {
       this.api.verifyOtp(this.token, code).subscribe({
         next: r => {
@@ -248,7 +282,9 @@ export class ClientForm {
             this.unlocked.set(true);
             this.otpMsg.set('Phone verified successfully.');
           } else {
-            this.otpMsg.set(r.message || 'Incorrect verification code.');
+            this.otpMsg.set(
+              r.message || 'Incorrect verification code.'
+            );
           }
         },
         error: e => {
@@ -260,7 +296,9 @@ export class ClientForm {
       return;
     }
 
-    // New customer: verify the phone challenge and receive a submission token.
+    // ------------------------------------------------------------
+    // New customer: verify OTP and identify Client Master record.
+    // ------------------------------------------------------------
     const challenge = this.challengeId();
 
     if (!challenge) {
@@ -273,14 +311,74 @@ export class ClientForm {
       next: r => {
         this.busy.set(false);
 
-        if (r.verified && r.verificationToken) {
-          this.verificationToken.set(r.verificationToken);
-          this.unlocked.set(true);
-          this.otpMsg.set('Phone verified successfully.');
-        } else {
-          this.otpMsg.set(r.message || 'Incorrect verification code.');
+        if (!r.verified || !r.verificationToken) {
+          this.otpMsg.set(
+            r.message || 'Incorrect verification code.'
+          );
+          return;
         }
+
+        // Save the backend-issued token for quotation submission.
+        this.verificationToken.set(r.verificationToken);
+
+        // --------------------------------------------------------
+        // CASE 1: Existing customer found.
+        // --------------------------------------------------------
+        if (r.customerType === 'EXISTING' && r.client) {
+          this.customerType.set('EXISTING');
+
+          this.applyNewCustomerPrefill(r.client);
+
+          this.unlocked.set(true);
+
+          this.otpMsg.set(
+            'Phone verified. Your existing customer details have been loaded. Please review them and complete your insurance details.'
+          );
+
+          return;
+        }
+
+        // --------------------------------------------------------
+        // CASE 2: New customer.
+        // --------------------------------------------------------
+        if (r.customerType === 'NEW') {
+          this.customerType.set('NEW');
+
+          this.unlocked.set(true);
+
+          this.otpMsg.set(
+            'Phone verified successfully. Please complete your customer details and insurance information.'
+          );
+
+          return;
+        }
+
+        // --------------------------------------------------------
+        // CASE 3: Multiple customers share the same phone.
+        // Do not disclose or select any customer profile.
+        // --------------------------------------------------------
+        if (r.customerType === 'AMBIGUOUS') {
+          this.customerType.set('AMBIGUOUS');
+
+          this.verificationToken.set(null);
+          this.unlocked.set(false);
+
+          this.otpMsg.set(
+            'This phone number is associated with multiple customer records. We cannot safely identify your profile automatically. Please contact our team for assistance.'
+          );
+
+          return;
+        }
+
+        // Unexpected or incomplete backend response: fail closed.
+        this.verificationToken.set(null);
+        this.unlocked.set(false);
+
+        this.otpMsg.set(
+          'We could not identify your customer record. Please contact our team for assistance.'
+        );
       },
+
       error: e => {
         this.otpMsg.set(errorMessage(e));
         this.busy.set(false);
@@ -321,9 +419,15 @@ export class ClientForm {
 
     if (!code) return;
 
-    // Extra UI protection. Backend must also enforce OTP verification.
     if (!this.unlocked()) {
       this.error.set('Please verify your phone number before submitting.');
+      return;
+    }
+
+    // New-customer OTP verification must have produced a valid token.
+    if (!this.token && !this.verificationToken()) {
+      this.error.set('Your phone verification has expired. Please verify again.');
+      this.unlocked.set(false);
       return;
     }
 
@@ -336,12 +440,17 @@ export class ClientForm {
       insuranceType: code,
       applicant,
       fields: this.values,
-      ...(!this.token
-        ? { verificationToken: this.verificationToken() ?? undefined }
+      ...(!this.token && this.verificationToken()
+        ? { verificationToken: this.verificationToken()! }
         : {})
     };
 
-    this.api.submitForm(code, this.token, payload).subscribe({
+    // Travel has its own dedicated backend submission endpoint.
+    const request$ = code.toUpperCase() === 'TRAVEL'
+      ? this.api.submitQuotationForm(payload, this.token)
+      : this.api.submitForm(code, this.token, payload);
+
+    request$.subscribe({
       next: r => {
         this.result.set(r);
         this.busy.set(false);
@@ -352,6 +461,7 @@ export class ClientForm {
       }
     });
   }
+
 
   private fail(e: unknown, fallback?: string) {
     this.error.set(errorMessage(e, fallback));

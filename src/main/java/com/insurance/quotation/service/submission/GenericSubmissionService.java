@@ -1,4 +1,3 @@
-
 package com.insurance.quotation.service.submission;
 
 import java.time.LocalDate;
@@ -36,10 +35,6 @@ import com.insurance.quotation.service.quotation.QuotationWorkflowService;
 import com.insurance.quotation.service.stats.RequestStatusInfo;
 import com.insurance.quotation.service.validation.ValidationService;
 
-/**
- * Web-form submission for every insurance type except TRAVEL (which keeps its
- * own traveller form). Works with or without a personal form link.
- */
 @Service
 public class GenericSubmissionService {
 
@@ -57,17 +52,27 @@ public class GenericSubmissionService {
     }
 
     public record Submission(
-            String insuranceType,
-            Applicant applicant,
-            Map<String, String> fields,
-            String verificationToken) {
-
-        // Retains compatibility with existing Java callers using 3 arguments.
+                String insuranceType,
+                Applicant applicant,
+                Map<String, String> fields,
+                String verificationToken,
+                String profileEditVerificationToken
+        ) {
         public Submission(
                 String insuranceType,
                 Applicant applicant,
-                Map<String, String> fields) {
-            this(insuranceType, applicant, fields, null);
+                Map<String, String> fields
+        ) {
+                this(insuranceType, applicant, fields, null, null);
+        }
+
+        public Submission(
+                String insuranceType,
+                Applicant applicant,
+                Map<String, String> fields,
+                String verificationToken
+        ) {
+                this(insuranceType, applicant, fields, verificationToken, null);
         }
     }
 
@@ -81,7 +86,6 @@ public class GenericSubmissionService {
             List<String> blockedFields) {
     }
 
-    /** Fields collected in the applicant block, not in the dynamic list. */
     public static final List<String> APPLICANT_FIELDS = List.of(
             "name", "email", "phone", "policyType", "dateOfBirth",
             "identityType", "identityNumber", "identityCountry",
@@ -125,8 +129,7 @@ public class GenericSubmissionService {
     public Result submit(String token, String pathType, Submission body) {
 
         if (body == null || body.applicant() == null) {
-            throw new IllegalArgumentException(
-                    "Applicant details are required.");
+            throw new IllegalArgumentException("Applicant details are required.");
         }
 
         FormLinkService.FormLink link = null;
@@ -144,49 +147,35 @@ public class GenericSubmissionService {
 
         Applicant a = body.applicant();
 
-        // ============================================================
-        // 1. MANDATORY PHONE OTP VERIFICATION
-        // ============================================================
-
-        if (isBlank(a.phone())) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "A verified phone number is required.");
-        }
-
-        boolean otpOk;
-
         if (link != null) {
-            // Returning customer: verification must belong to this link.
-            otpOk = otp.isVerified(link.token());
+            if (!otp.isVerified(link.token())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Please verify your phone number before submitting.");
+            }
         } else {
-            // New customer: verification token must match submitted phone.
-            otpOk = otp.isPhoneVerified(
-                    body.verificationToken(),
-                    a.phone());
-        }
+            String originalVerifiedPhone =
+                    otp.getVerifiedPhone(body.verificationToken());
 
-        if (!otpOk) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Please verify your phone number before submitting the form.");
+            if (originalVerifiedPhone == null
+                    || !otp.isPhoneVerified(
+                            body.verificationToken(),
+                            originalVerifiedPhone)) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Your phone verification has expired. Please verify again.");
+            }
         }
-
-        // ============================================================
-        // 2. RETURNING CUSTOMER PREFILL
-        // ============================================================
 
         if (link != null && link.clientId() != null) {
             Client known = clientRepository.findById(link.clientId())
                     .orElse(null);
 
-            if (known != null
-                    && (isBlank(a.name()) || isBlank(a.email()))) {
-
+            if (known != null) {
                 a = new Applicant(
-                        isBlank(a.name()) ? known.getName() : a.name(),
-                        isBlank(a.email()) ? known.getEmail() : a.email(),
-                        a.phone(),
+                        firstNonBlank(a.name(), known.getName()),
+                        firstNonBlank(a.email(), known.getEmail()),
+                        firstNonBlank(a.phone(), known.getPhone()),
                         a.dateOfBirth(),
                         a.gender(),
                         a.nationality(),
@@ -198,13 +187,12 @@ public class GenericSubmissionService {
         }
 
         if (isBlank(a.name()) || isBlank(a.email())) {
-            throw new IllegalArgumentException(
-                    "Name and email are required.");
+            throw new IllegalArgumentException("Name and email are required.");
         }
 
-        // ============================================================
-        // 3. VALIDATE INSURANCE TYPE
-        // ============================================================
+        if (isBlank(a.phone())) {
+            throw new IllegalArgumentException("Phone number is required.");
+        }
 
         String type = firstNonBlank(
                 body.insuranceType(),
@@ -221,9 +209,21 @@ public class GenericSubmissionService {
                     "Travel insurance uses the travel quotation form.");
         }
 
-        // ============================================================
-        // 4. CLIENT MASTER
-        // ============================================================
+        String originalVerifiedPhone = link == null
+                ? otp.getVerifiedPhone(body.verificationToken())
+                : null;
+
+        boolean profileEditOtpOk;
+
+        if (link != null) {
+            profileEditOtpOk = otp.isVerified(link.token());
+        } else {
+            profileEditOtpOk =
+                    originalVerifiedPhone != null
+                    && otp.isPhoneVerified(
+                            body.profileEditVerificationToken(),
+                            originalVerifiedPhone);
+        }
 
         ClientMasterService.ClientDetails details =
                 new ClientMasterService.ClientDetails(
@@ -241,15 +241,53 @@ public class GenericSubmissionService {
         ClientMasterService.ApplyResult applied;
 
         if (link != null && link.clientId() != null) {
+
             Client linked = clientRepository.findById(link.clientId())
                     .orElseThrow(() -> new IllegalArgumentException(
                             "This link is not valid."));
 
             applied = clientMaster.apply(
-                    linked, details, "FORM", "CUSTOMER_FORM", otpOk);
+                    linked,
+                    details,
+                    "FORM",
+                    "CUSTOMER_FORM",
+                    profileEditOtpOk);
+
+        } else if (link == null) {
+
+            List<Client> phoneMatches =
+                    findClientsByPhone(originalVerifiedPhone);
+
+            if (phoneMatches.size() > 1) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Multiple customer records use this verified phone number. Please contact our team.");
+            }
+
+            if (phoneMatches.size() == 1) {
+                // Keep the same Client ID even if email or phone was edited.
+                applied = clientMaster.apply(
+                        phoneMatches.get(0),
+                        details,
+                        "FORM",
+                        "CUSTOMER_FORM",
+                        profileEditOtpOk);
+            } else {
+                // A genuinely new customer. Initial OTP is enough to create
+                // the first profile; it is not permission to edit a saved one.
+                applied = clientMaster.findOrCreateAndApply(
+                        details,
+                        "FORM",
+                        "CUSTOMER_FORM",
+                        false);
+            }
+
         } else {
             applied = clientMaster.findOrCreateAndApply(
-                    details, "FORM", "CUSTOMER_FORM", otpOk);
+                    details,
+                    "FORM",
+                    "CUSTOMER_FORM",
+                    profileEditOtpOk);
         }
 
         Client client = applied.client();
@@ -258,23 +296,26 @@ public class GenericSubmissionService {
             return new Result(
                     null,
                     "OTP_REQUIRED",
-                    "Verification needed",
+                    "Additional verification required",
                     null,
-                    link == null
-                            ? "Your details are already saved. Use the personal link from our email to change them."
-                            : "To change saved personal details please verify the code sent to your registered phone.",
+                    "Some saved customer details have changed. Please verify the OTP sent to your registered phone number to authorize these changes.",
                     List.of(),
                     applied.blocked());
         }
 
-        // ============================================================
-        // 5. QUOTATION REQUEST
-        // ============================================================
+        // Consume the separate edit token only after the changes are accepted.
+        if (link == null
+                && body.profileEditVerificationToken() != null
+                && !body.profileEditVerificationToken().isBlank()) {
+
+            otp.consumePhoneVerification(
+                    body.profileEditVerificationToken(),
+                    originalVerifiedPhone);
+        }
 
         QuotationRequest request =
                 link != null && link.requestId() != null
-                        ? requestRepository.findById(link.requestId())
-                                .orElse(null)
+                        ? requestRepository.findById(link.requestId()).orElse(null)
                         : null;
 
         if (request == null) {
@@ -297,10 +338,6 @@ public class GenericSubmissionService {
                         request.getId())
                 .isPresent();
 
-        // ============================================================
-        // 6. DYNAMIC INSURANCE FIELDS
-        // ============================================================
-
         List<RequiredField> forType = requiredFieldRepository
                 .findByIsActiveTrueOrderBySortOrderAscIdAsc()
                 .stream()
@@ -310,8 +347,7 @@ public class GenericSubmissionService {
         Map<String, String> saved = new HashMap<>();
 
         for (RequestFieldValue v :
-                fieldValueRepository.findByQuotationRequestId(
-                        request.getId())) {
+                fieldValueRepository.findByQuotationRequestId(request.getId())) {
 
             if (v.getRequiredField() != null) {
                 saved.put(
@@ -345,23 +381,21 @@ public class GenericSubmissionService {
                     n,
                     value == null
                             ? null
-                            : ValueNormalizer.normalize(
-                                    value, rf.getDataType()),
+                            : ValueNormalizer.normalize(value, rf.getDataType()),
                     rf.getDataType(),
                     FieldSource.MANUAL_ENTRY,
                     1.0,
                     isBlank(value)));
         }
 
-        // ============================================================
-        // 7. QUOTATION WORKFLOW
-        // ============================================================
-
         QuotationWorkflowService.Outcome outcome =
                 workflow.process(request, client, fields, hadQuotation);
 
-        // Consume a new-customer token after the workflow has returned.
-        consumeNewCustomerOtpIfRequired(link, body, a);
+        if (link == null) {
+            otp.consumePhoneVerification(
+                    body.verificationToken(),
+                    originalVerifiedPhone);
+        }
 
         if (link != null
                 && outcome.result()
@@ -388,9 +422,7 @@ public class GenericSubmissionService {
                             List.of());
 
             case MISSING_INFORMATION -> {
-                List<String> all =
-                        new ArrayList<>(outcome.missingFields());
-
+                List<String> all = new ArrayList<>(outcome.missingFields());
                 all.addAll(outcome.invalidFields());
 
                 yield new Result(
@@ -428,47 +460,35 @@ public class GenericSubmissionService {
         };
     }
 
-    private void consumeNewCustomerOtpIfRequired(
-            FormLinkService.FormLink link,
-            Submission body,
-            Applicant applicant) {
-
-        if (link != null) {
-            return;
+    private List<Client> findClientsByPhone(String verifiedPhone) {
+        if (verifiedPhone == null || verifiedPhone.isBlank()) {
+            return List.of();
         }
 
-        boolean consumed = otp.consumePhoneVerification(
-                body.verificationToken(),
-                applicant.phone());
-
-        if (!consumed) {
-            // The workflow has already returned. Record this for investigation.
-            // The submission result should not be discarded at this stage.
-            org.slf4j.LoggerFactory.getLogger(
-                    GenericSubmissionService.class).warn(
-                    "Could not consume phone verification token after accepting generic form submission.");
-        }
+        return clientRepository.findAll().stream()
+                .filter(c -> c.getPhone() != null)
+                .filter(c -> digits(c.getPhone()).equals(verifiedPhone))
+                .toList();
     }
 
-    /** Finds the current client of a link (for prefill). */
     public Optional<Client> clientOf(FormLinkService.FormLink link) {
         return link.clientId() == null
                 ? Optional.empty()
                 : clientRepository.findById(link.clientId());
     }
 
-    private static String digits(String v) {
-        return v == null ? null : v.replaceAll("\\D", "");
+    private static String digits(String value) {
+        return value == null ? "" : value.replaceAll("\\D", "");
     }
 
-    private static boolean isBlank(String s) {
-        return s == null || s.isBlank();
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private static String firstNonBlank(String... values) {
-        for (String v : values) {
-            if (!isBlank(v)) {
-                return v.trim();
+        for (String value : values) {
+            if (!isBlank(value)) {
+                return value.trim();
             }
         }
         return null;

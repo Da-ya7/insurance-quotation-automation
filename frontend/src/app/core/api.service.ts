@@ -1,3 +1,4 @@
+
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
@@ -110,8 +111,23 @@ export interface RequestDetailDto extends RequestDto {
   travellerDetails: TravellerDetail[];
   quotationId: number | null;
   totalAmount: number | null;
-  emails: { id: number; subject: string; kind: string | null; kindLabel: string | null; receivedAt: string; status: string }[];
-  quotations: { id: number; quotationNumber: string; versionNo: number; status: string; total: number; createdAt: string; sentAt: string | null }[];
+  emails: {
+    id: number;
+    subject: string;
+    kind: string | null;
+    kindLabel: string | null;
+    receivedAt: string;
+    status: string;
+  }[];
+  quotations: {
+    id: number;
+    quotationNumber: string;
+    versionNo: number;
+    status: string;
+    total: number;
+    createdAt: string;
+    sentAt: string | null;
+  }[];
   missing: { field: string; fieldName: string; status: string }[];
 }
 
@@ -322,9 +338,21 @@ export interface SubmissionResult {
   blockedFields?: string[];
 }
 
-export interface PublicInsuranceType { code: string; label: string; }
-export interface PublicCountry { code: string; name: string; }
-export interface PublicIdentityType { code: string; label: string; example: string | null; }
+export interface PublicInsuranceType {
+  code: string;
+  label: string;
+}
+
+export interface PublicCountry {
+  code: string;
+  name: string;
+}
+
+export interface PublicIdentityType {
+  code: string;
+  label: string;
+  example: string | null;
+}
 
 export interface PublicFormField {
   fieldName: string;
@@ -366,8 +394,18 @@ export interface FormLink {
   prefill: Record<string, string>;
 }
 
-export interface OtpSendResult { sent: boolean; phoneMasked: string; expiresInSeconds: number; }
-export interface OtpVerifyResult { verified: boolean; attemptsLeft?: number; message?: string; }
+export interface OtpSendResult {
+  sent: boolean;
+  phoneMasked: string;
+  expiresInSeconds: number;
+}
+
+export interface OtpVerifyResult {
+  verified: boolean;
+  attemptsLeft?: number;
+  message?: string;
+}
+
 export interface NewCustomerOtpSendResult {
   sent: boolean;
   challengeId: string;
@@ -375,7 +413,49 @@ export interface NewCustomerOtpSendResult {
   expiresInSeconds: number;
 }
 
+/**
+ * Public profile returned only after successful phone OTP verification.
+ * Sensitive identity numbers are intentionally masked.
+ */
+export interface ExistingCustomerProfile {
+  clientId: number;
+  clientCode: string;
+  name: string | null;
+  email: string | null;
+  phoneMasked: string | null;
+  dateOfBirth: string | null;
+  gender: string | null;
+  nationality: string | null;
+  countryOfResidence: string | null;
+  identityCountry: string | null;
+  identityType: string | null;
+  identityNumberMasked: string | null;
+}
+
+/**
+ * Result of verifying a new-customer OTP:
+ * NEW       - no matching Client Master record
+ * EXISTING  - exactly one matching Client Master record
+ * AMBIGUOUS - multiple Client Master records share this phone
+ */
 export interface NewCustomerOtpVerifyResult {
+  verified: boolean;
+  verificationToken?: string;
+  attemptsLeft?: number;
+  message?: string;
+  customerType?: 'NEW' | 'EXISTING' | 'AMBIGUOUS';
+  client?: ExistingCustomerProfile | null;
+}
+
+export interface ProfileEditOtpSendResult {
+  sent: boolean;
+  challengeId: string;
+  phoneMasked: string;
+  expiresInSeconds: number;
+  message?: string;
+}
+
+export interface ProfileEditOtpVerifyResult {
   verified: boolean;
   verificationToken?: string;
   attemptsLeft?: number;
@@ -404,11 +484,13 @@ export interface FormSubmitPayload {
 
 function params(obj: Record<string, string | null | undefined>): HttpParams {
   let p = new HttpParams();
+
   for (const [k, v] of Object.entries(obj)) {
     if (v !== null && v !== undefined && v !== '') {
       p = p.set(k, v);
     }
   }
+
   return p;
 }
 
@@ -436,7 +518,9 @@ export class ApiService {
 
   // ---- emails
   emails(kind?: string | null, status?: string | null): Observable<EmailDto[]> {
-    return this.http.get<EmailDto[]>('/api/emails', { params: params({ kind, status }) });
+    return this.http.get<EmailDto[]>('/api/emails', {
+      params: params({ kind, status })
+    });
   }
 
   emailSummary(): Observable<EmailSummary> {
@@ -445,7 +529,9 @@ export class ApiService {
 
   // ---- requests
   requests(status?: string | null, group?: string | null): Observable<RequestDto[]> {
-    return this.http.get<RequestDto[]>('/api/requests', { params: params({ status, group }) });
+    return this.http.get<RequestDto[]>('/api/requests', {
+      params: params({ status, group })
+    });
   }
 
   requestSummary(): Observable<RequestSummary> {
@@ -458,7 +544,9 @@ export class ApiService {
 
   // ---- missing information
   missingInformation(status: string = 'OPEN'): Observable<MissingDto[]> {
-    return this.http.get<MissingDto[]>('/api/missing-information', { params: params({ status }) });
+    return this.http.get<MissingDto[]>('/api/missing-information', {
+      params: params({ status })
+    });
   }
 
   missingSummary(): Observable<MissingSummary> {
@@ -467,7 +555,9 @@ export class ApiService {
 
   // ---- quotations
   quotations(status?: string | null): Observable<QuotationDto[]> {
-    return this.http.get<QuotationDto[]>('/api/quotations', { params: params({ status }) });
+    return this.http.get<QuotationDto[]>('/api/quotations', {
+      params: params({ status })
+    });
   }
 
   quotationSummary(): Observable<QuotationSummary> {
@@ -483,7 +573,9 @@ export class ApiService {
   }
 
   quotationPdf(id: number): Observable<Blob> {
-    return this.http.get(`/api/quotations/${id}/pdf`, { responseType: 'blob' });
+    return this.http.get(`/api/quotations/${id}/pdf`, {
+      responseType: 'blob'
+    });
   }
 
   // ---- clients
@@ -507,36 +599,53 @@ export class ApiService {
   insuranceTypes(): Observable<InsuranceTypeDto[]> {
     return this.http.get<InsuranceTypeDto[]>('/api/master/insurance-types');
   }
+
   createInsuranceType(body: Partial<InsuranceTypeDto>): Observable<InsuranceTypeDto> {
     return this.http.post<InsuranceTypeDto>('/api/master/insurance-types', body);
   }
+
   updateInsuranceType(code: string, body: Partial<InsuranceTypeDto>): Observable<InsuranceTypeDto> {
-    return this.http.put<InsuranceTypeDto>(`/api/master/insurance-types/${encodeURIComponent(code)}`, body);
+    return this.http.put<InsuranceTypeDto>(
+      `/api/master/insurance-types/${encodeURIComponent(code)}`,
+      body
+    );
   }
 
   countries(): Observable<CountryDto[]> {
     return this.http.get<CountryDto[]>('/api/master/countries');
   }
+
   updateCountry(code: string, body: { name: string; active: boolean }): Observable<CountryDto> {
-    return this.http.put<CountryDto>(`/api/master/countries/${encodeURIComponent(code)}`, body);
+    return this.http.put<CountryDto>(
+      `/api/master/countries/${encodeURIComponent(code)}`,
+      body
+    );
   }
 
   identityTypes(country?: string | null): Observable<IdentityTypeDto[]> {
-    return this.http.get<IdentityTypeDto[]>('/api/master/identity-types', { params: params({ country }) });
+    return this.http.get<IdentityTypeDto[]>('/api/master/identity-types', {
+      params: params({ country })
+    });
   }
+
   createIdentityType(body: Partial<IdentityTypeDto>): Observable<IdentityTypeDto> {
     return this.http.post<IdentityTypeDto>('/api/master/identity-types', body);
   }
+
   updateIdentityType(id: number, body: Partial<IdentityTypeDto>): Observable<IdentityTypeDto> {
     return this.http.put<IdentityTypeDto>(`/api/master/identity-types/${id}`, body);
   }
 
   requiredFields(insuranceType?: string | null): Observable<RequiredFieldDto[]> {
-    return this.http.get<RequiredFieldDto[]>('/api/master/required-fields', { params: params({ insuranceType }) });
+    return this.http.get<RequiredFieldDto[]>('/api/master/required-fields', {
+      params: params({ insuranceType })
+    });
   }
+
   createRequiredField(body: Partial<RequiredFieldDto>): Observable<RequiredFieldDto> {
     return this.http.post<RequiredFieldDto>('/api/master/required-fields', body);
   }
+
   updateRequiredField(id: number, body: Partial<RequiredFieldDto>): Observable<RequiredFieldDto> {
     return this.http.put<RequiredFieldDto>(`/api/master/required-fields/${id}`, body);
   }
@@ -544,24 +653,50 @@ export class ApiService {
   emailKeywords(): Observable<EmailKeywordDto[]> {
     return this.http.get<EmailKeywordDto[]>('/api/master/email-keywords');
   }
+
   createEmailKeyword(keyword: string): Observable<EmailKeywordDto> {
     return this.http.post<EmailKeywordDto>('/api/master/email-keywords', { keyword });
   }
+
   updateEmailKeyword(id: number, active: boolean): Observable<EmailKeywordDto> {
     return this.http.put<EmailKeywordDto>(`/api/master/email-keywords/${id}`, { active });
   }
+
   deleteEmailKeyword(id: number): Observable<unknown> {
     return this.http.delete(`/api/master/email-keywords/${id}`);
   }
 
   // ---- public (no login)
 
-    // ---- new customer phone verification
-
+  // ---- new customer phone verification
   sendNewCustomerOtp(phone: string): Observable<NewCustomerOtpSendResult> {
     return this.http.post<NewCustomerOtpSendResult>(
       '/api/public/phone-otp/send',
       { phone }
+    );
+  }
+
+  sendProfileEditOtp(
+    verificationToken: string
+  ): Observable<ProfileEditOtpSendResult> {
+    return this.http.post<ProfileEditOtpSendResult>(
+      '/api/public/profile-edit-otp/send',
+      { verificationToken }
+    );
+  }
+
+  verifyProfileEditOtp(
+    verificationToken: string,
+    challengeId: string,
+    code: string
+  ): Observable<ProfileEditOtpVerifyResult> {
+    return this.http.post<ProfileEditOtpVerifyResult>(
+      '/api/public/profile-edit-otp/verify',
+      {
+        verificationToken,
+        challengeId,
+        code
+      }
     );
   }
 
@@ -574,38 +709,68 @@ export class ApiService {
       { challengeId, code }
     );
   }
-  
+
   publicInsuranceTypes(): Observable<PublicInsuranceType[]> {
     return this.http.get<PublicInsuranceType[]>('/api/public/master/insurance-types');
   }
+
   publicCountries(): Observable<PublicCountry[]> {
     return this.http.get<PublicCountry[]>('/api/public/master/countries');
   }
+
   publicIdentityTypes(country: string): Observable<PublicIdentityType[]> {
-    return this.http.get<PublicIdentityType[]>('/api/public/master/identity-types', { params: params({ country }) });
+    return this.http.get<PublicIdentityType[]>(
+      '/api/public/master/identity-types',
+      { params: params({ country }) }
+    );
   }
+
   publicForm(type: string): Observable<PublicForm> {
-    return this.http.get<PublicForm>(`/api/public/forms/${encodeURIComponent(type)}`);
+    return this.http.get<PublicForm>(
+      `/api/public/forms/${encodeURIComponent(type)}`
+    );
   }
+
   formLink(token: string): Observable<FormLink> {
-    return this.http.get<FormLink>(`/api/public/form-links/${encodeURIComponent(token)}`);
+    return this.http.get<FormLink>(
+      `/api/public/form-links/${encodeURIComponent(token)}`
+    );
   }
+
   sendOtp(token: string): Observable<OtpSendResult> {
-    return this.http.post<OtpSendResult>(`/api/public/form-links/${encodeURIComponent(token)}/otp/send`, {});
+    return this.http.post<OtpSendResult>(
+      `/api/public/form-links/${encodeURIComponent(token)}/otp/send`,
+      {}
+    );
   }
+
   verifyOtp(token: string, code: string): Observable<OtpVerifyResult> {
-    return this.http.post<OtpVerifyResult>(`/api/public/form-links/${encodeURIComponent(token)}/otp/verify`, { code });
+    return this.http.post<OtpVerifyResult>(
+      `/api/public/form-links/${encodeURIComponent(token)}/otp/verify`,
+      { code }
+    );
   }
-  submitForm(type: string, token: string | null, payload: FormSubmitPayload): Observable<SubmissionResult> {
+
+  submitForm(
+    type: string,
+    token: string | null,
+    payload: FormSubmitPayload
+  ): Observable<SubmissionResult> {
     const url = token
       ? `/api/public/form-links/${encodeURIComponent(token)}/submit`
       : `/api/public/forms/${encodeURIComponent(type)}/submit`;
+
     return this.http.post<SubmissionResult>(url, payload);
   }
 
-  submitQuotationForm(payload: unknown, token?: string | null): Observable<SubmissionResult> {
-    return this.http.post<SubmissionResult>('/api/public/quotation-requests', payload, {
-      params: params({ token })
-    });
+  submitQuotationForm(
+    payload: unknown,
+    token?: string | null
+  ): Observable<SubmissionResult> {
+    return this.http.post<SubmissionResult>(
+      '/api/public/quotation-requests',
+      payload,
+      { params: params({ token }) }
+    );
   }
 }

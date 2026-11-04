@@ -23,8 +23,21 @@ public class QuotationFormRequest {
     @Size(max = 19, message = "Maximum 20 travellers are allowed")
     private List<TravellerForm> additionalTravellers = new ArrayList<>();
 
-    // Issued by the backend after successful phone OTP verification.
+    // Original phone OTP token.
     private String verificationToken;
+
+    // Separate OTP token used to authorize edits to saved Client Master details.
+    private String profileEditVerificationToken;
+
+    private String profileEditVerificationToken;
+
+    public String getProfileEditVerificationToken() {
+    return profileEditVerificationToken;
+    }
+
+    public void setProfileEditVerificationToken(String profileEditVerificationToken) {
+        this.profileEditVerificationToken = profileEditVerificationToken;
+    }
 
     @NotBlank(message = "Departure country is required")
     @Size(max = 100)
@@ -68,6 +81,15 @@ public class QuotationFormRequest {
 
     public void setVerificationToken(String verificationToken) {
         this.verificationToken = verificationToken;
+    }
+
+    public String getProfileEditVerificationToken() {
+        return profileEditVerificationToken;
+    }
+
+    public void setProfileEditVerificationToken(
+            String profileEditVerificationToken) {
+        this.profileEditVerificationToken = profileEditVerificationToken;
     }
 
     public String getDepartureCountry() {
