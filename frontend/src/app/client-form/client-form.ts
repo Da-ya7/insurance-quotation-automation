@@ -424,7 +424,6 @@ export class ClientForm {
       return;
     }
 
-    // New-customer OTP verification must have produced a valid token.
     if (!this.token && !this.verificationToken()) {
       this.error.set('Your phone verification has expired. Please verify again.');
       this.unlocked.set(false);
@@ -435,22 +434,109 @@ export class ClientForm {
     this.error.set('');
 
     const applicant = { ...this.a };
+    const fields = this.values;
 
+    const readField = (...names: string[]): string => {
+      for (const name of names) {
+        const value = fields[name]?.trim();
+        if (value) return value;
+      }
+      return '';
+    };
+
+    const verification = !this.token && this.verificationToken()
+      ? { verificationToken: this.verificationToken()! }
+      : {};
+
+    if (code.toUpperCase() === 'TRAVEL') {
+
+      const passportNumber =
+        readField('passportNumber') ||
+        (this.a.identityType?.toUpperCase() === 'PASSPORT'
+          ? this.a.identityNumber?.trim() || ''
+          : '');
+
+      const travelPayload = {
+        insuranceType: code,
+
+        applicant: {
+          ...applicant,
+          passportNumber
+        },
+
+        // Backend expects these at the TOP LEVEL.
+        departureCountry: readField(
+          'departureCountry',
+          'originCountry'
+        ),
+
+        destinationCountry: readField('destinationCountry'),
+
+        travelStartDate: readField('travelStartDate'),
+
+        travelEndDate: readField('travelEndDate'),
+
+        purposeOfTravel: readField('purposeOfTravel'),
+
+        additionalTravellers: [],
+
+        ...verification
+      };
+
+      const missing: string[] = [];
+
+      if (!travelPayload.departureCountry)
+        missing.push('Departure country');
+
+      if (!travelPayload.destinationCountry)
+        missing.push('Destination country');
+
+      if (!travelPayload.travelStartDate)
+        missing.push('Travel start date');
+
+      if (!travelPayload.travelEndDate)
+        missing.push('Travel end date');
+
+      if (!travelPayload.purposeOfTravel)
+        missing.push('Purpose of travel');
+
+      if (!travelPayload.applicant.passportNumber)
+        missing.push('Passport number');
+
+      if (missing.length) {
+        this.error.set(
+          'Please complete these required fields: ' + missing.join(', ')
+        );
+        this.busy.set(false);
+        return;
+      }
+
+      this.api.submitQuotationForm(
+        travelPayload,
+        this.token
+      ).subscribe({
+        next: r => {
+          this.result.set(r);
+          this.busy.set(false);
+        },
+        error: e => {
+          this.error.set(errorMessage(e));
+          this.busy.set(false);
+        }
+      });
+
+      return;
+    }
+
+    // Keep the existing generic submission flow for other insurance types.
     const payload = {
       insuranceType: code,
       applicant,
-      fields: this.values,
-      ...(!this.token && this.verificationToken()
-        ? { verificationToken: this.verificationToken()! }
-        : {})
+      fields,
+      ...verification
     };
 
-    // Travel has its own dedicated backend submission endpoint.
-    const request$ = code.toUpperCase() === 'TRAVEL'
-      ? this.api.submitQuotationForm(payload, this.token)
-      : this.api.submitForm(code, this.token, payload);
-
-    request$.subscribe({
+    this.api.submitForm(code, this.token, payload).subscribe({
       next: r => {
         this.result.set(r);
         this.busy.set(false);
@@ -461,7 +547,6 @@ export class ClientForm {
       }
     });
   }
-
 
   private fail(e: unknown, fallback?: string) {
     this.error.set(errorMessage(e, fallback));

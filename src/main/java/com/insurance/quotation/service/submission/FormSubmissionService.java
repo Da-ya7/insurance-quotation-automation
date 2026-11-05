@@ -399,9 +399,14 @@ public class FormSubmissionService {
                 field("travelEndDate",
                         form.getTravelEndDate().toString(),
                         FieldDataType.DATE),
+
+                
                 field("travellers", String.valueOf(all.size()),
                         FieldDataType.NUMBER),
-                field("policyType", "TRAVEL", FieldDataType.TEXT));
+                field("policyType", "TRAVEL", FieldDataType.TEXT),
+                field("purposeOfTravel", form.getPurposeOfTravel(),
+                        FieldDataType.TEXT));
+
 
         try {
             QuotationWorkflowService.Outcome outcome =
