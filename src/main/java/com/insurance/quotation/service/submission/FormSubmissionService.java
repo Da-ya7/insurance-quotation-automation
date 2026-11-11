@@ -16,7 +16,6 @@ import org.springframework.web.server.ResponseStatusException;
 import com.insurance.quotation.dto.request.QuotationFormRequest;
 import com.insurance.quotation.dto.request.TravellerForm;
 import com.insurance.quotation.entity.Client;
-import com.insurance.quotation.entity.Quotation;
 import com.insurance.quotation.entity.QuotationRequest;
 import com.insurance.quotation.entity.QuotationRequestTraveller;
 import com.insurance.quotation.entity.enums.FieldDataType;
@@ -300,7 +299,13 @@ public class FormSubmissionService {
                 field("travelEndDate",
                         form.getTravelEndDate().toString(),
                         FieldDataType.DATE),
-                field("travellers", String.valueOf(all.size()),
+
+                // FIX: Pass purpose of travel to the quotation workflow.
+                field("purposeOfTravel",
+                        form.getPurposeOfTravel().trim(),
+                        FieldDataType.TEXT),
+
+                field("travellers", String.valueOf(form.getTravellers()),
                         FieldDataType.NUMBER),
                 field("policyType", "TRAVEL", FieldDataType.TEXT));
 

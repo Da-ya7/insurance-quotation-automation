@@ -1,3 +1,4 @@
+
 <div class="cf-page">
 
   <header class="cf-hero">
@@ -331,8 +332,8 @@
           </div>
         </div>
 
-        <!-- INSURANCE-SPECIFIC DYNAMIC FIELDS -->
-        @if (otherFields().length) {
+        <!-- INSURANCE-SPECIFIC DETAILS -->
+        @if (otherFields().length || type() === 'TRAVEL') {
           <div class="cf-card">
 
             <h3>
@@ -342,6 +343,31 @@
 
             <div class="cf-grid">
 
+              <!-- TRAVEL GROUP COUNT -->
+              @if (type() === 'TRAVEL') {
+                <label>
+                  Number of Travellers
+                  <i class="cf-req">*</i>
+
+                  <input
+                    class="cf-input"
+                    type="number"
+                    [(ngModel)]="values['travellers']"
+                    name="travellers"
+                    min="1"
+                    max="20"
+                    step="1"
+                    required
+                    placeholder="Enter 1 to 20" />
+
+                  <small class="cf-hint">
+                    Enter the total number of people covered.
+                    Personal details are required for the applicant only.
+                  </small>
+                </label>
+              }
+
+              <!-- OTHER DYNAMIC INSURANCE FIELDS -->
               @for (f of otherFields(); track f.fieldName) {
                 <label>
                   {{ f.displayLabel }}
