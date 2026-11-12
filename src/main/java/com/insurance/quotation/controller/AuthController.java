@@ -31,7 +31,7 @@ public class AuthController {
         this.userRepository = userRepository;
         this.jwtService = jwtService;
     }
-
+    
     @PostMapping("/login")
     public LoginResponse login(@RequestBody LoginRequest request) {
 

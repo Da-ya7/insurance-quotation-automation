@@ -1,9 +1,9 @@
 package com.insurance.quotation.mailbox;
-
+       
 import java.time.LocalDateTime;
 
 public class EmailMessage {
-
+    
     private String messageId;
     private String inReplyTo;
     private String senderEmail;
@@ -13,7 +13,7 @@ public class EmailMessage {
 
     public EmailMessage() {
     }
-
+    
     public EmailMessage(
             String messageId,
             String inReplyTo,
@@ -21,7 +21,7 @@ public class EmailMessage {
             String subject,
             String body,
             LocalDateTime receivedAt) {
-
+        
         this.messageId = messageId;
         this.inReplyTo = inReplyTo;
         this.senderEmail = senderEmail;
@@ -33,7 +33,7 @@ public class EmailMessage {
     public String getMessageId() {
         return messageId;
     }
-
+    
     public void setMessageId(String messageId) {
         this.messageId = messageId;
     }
@@ -41,7 +41,7 @@ public class EmailMessage {
     public String getInReplyTo() {
         return inReplyTo;
     }
-
+    
     public void setInReplyTo(String inReplyTo) {
         this.inReplyTo = inReplyTo;
     }

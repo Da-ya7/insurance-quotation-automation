@@ -17,10 +17,10 @@ public class AutomationController {
     public AutomationController(AutomationService automationService) {
         this.automationService = automationService;
     }
-
+    
     @PostMapping("/process")
     public ResponseEntity<Map<String, String>> processAutomation() {
-
+    
         automationService.processIncomingEmails();
 
         return ResponseEntity.ok(
