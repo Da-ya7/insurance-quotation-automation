@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.service.quotation;
 
 import java.time.LocalDateTime;
@@ -19,7 +20,8 @@ import com.insurance.quotation.service.master.FormLinkService;
 @Service
 public class QuotationEmailService {
 
-    private static final Logger log = LoggerFactory.getLogger(QuotationEmailService.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(QuotationEmailService.class);
 
     private final OutboundMailer mailer;
     private final QuotationRepository quotationRepository;
@@ -34,43 +36,72 @@ public class QuotationEmailService {
         this.formLinks = formLinks;
     }
 
-    /** Missing-details email with a personal form link (pre-filled for returning clients). */
+    /** Sends missing-information email using the general public form URL. */
     public String sendMissingInformationEmail(
-            Client client, Long requestId, String insuranceType,
-            List<String> missingFields, List<String> invalidFields) {
+            Client client,
+            Long requestId,
+            String insuranceType,
+            List<String> missingFields,
+            List<String> invalidFields) {
 
-        FormLinkService.FormLink link = formLinks.create(client.getId(), requestId, insuranceType);
-        String url = formLinks.url(link);
+        if (client == null || client.getEmail() == null
+                || client.getEmail().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Client email is required.");
+        }
 
-        MailTemplates.Mail mail = MailTemplates.missingInformation(missingFields, invalidFields, url);
+        String url = formLinks.publicUrl();
+
+        MailTemplates.Mail mail =
+                MailTemplates.missingInformation(
+                        missingFields, invalidFields, url);
+
         mailer.sendPlain(client.getEmail(), mail.subject(), mail.body());
-        log.info("Missing-information email sent to {} (request {})", client.getEmail(), requestId);
+
+        log.info(
+                "Missing-information email sent to {} (request {})",
+                client.getEmail(), requestId);
+
         return url;
     }
 
-    /** Same email without a personal link (used by the older web-form flows). */
+    /** Missing-information email for older web-form flows. */
     public void sendMissingInformationEmail(
-            String recipient, List<String> missingFields, List<String> invalidFields) {
+            String recipient,
+            List<String> missingFields,
+            List<String> invalidFields) {
 
-        MailTemplates.Mail mail = MailTemplates.missingInformation(missingFields, invalidFields, null);
+        String url = formLinks.publicUrl();
+
+        MailTemplates.Mail mail =
+                MailTemplates.missingInformation(
+                        missingFields, invalidFields, url);
+
         mailer.sendPlain(recipient, mail.subject(), mail.body());
     }
 
-    /**
-     * "Thank you for contacting us" reply that carries the form link. For a
-     * returning client the link opens with their saved details filled in.
-     */
+    /** Sends the general quotation form link without a personal token. */
     public String sendFormLinkEmail(
-            String recipient, Client existingClientOrNull, String insuranceType, Long requestId) {
+            String recipient,
+            Client existingClientOrNull,
+            String insuranceType,
+            Long requestId) {
 
-        FormLinkService.FormLink link = formLinks.create(
-                existingClientOrNull == null ? null : existingClientOrNull.getId(),
-                requestId, insuranceType);
-        String url = formLinks.url(link);
+        if (recipient == null || recipient.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Recipient email is required.");
+        }
 
-        MailTemplates.Mail mail = MailTemplates.formLink(existingClientOrNull != null, url);
+        String url = formLinks.publicUrl();
+
+        MailTemplates.Mail mail =
+                MailTemplates.formLink(
+                        existingClientOrNull != null, url);
+
         mailer.sendPlain(recipient, mail.subject(), mail.body());
+
         log.info("Form-link email sent to {}", recipient);
+
         return url;
     }
 
@@ -78,32 +109,56 @@ public class QuotationEmailService {
     @Transactional
     public void sendQuotation(Quotation quotation) {
 
+        if (quotation == null) {
+            throw new IllegalArgumentException(
+                    "Quotation is required.");
+        }
+
         if ("SENT".equals(quotation.getStatus())) {
-            log.info("Quotation {} was already sent - skipping", quotation.getQuotationNumber());
+            log.info(
+                    "Quotation {} was already sent - skipping",
+                    quotation.getQuotationNumber());
             return;
         }
-        if (quotation.getPdfPath() == null || quotation.getPdfPath().isBlank()) {
-            throw new IllegalStateException("Cannot send quotation: PDF path is missing.");
+
+        if (quotation.getPdfPath() == null
+                || quotation.getPdfPath().isBlank()) {
+            throw new IllegalStateException(
+                    "Cannot send quotation: PDF path is missing.");
         }
+
         if (quotation.getQuotationRequest() == null
                 || quotation.getQuotationRequest().getClient() == null) {
-            throw new IllegalStateException("Cannot send quotation: client details are missing.");
+            throw new IllegalStateException(
+                    "Cannot send quotation: client details are missing.");
         }
 
-        String recipient = quotation.getQuotationRequest().getClient().getEmail();
+        String recipient =
+                quotation.getQuotationRequest().getClient().getEmail();
+
         if (recipient == null || recipient.isBlank()) {
-            throw new IllegalStateException("Cannot send quotation: client email is missing.");
+            throw new IllegalStateException(
+                    "Cannot send quotation: client email is missing.");
         }
 
-        MailTemplates.Mail mail = MailTemplates.quotation(
-                quotation.getQuotationNumber(), quotation.getVersionNo());
-        mailer.sendWithAttachment(recipient, mail.subject(), mail.body(), quotation.getPdfPath());
+        MailTemplates.Mail mail =
+                MailTemplates.quotation(
+                        quotation.getQuotationNumber(),
+                        quotation.getVersionNo());
+
+        mailer.sendWithAttachment(
+                recipient,
+                mail.subject(),
+                mail.body(),
+                quotation.getPdfPath());
 
         // Only after the provider accepted the message:
         quotation.setStatus("SENT");
         quotation.setSentAt(LocalDateTime.now());
         quotationRepository.save(quotation);
 
-        log.info("Quotation {} sent to {}", quotation.getQuotationNumber(), recipient);
+        log.info(
+                "Quotation {} sent to {}",
+                quotation.getQuotationNumber(), recipient);
     }
 }
