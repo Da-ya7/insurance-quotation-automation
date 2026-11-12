@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.locks.ReentrantLock;
@@ -22,6 +23,7 @@ import com.insurance.quotation.entity.enums.FieldDataType;
 import com.insurance.quotation.entity.enums.FieldSource;
 import com.insurance.quotation.entity.enums.RequestStatus;
 import com.insurance.quotation.mailbox.EmailMessage;
+import com.insurance.quotation.repository.ClientRepository;
 import com.insurance.quotation.repository.IncomingEmailRepository;
 import com.insurance.quotation.repository.QuotationRequestRepository;
 import com.insurance.quotation.repository.RequestFieldValueRepository;
@@ -37,15 +39,6 @@ import com.insurance.quotation.service.quotation.QuotationEmailService;
 import com.insurance.quotation.service.quotation.QuotationWorkflowService;
 import com.insurance.quotation.service.validation.ValidationService;
 
-/**
- * Reads new mail and drives it through:
- * classify -> identify client -> extract -> validate ->
- * missing-details reply | quotation PDF + email.
- *
- * Safe to run repeatedly: an email is stored once (unique Message-ID),
- * failed emails are retried up to MAX_RETRIES times, and a request
- * never gets a second quotation.
- */
 @Service
 public class AutomationService {
 
@@ -65,6 +58,7 @@ public class AutomationService {
     private final IncomingEmailRepository incomingEmailRepository;
     private final QuotationRequestRepository requestRepository;
     private final RequestFieldValueRepository fieldValueRepository;
+    private final ClientRepository clientRepository;
 
     private final ReentrantLock running = new ReentrantLock();
 
@@ -79,7 +73,8 @@ public class AutomationService {
             RequiredFieldRepository requiredFieldRepository,
             IncomingEmailRepository incomingEmailRepository,
             QuotationRequestRepository requestRepository,
-            RequestFieldValueRepository fieldValueRepository) {
+            RequestFieldValueRepository fieldValueRepository,
+            ClientRepository clientRepository) {
 
         this.ingestion = ingestion;
         this.extraction = extraction;
@@ -92,9 +87,13 @@ public class AutomationService {
         this.incomingEmailRepository = incomingEmailRepository;
         this.requestRepository = requestRepository;
         this.fieldValueRepository = fieldValueRepository;
+        this.clientRepository = clientRepository;
     }
 
-    /** Scheduler and manual button must never run simultaneously. */
+    // ---------------------------------------------------------
+    // PROCESS INCOMING EMAILS
+    // ---------------------------------------------------------
+
     public void processIncomingEmails() {
 
         if (!running.tryLock()) {
@@ -119,11 +118,12 @@ public class AutomationService {
 
                     boolean done =
                             "PROCESSED".equals(status)
-                            || "IGNORED".equals(status);
+                                    || "IGNORED".equals(status)
+                                    || "MANUAL_REVIEW_REQUIRED".equals(status);
 
                     boolean exhausted =
                             "FAILED".equals(status)
-                            && existing.get().getRetryCount()
+                                    && existing.get().getRetryCount()
                                     >= MAX_RETRIES;
 
                     if (done || exhausted) {
@@ -134,6 +134,7 @@ public class AutomationService {
 
                 try {
                     processEmail(email, existing.orElse(null));
+
                 } catch (Exception e) {
                     handleProcessingFailure(email, e);
                 }
@@ -144,7 +145,9 @@ public class AutomationService {
         }
     }
 
-    // ------------------------------------------------------------------
+    // ---------------------------------------------------------
+    // PROCESS ONE EMAIL
+    // ---------------------------------------------------------
 
     private void processEmail(
             EmailMessage email,
@@ -152,15 +155,21 @@ public class AutomationService {
 
         String sender = email.getSenderEmail() == null
                 ? ""
-                : email.getSenderEmail().trim().toLowerCase();
+                : email.getSenderEmail().trim().toLowerCase(Locale.ROOT);
 
         List<RequiredField> allActive =
                 requiredFieldRepository
                         .findByIsActiveTrueOrderBySortOrderAscIdAsc();
 
-        // 1. Extract fields from the email.
+        // Extract the information available in the email.
         List<ExtractedFieldData> firstPass =
                 extraction.extractFields(email, allActive);
+
+        log.info(
+                "Extracted {} fields from email {}",
+                firstPass.size(),
+                email.getMessageId()
+        );
 
         boolean useful = firstPass.stream().anyMatch(f ->
                 !f.isMissing()
@@ -168,6 +177,10 @@ public class AutomationService {
                         && !f.getFieldValue().isBlank()
                         && !"policyType".equalsIgnoreCase(
                                 f.getFieldName()));
+
+        // -----------------------------------------------------
+        // IDENTIFY CUSTOMER
+        // -----------------------------------------------------
 
         ClientMasterService.ClientDetails details =
                 toClientDetails(email, sender, firstPass);
@@ -178,11 +191,83 @@ public class AutomationService {
         Optional<QuotationRequest> pending =
                 knownClient.flatMap(this::findPendingRequest);
 
-        // 2. Classify using subject and body.
+        log.info("Sender: {}", sender);
+        log.info("Existing client found: {}", knownClient.isPresent());
+        log.info("Pending request found: {}", pending.isPresent());
+
+        // -----------------------------------------------------
+        // ADDITIONAL REPLY MATCHING
+        // -----------------------------------------------------
+
+        /*
+         * If the client could not be identified using the extracted
+         * name or identity details, check pending requests belonging
+         * to clients who use this sender email address.
+         *
+         * Only match automatically when exactly ONE pending request
+         * is found. Never guess between multiple customers/requests.
+         */
+
+        if (pending.isEmpty()) {
+
+            List<QuotationRequest> senderPendingRequests =
+                    findPendingRequestsBySender(sender);
+
+            if (senderPendingRequests.size() == 1) {
+
+                QuotationRequest matchedRequest =
+                        senderPendingRequests.get(0);
+
+                pending = Optional.of(matchedRequest);
+
+                knownClient = Optional.of(
+                        matchedRequest.getClient());
+
+                log.info(
+                        "Matched customer reply by sender email. "
+                                + "Client ID: {}, Request ID: {}",
+                        matchedRequest.getClient().getId(),
+                        matchedRequest.getId()
+                );
+
+            } else if (senderPendingRequests.size() > 1) {
+
+                log.warn(
+                        "Multiple pending requests found for sender {}. "
+                                + "Manual review required.",
+                        sender
+                );
+
+                IncomingEmail row = existingRow != null
+                        ? existingRow
+                        : newRow(email, sender);
+
+                row.setEmailKind(
+                        EmailClassificationService.Kind.CLIENT_REPLY.name());
+
+                row.setProcessingStatus("MANUAL_REVIEW_REQUIRED");
+
+                row.setLastError(
+                        "Multiple pending quotation requests found "
+                                + "for the sender email. Customer matching "
+                                + "requires manual review."
+                );
+
+                incomingEmailRepository.save(row);
+
+                markProcessedQuietly(email.getMessageId());
+
+                return;
+            }
+        }
+
+        // -----------------------------------------------------
+        // CLASSIFY EMAIL
+        // -----------------------------------------------------
+
         EmailClassificationService.Classification classification =
                 classifier.classify(
                         email.getSubject(),
-                        email.getBody(),
                         pending.isPresent(),
                         useful,
                         masterData.activeSubjectKeywords());
@@ -205,50 +290,101 @@ public class AutomationService {
             log.info(
                     "Email from {} ignored: {}",
                     sender,
-                    classification.reason());
+                    classification.reason()
+            );
 
             return;
         }
 
-        // 3. Identify the insurance type.
+        // -----------------------------------------------------
+        // RESOLVE INSURANCE TYPE
+        // -----------------------------------------------------
+
         String type =
                 resolveType(firstPass, email, pending.orElse(null));
 
-        // 4. Incomplete quotation-related email:
-        // Send the form link.
-        if (!useful || type == null) {
+        // If there are no useful details and no existing request,
+        // send the form link.
+        if ((!useful || type == null) && pending.isEmpty()) {
 
-            if (pending.isEmpty()) {
-                handleIncomplete(
-                        email,
-                        sender,
-                        row,
-                        knownClient.orElse(null),
-                        type);
-                return;
-            }
+            handleIncomplete(
+                    email,
+                    sender,
+                    row,
+                    knownClient.orElse(null),
+                    type
+            );
+
+            return;
         }
 
-        // 5. Identify or create the client.
-        ClientMasterService.ApplyResult applied =
-                clientMaster.findOrCreateAndApply(
-                        details,
-                        "EMAIL",
-                        sender,
-                        false);
+        // -----------------------------------------------------
+        // FIND OR APPLY CUSTOMER DETAILS
+        // -----------------------------------------------------
+
+        ClientMasterService.ApplyResult applied;
+
+        if (pending.isPresent()) {
+
+            /*
+             * When a pending request has been matched, use the client
+             * attached to that request directly.
+             *
+             * This prevents creating a duplicate client when multiple
+             * people share the same email address.
+             */
+
+            Client matchedClient =
+                    pending.get().getClient();
+
+            applied = clientMaster.apply(
+                    matchedClient,
+                    details,
+                    "EMAIL",
+                    sender,
+                    false
+            );
+
+        } else if (knownClient.isPresent()) {
+
+            applied = clientMaster.apply(
+                    knownClient.get(),
+                    details,
+                    "EMAIL",
+                    sender,
+                    false
+            );
+
+        } else {
+
+            applied = clientMaster.findOrCreateAndApply(
+                    details,
+                    "EMAIL",
+                    sender,
+                    false
+            );
+        }
 
         Client client = applied.client();
 
         if (applied.hasBlockedChanges()) {
+
             log.info(
-                    "Client {}: email had different values for {} - "
-                            + "kept saved values (OTP needed to change)",
+                    "Client {}: different values received for {}. "
+                            + "Saved values were retained.",
                     client.getClientCode(),
-                    applied.blocked());
+                    applied.blocked()
+            );
         }
 
+        // -----------------------------------------------------
+        // FIND OR CREATE QUOTATION REQUEST
+        // -----------------------------------------------------
+
         Optional<QuotationRequest> openRequest =
-                findPendingRequest(client);
+                pending.isPresent()
+                        ? pending
+                        : findPendingRequest(client);
 
         boolean isReply = openRequest.isPresent();
 
@@ -257,14 +393,22 @@ public class AutomationService {
         if (isReply) {
 
             request = openRequest.get();
+
+            log.info(
+                    "Customer reply matched existing request ID: {}",
+                    request.getId()
+            );
+
             request.setStatus(
                     RequestStatus.CLIENT_REPLY_RECEIVED);
 
             row.setEmailKind(
                     EmailClassificationService.Kind.CLIENT_REPLY.name());
 
+            // Preserve the insurance type of the original request.
             if (request.getPolicyType() != null
                     && !request.getPolicyType().isBlank()) {
+
                 type = request.getPolicyType();
             }
 
@@ -278,76 +422,159 @@ public class AutomationService {
 
         request.setPolicyType(type);
         request.setUpdatedAt(LocalDateTime.now());
+
         request = requestRepository.save(request);
 
         row.setQuotationRequest(request);
         row.setProcessingStatus("RECEIVED");
+
         row = incomingEmailRepository.save(row);
 
-        // Insurance type unknown: ask the client to choose in the form.
+        // -----------------------------------------------------
+        // INSURANCE TYPE UNKNOWN
+        // -----------------------------------------------------
+
         if (type == null) {
 
             request.setStatus(RequestStatus.MISSING_INFORMATION);
+
             requestRepository.save(request);
 
             emailService.sendFormLinkEmail(
                     sender,
                     client,
                     null,
-                    request.getId());
+                    request.getId()
+            );
 
             finish(row, email);
             return;
         }
 
-        // 6. Extract fields for this insurance type.
+        // -----------------------------------------------------
+        // EXTRACT FIELDS FOR SELECTED INSURANCE TYPE
+        // -----------------------------------------------------
+
         final String finalType = type;
 
-        List<RequiredField> forType = allActive.stream()
-                .filter(f ->
-                        ValidationService.appliesTo(f, finalType))
-                .toList();
+        List<RequiredField> forType =
+                allActive.stream()
+                        .filter(f ->
+                                ValidationService.appliesTo(
+                                        f,
+                                        finalType))
+                        .toList();
 
         List<ExtractedFieldData> fields =
                 extraction.extractFields(email, forType);
 
+        log.info(
+                "Extracted {} fields for insurance type {}",
+                fields.size(),
+                type
+        );
+
+        // -----------------------------------------------------
+        // MERGE PREVIOUS ANSWERS WITH CUSTOMER REPLY
+        // -----------------------------------------------------
+
         if (isReply) {
+
+            log.info(
+                    "Merging previous answers for request {}",
+                    request.getId()
+            );
+
             fields = mergeExistingValues(request, fields);
         }
 
         fields = withPolicyType(fields, type);
 
-        // 7. Validate and process the quotation.
+        log.info(
+                "Total fields sent for validation: {}",
+                fields.size()
+        );
+
+        // -----------------------------------------------------
+        // VALIDATE AND GENERATE QUOTATION
+        // -----------------------------------------------------
+
         QuotationWorkflowService.Outcome outcome =
-                workflow.process(request, client, fields, false);
+                workflow.process(
+                        request,
+                        client,
+                        fields,
+                        false
+                );
 
         log.info(
-                "Email {} -> request {} -> {}",
+                "Email {} -> request {} -> result {}",
                 email.getMessageId(),
                 request.getId(),
-                outcome.result());
+                outcome.result()
+        );
 
         if (outcome.result()
                 == QuotationWorkflowService.Result.EMAIL_SEND_FAILED
                 || outcome.result()
-                == QuotationWorkflowService.Result
-                        .QUOTATION_GENERATION_FAILED) {
+                == QuotationWorkflowService.Result.QUOTATION_GENERATION_FAILED) {
 
             throw new IllegalStateException(
                     "Request " + request.getId()
-                            + ": " + outcome.result());
+                            + ": " + outcome.result()
+            );
         }
+
+        /*
+         * MISSING_INFORMATION:
+         * QuotationWorkflowService already sends an email containing
+         * the personal form link.
+         *
+         * QUOTATION_SENT:
+         * QuotationWorkflowService already generates and sends the PDF.
+         */
 
         finish(row, email);
     }
 
-    /**
-     * Incomplete quotation email:
-     * Send a form link for every distinct new email.
-     *
-     * Duplicate Gmail messages are already prevented by Message-ID
-     * and processing status in processIncomingEmails().
-     */
+    // ---------------------------------------------------------
+    // FIND PENDING REQUESTS BY SENDER EMAIL
+    // ---------------------------------------------------------
+
+    private List<QuotationRequest> findPendingRequestsBySender(
+            String sender) {
+
+        if (sender == null || sender.isBlank()) {
+            return List.of();
+        }
+
+        List<Client> clients =
+                clientRepository.findAllByEmailIgnoreCase(sender);
+
+        List<QuotationRequest> matches =
+                new ArrayList<>();
+
+        for (Client client : clients) {
+
+            Optional<QuotationRequest> request =
+                    findPendingRequest(client);
+
+            request.ifPresent(matches::add);
+        }
+
+        log.info(
+                "Found {} pending requests for sender email {}",
+                matches.size(),
+                sender
+        );
+
+        return matches;
+    }
+
+    // ---------------------------------------------------------
+    // INCOMPLETE EMAIL
+    // ---------------------------------------------------------
+
     private void handleIncomplete(
             EmailMessage email,
             String sender,
@@ -360,27 +587,41 @@ public class AutomationService {
 
         row = incomingEmailRepository.save(row);
 
+        /*
+         * Every incomplete new quotation email from a human sender
+         * receives a form link.
+         *
+         * The previous 24-hour suppression has been removed.
+         */
+
         if (isHumanSender(sender)) {
 
             emailService.sendFormLinkEmail(
                     sender,
                     knownClient,
                     type,
-                    null);
+                    null
+            );
 
             log.info(
-                    "Form-link email successfully sent to {}",
-                    sender);
+                    "Form link sent to {} because information is incomplete.",
+                    sender
+            );
 
         } else {
 
             log.info(
-                    "Form-link email skipped for automated sender: {}",
-                    sender);
+                    "Form link not sent because sender {} is automated.",
+                    sender
+            );
         }
 
         finish(row, email);
     }
+
+    // ---------------------------------------------------------
+    // COMPLETE EMAIL PROCESSING
+    // ---------------------------------------------------------
 
     private void finish(
             IncomingEmail row,
@@ -390,8 +631,13 @@ public class AutomationService {
         row.setLastError(null);
 
         incomingEmailRepository.save(row);
+
         markProcessedQuietly(email.getMessageId());
     }
+
+    // ---------------------------------------------------------
+    // HANDLE FAILURE
+    // ---------------------------------------------------------
 
     private void handleProcessingFailure(
             EmailMessage email,
@@ -400,23 +646,29 @@ public class AutomationService {
         log.error(
                 "Failed to process email {}",
                 email.getMessageId(),
-                e);
+                e
+        );
 
-        IncomingEmail row = incomingEmailRepository
-                .findByMessageId(email.getMessageId())
-                .orElseGet(() -> newRow(
-                        email,
-                        email.getSenderEmail() == null
-                                ? ""
-                                : email.getSenderEmail()
-                                        .trim()
-                                        .toLowerCase()));
+        IncomingEmail row =
+                incomingEmailRepository
+                        .findByMessageId(email.getMessageId())
+                        .orElseGet(() ->
+                                newRow(
+                                        email,
+                                        email.getSenderEmail() == null
+                                                ? ""
+                                                : email.getSenderEmail()
+                                                        .trim()
+                                                        .toLowerCase(Locale.ROOT)
+                                ));
 
         row.setProcessingStatus("FAILED");
         row.setRetryCount(row.getRetryCount() + 1);
+
         row.setLastError(
                 e.getClass().getSimpleName()
-                        + ": " + e.getMessage());
+                        + ": " + e.getMessage()
+        );
 
         incomingEmailRepository.save(row);
 
@@ -424,24 +676,24 @@ public class AutomationService {
 
         if (req != null
                 && req.getStatus()
-                        != RequestStatus.EMAIL_SEND_FAILED
+                != RequestStatus.EMAIL_SEND_FAILED
                 && req.getStatus()
-                        != RequestStatus.QUOTATION_GENERATION_FAILED) {
+                != RequestStatus.QUOTATION_GENERATION_FAILED) {
 
-            req.setStatus(
-                    RequestStatus.EMAIL_PROCESSING_FAILED);
-
+            req.setStatus(RequestStatus.EMAIL_PROCESSING_FAILED);
             req.setUpdatedAt(LocalDateTime.now());
+
             requestRepository.save(req);
         }
 
-        // Leave unread so the next run can retry.
         if (row.getRetryCount() >= MAX_RETRIES) {
             markProcessedQuietly(email.getMessageId());
         }
     }
 
-    // ------------------------------------------------------------------
+    // ---------------------------------------------------------
+    // CREATE INCOMING EMAIL ROW
+    // ---------------------------------------------------------
 
     private IncomingEmail newRow(
             EmailMessage email,
@@ -460,7 +712,8 @@ public class AutomationService {
                         ? null
                         : email.getSubject().length() > 255
                                 ? email.getSubject().substring(0, 255)
-                                : email.getSubject());
+                                : email.getSubject()
+        );
 
         row.setBody(email.getBody());
         row.setProcessingStatus("RECEIVED");
@@ -468,10 +721,15 @@ public class AutomationService {
         row.setReceivedAt(
                 email.getReceivedAt() == null
                         ? LocalDateTime.now()
-                        : email.getReceivedAt());
+                        : email.getReceivedAt()
+        );
 
         return row;
     }
+
+    // ---------------------------------------------------------
+    // MARK GMAIL EMAIL AS PROCESSED
+    // ---------------------------------------------------------
 
     private void markProcessedQuietly(String messageId) {
 
@@ -481,11 +739,16 @@ public class AutomationService {
         } catch (Exception e) {
 
             log.warn(
-                    "Could not mark {} as processed in the mailbox: {}",
+                    "Could not mark {} as processed in mailbox: {}",
                     messageId,
-                    e.getMessage());
+                    e.getMessage()
+            );
         }
     }
+
+    // ---------------------------------------------------------
+    // CLIENT DETAILS
+    // ---------------------------------------------------------
 
     private ClientMasterService.ClientDetails toClientDetails(
             EmailMessage email,
@@ -505,22 +768,26 @@ public class AutomationService {
                 null,
                 get(fields, "identityCountry"),
                 idType,
-                idNumber);
+                idNumber
+        );
     }
 
-    private static java.time.LocalDate parseDate(String v) {
+    private static java.time.LocalDate parseDate(String value) {
 
         try {
-            return v == null
+            return value == null
                     ? null
-                    : java.time.LocalDate.parse(v);
+                    : java.time.LocalDate.parse(value);
 
         } catch (RuntimeException e) {
             return null;
         }
     }
 
-    /** Policy type: email value, pending request, or subject/body keywords. */
+    // ---------------------------------------------------------
+    // INSURANCE TYPE
+    // ---------------------------------------------------------
+
     private String resolveType(
             List<ExtractedFieldData> fields,
             EmailMessage email,
@@ -544,8 +811,8 @@ public class AutomationService {
 
                 if (t.code().equalsIgnoreCase(stated.trim())
                         || t.label().equalsIgnoreCase(stated.trim())
-                        || (t.label().toLowerCase()
-                                .startsWith(stated.trim().toLowerCase())
+                        || (t.label().toLowerCase(Locale.ROOT)
+                                .startsWith(stated.trim().toLowerCase(Locale.ROOT))
                                 && stated.trim().length() >= 4)) {
 
                     return t.code();
@@ -556,19 +823,49 @@ public class AutomationService {
         return classifier.detectInsuranceType(
                 email.getSubject(),
                 email.getBody(),
-                types);
+                types
+        );
     }
+
+    // ---------------------------------------------------------
+    // FIND CUSTOMER'S PENDING REQUEST
+    // ---------------------------------------------------------
 
     private Optional<QuotationRequest> findPendingRequest(
             Client client) {
 
-        return requestRepository
-                .findFirstByClientIdAndStatusInOrderByIdDesc(
-                        client.getId(),
-                        List.of(
-                                RequestStatus.MISSING_INFORMATION,
-                                RequestStatus.WAITING_FOR_CLIENT));
+        if (client == null || client.getId() == null) {
+            return Optional.empty();
+        }
+
+        List<RequestStatus> pendingStatuses = List.of(
+                RequestStatus.MISSING_INFORMATION,
+                RequestStatus.WAITING_FOR_CLIENT,
+                RequestStatus.EMAIL_PROCESSING_FAILED
+        );
+
+        Optional<QuotationRequest> request =
+                requestRepository
+                        .findFirstByClientIdAndStatusInOrderByIdDesc(
+                                client.getId(),
+                                pendingStatuses
+                        );
+
+        request.ifPresent(r ->
+                log.info(
+                        "Found pending request {} with status {} for client {}",
+                        r.getId(),
+                        r.getStatus(),
+                        client.getId()
+                )
+        );
+
+        return request;
     }
+
+    // ---------------------------------------------------------
+    // ADD POLICY TYPE
+    // ---------------------------------------------------------
 
     private List<ExtractedFieldData> withPolicyType(
             List<ExtractedFieldData> fields,
@@ -578,25 +875,29 @@ public class AutomationService {
 
         for (ExtractedFieldData f : fields) {
 
-            if (!"policyType".equalsIgnoreCase(
-                    f.getFieldName())) {
-
+            if (!"policyType".equalsIgnoreCase(f.getFieldName())) {
                 out.add(f);
             }
         }
 
-        out.add(new ExtractedFieldData(
-                "policyType",
-                type,
-                FieldDataType.TEXT,
-                FieldSource.EMAIL_EXTRACTED,
-                1.0,
-                false));
+        out.add(
+                new ExtractedFieldData(
+                        "policyType",
+                        type,
+                        FieldDataType.TEXT,
+                        FieldSource.EMAIL_EXTRACTED,
+                        1.0,
+                        false
+                )
+        );
 
         return out;
     }
 
-    /** Earlier answers stay; new non-blank values replace them. */
+    // ---------------------------------------------------------
+    // MERGE OLD VALUES AND NEW REPLY VALUES
+    // ---------------------------------------------------------
+
     private List<ExtractedFieldData> mergeExistingValues(
             QuotationRequest request,
             List<ExtractedFieldData> latest) {
@@ -604,12 +905,23 @@ public class AutomationService {
         Map<String, ExtractedFieldData> combined =
                 new LinkedHashMap<>();
 
-        for (RequestFieldValue saved :
+        List<RequestFieldValue> savedValues =
                 fieldValueRepository.findByQuotationRequestId(
-                        request.getId())) {
+                        request.getId()
+                );
+
+        log.info(
+                "Request {} has {} previously saved field values",
+                request.getId(),
+                savedValues.size()
+        );
+
+        // First, load the previously saved values.
+        for (RequestFieldValue saved : savedValues) {
 
             if (saved.getRequiredField() == null
-                    || saved.getFieldValue() == null) {
+                    || saved.getFieldValue() == null
+                    || saved.getFieldValue().isBlank()) {
 
                 continue;
             }
@@ -617,8 +929,10 @@ public class AutomationService {
             String name =
                     saved.getRequiredField().getFieldName();
 
+            String key = normalize(name);
+
             combined.put(
-                    normalize(name),
+                    key,
                     new ExtractedFieldData(
                             name,
                             saved.getFieldValue(),
@@ -627,36 +941,78 @@ public class AutomationService {
                                     ? saved.getSource()
                                     : FieldSource.EMAIL_EXTRACTED,
                             1.0,
-                            false));
+                            false
+                    )
+            );
+
+            log.info("Previous value found: {}", name);
         }
 
-        for (ExtractedFieldData field : latest) {
+        // Next, apply values from the customer's latest reply.
+        if (latest != null) {
 
-            if (field.getFieldName() == null) {
-                continue;
-            }
+            for (ExtractedFieldData field : latest) {
 
-            String key = normalize(field.getFieldName());
+                if (field == null
+                        || field.getFieldName() == null) {
 
-            boolean hasValue = !field.isMissing()
-                    && field.getFieldValue() != null
-                    && !field.getFieldValue().isBlank();
+                    continue;
+                }
 
-            if (hasValue || !combined.containsKey(key)) {
-                combined.put(key, field);
+                String key =
+                        normalize(field.getFieldName());
+
+                String value = field.getFieldValue();
+
+                boolean hasValue =
+                        !field.isMissing()
+                                && value != null
+                                && !value.isBlank();
+
+                if (hasValue) {
+
+                    combined.put(key, field);
+
+                    log.info(
+                            "New reply value received for field: {}",
+                            field.getFieldName()
+                    );
+
+                } else if (!combined.containsKey(key)) {
+
+                    combined.put(key, field);
+                }
             }
         }
+
+        log.info(
+                "After merging, request {} contains {} fields",
+                request.getId(),
+                combined.size()
+        );
 
         return new ArrayList<>(combined.values());
     }
+
+    // ---------------------------------------------------------
+    // GET FIELD VALUE
+    // ---------------------------------------------------------
 
     private static String get(
             List<ExtractedFieldData> fields,
             String name) {
 
+        if (fields == null || name == null) {
+            return null;
+        }
+
+        String requiredKey = normalize(name);
+
         return fields.stream()
+                .filter(f -> f != null)
                 .filter(f ->
-                        name.equalsIgnoreCase(f.getFieldName()))
+                        requiredKey.equals(
+                                normalize(f.getFieldName())))
                 .filter(f ->
                         !f.isMissing()
                                 && f.getFieldValue() != null
@@ -666,27 +1022,38 @@ public class AutomationService {
                 .orElse(null);
     }
 
-    private static String normalize(String s) {
-        return s == null
-                ? ""
-                : s.trim().toLowerCase();
+    // ---------------------------------------------------------
+    // NORMALIZE FIELD NAMES
+    // ---------------------------------------------------------
+
+    private static String normalize(String value) {
+
+        if (value == null) {
+            return "";
+        }
+
+        return value.trim()
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]", "");
     }
 
-    /** Never auto-reply to robots or bounce messages. */
+    // ---------------------------------------------------------
+    // CHECK HUMAN SENDER
+    // ---------------------------------------------------------
+
     static boolean isHumanSender(String sender) {
 
         if (sender == null || sender.isBlank()) {
             return false;
         }
 
-        String s = sender.toLowerCase();
+        String value = sender.toLowerCase(Locale.ROOT);
 
-        return !(s.contains("no-reply")
-                || s.contains("noreply")
-                || s.contains("donotreply")
-                || s.contains("do-not-reply")
-                || s.contains("mailer-daemon")
-                || s.contains("postmaster"));
+        return !(value.contains("no-reply")
+                || value.contains("noreply")
+                || value.contains("donotreply")
+                || value.contains("do-not-reply")
+                || value.contains("mailer-daemon")
+                || value.contains("postmaster"));
     }
 }
-

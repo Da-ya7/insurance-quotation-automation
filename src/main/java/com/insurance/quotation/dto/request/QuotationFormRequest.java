@@ -6,13 +6,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
  * Body sent by the public quotation form.
- * The main applicant is traveller #1; additionalTravellers are the rest.
+ * Only the main applicant's details are collected.
+ * The travellers field stores the total number of people in the group.
  */
 public class QuotationFormRequest {
 
@@ -24,11 +27,15 @@ public class QuotationFormRequest {
     @Size(max = 19, message = "Maximum 20 travellers are allowed")
     private List<TravellerForm> additionalTravellers = new ArrayList<>();
 
-    // Original phone OTP token.
-    private String verificationToken;
+    // Total number of travellers in the group (1–20).
+    // Only the applicant's personal details are collected.
+    @NotNull(message = "Number of travellers is required")
+    @Min(value = 1, message = "At least 1 traveller is required")
+    @Max(value = 20, message = "Maximum 20 travellers are allowed")
+    private Integer travellers = 1;
 
-    // Separate OTP token used to authorize edits to saved Client Master details.
-    private String profileEditVerificationToken;
+    // Issued by the backend after successful phone OTP verification.
+    private String verificationToken;
 
     @NotBlank(message = "Departure country is required")
     @Size(max = 100)
@@ -66,21 +73,20 @@ public class QuotationFormRequest {
                 : travellers;
     }
 
+    public Integer getTravellers() {
+        return travellers;
+    }
+
+    public void setTravellers(Integer travellers) {
+        this.travellers = travellers;
+    }
+
     public String getVerificationToken() {
         return verificationToken;
     }
 
     public void setVerificationToken(String verificationToken) {
         this.verificationToken = verificationToken;
-    }
-
-    public String getProfileEditVerificationToken() {
-        return profileEditVerificationToken;
-    }
-
-    public void setProfileEditVerificationToken(
-            String profileEditVerificationToken) {
-        this.profileEditVerificationToken = profileEditVerificationToken;
     }
 
     public String getDepartureCountry() {

@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.service.submission;
 
 import java.time.LocalDate;
@@ -20,17 +21,22 @@ import com.insurance.quotation.entity.QuotationRequestTraveller;
 import com.insurance.quotation.entity.enums.FieldDataType;
 import com.insurance.quotation.entity.enums.FieldSource;
 import com.insurance.quotation.entity.enums.RequestStatus;
+import com.insurance.quotation.service.client.ClientMasterService;
 import com.insurance.quotation.repository.ClientRepository;
 import com.insurance.quotation.repository.QuotationRepository;
 import com.insurance.quotation.repository.QuotationRequestRepository;
 import com.insurance.quotation.repository.QuotationRequestTravellerRepository;
-import com.insurance.quotation.service.client.ClientMasterService;
 import com.insurance.quotation.service.extraction.ExtractedFieldData;
 import com.insurance.quotation.service.master.FormLinkService;
 import com.insurance.quotation.service.otp.OtpService;
 import com.insurance.quotation.service.quotation.QuotationWorkflowService;
 import com.insurance.quotation.service.stats.RequestStatusInfo;
 
+/**
+ * Handles a submission from the public web form.
+ * It stores the data, then reuses the SAME validation, quotation and
+ * email services that the email automation uses.
+ */
 @Service
 public class FormSubmissionService {
 
@@ -44,11 +50,8 @@ public class FormSubmissionService {
             String message,
             List<String> blockedFields) {
 
-        public SubmissionResult(
-                Long requestId,
-                String status,
-                String quotationNumber,
-                String message) {
+        public SubmissionResult(Long requestId, String status,
+                                String quotationNumber, String message) {
             this(requestId, status, quotationNumber, message, List.of());
         }
     }
@@ -86,19 +89,13 @@ public class FormSubmissionService {
         return submit(form, null);
     }
 
-    // Deliberately not @Transactional as a whole. This allows the
-    // MANUAL_REVIEW_REQUIRED status to be saved if quotation processing fails.
+    // NOTE: deliberately NOT @Transactional as a whole, so that a failure
+    // status can still be saved after something goes wrong.
     public SubmissionResult submit(QuotationFormRequest form, String token) {
 
         if (form == null || form.getApplicant() == null) {
             throw new IllegalArgumentException(
                     "Applicant details are required.");
-        }
-
-        if (form.getTravelStartDate() == null
-                || form.getTravelEndDate() == null) {
-            throw new IllegalArgumentException(
-                    "Travel start date and end date are required.");
         }
 
         if (form.getTravelEndDate().isBefore(form.getTravelStartDate())) {
@@ -126,6 +123,10 @@ public class FormSubmissionService {
 
         TravellerForm applicant = form.getApplicant();
 
+        // ============================================================
+        // 1. MANDATORY OTP SECURITY CHECK
+        // ============================================================
+
         String submittedPhone = applicant.getPhone();
 
         if (submittedPhone == null || submittedPhone.isBlank()) {
@@ -133,60 +134,38 @@ public class FormSubmissionService {
                     "A verified phone number is required.");
         }
 
-        // ------------------------------------------------------------
-        // 1. Verify the original phone OTP.
-        // ------------------------------------------------------------
-
-        String originalVerifiedPhone = null;
-        boolean initialOtpOk;
+        boolean otpOk;
 
         if (link != null) {
-            initialOtpOk = otp.isVerified(link.token());
+            // Returning customer: OTP must be verified for this personal link.
+            otpOk = otp.isVerified(link.token());
         } else {
-            originalVerifiedPhone =
-                    otp.getVerifiedPhone(form.getVerificationToken());
-
-            initialOtpOk =
-                    originalVerifiedPhone != null
-                    && otp.isPhoneVerified(
-                            form.getVerificationToken(),
-                            originalVerifiedPhone);
+            // New customer: verification token must match the submitted phone.
+            otpOk = otp.isPhoneVerified(
+                    form.getVerificationToken(),
+                    submittedPhone);
         }
 
-        if (!initialOtpOk) {
+        if (!otpOk) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "Your phone verification has expired. Please verify again.");
+                    "Please verify your phone number before submitting the form.");
         }
 
-        // ------------------------------------------------------------
-        // 2. Determine whether a second OTP authorizes profile edits.
-        // ------------------------------------------------------------
+        // No client creation or profile update is allowed before the OTP check.
 
-        boolean profileEditOtpOk;
+        String email = applicant.getEmail().trim().toLowerCase();
+        String phone = digitsOnly(submittedPhone);
 
-        if (link != null) {
-            // Preserve the existing email form-link verification flow.
-            profileEditOtpOk = initialOtpOk;
-        } else {
-            profileEditOtpOk =
-                    originalVerifiedPhone != null
-                    && otp.isPhoneVerified(
-                            form.getProfileEditVerificationToken(),
-                            originalVerifiedPhone);
-        }
-
-        String email = applicant.getEmail() == null
-                ? null
-                : applicant.getEmail().trim().toLowerCase();
-
-        String submittedPhoneDigits = digitsOnly(submittedPhone);
+        // ============================================================
+        // 2. CLIENT MASTER
+        // ============================================================
 
         ClientMasterService.ClientDetails details =
                 new ClientMasterService.ClientDetails(
                         applicant.getName(),
                         email,
-                        submittedPhoneDigits,
+                        phone,
                         applicant.getDateOfBirth(),
                         applicant.getGender(),
                         applicant.getNationality(),
@@ -195,109 +174,36 @@ public class FormSubmissionService {
                         "PASSPORT",
                         applicant.getPassportNumber());
 
-        // ------------------------------------------------------------
-        // 3. Resolve the correct Client Master record.
-        // ------------------------------------------------------------
-
         ClientMasterService.ApplyResult applied;
 
         if (link != null && link.clientId() != null) {
-
             Client linked = clientRepository.findById(link.clientId())
                     .orElseThrow(() -> new IllegalArgumentException(
                             "This link is not valid."));
 
             applied = clientMasterService.apply(
-                    linked,
-                    details,
-                    "FORM",
-                    "CUSTOMER_FORM",
-                    profileEditOtpOk);
-
-        } else if (link == null) {
-
-            // Match by the phone verified by the original OTP.
-            // Do not use the edited email or identity number to select
-            // a different Client Master record.
-            List<Client> phoneMatches =
-                    findClientsByPhone(originalVerifiedPhone);
-
-            if (phoneMatches.size() > 1) {
-                throw new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "Multiple customer records use this verified phone number. Please contact our team.");
-            }
-
-            if (phoneMatches.size() == 1) {
-
-                // Existing customer: update the same Client ID.
-                // Sensitive changes remain blocked until the separate
-                // profile-edit OTP has been verified.
-                applied = clientMasterService.apply(
-                        phoneMatches.get(0),
-                        details,
-                        "FORM",
-                        "CUSTOMER_FORM",
-                        profileEditOtpOk);
-
-            } else {
-
-                // New customer: their first OTP authorizes initial
-                // profile creation, but not a different phone number.
-                if (!submittedPhoneDigits.equals(originalVerifiedPhone)) {
-                    throw new ResponseStatusException(
-                            HttpStatus.FORBIDDEN,
-                            "The phone number does not match the verified number. Please verify the new phone number before submitting.");
-                }
-
-                applied = clientMasterService.findOrCreateAndApply(
-                        details,
-                        "FORM",
-                        "CUSTOMER_FORM",
-                        false);
-            }
-
+                    linked, details, "FORM", "CUSTOMER_FORM", otpOk);
         } else {
-
             applied = clientMasterService.findOrCreateAndApply(
-                    details,
-                    "FORM",
-                    "CUSTOMER_FORM",
-                    profileEditOtpOk);
+                    details, "FORM", "CUSTOMER_FORM", otpOk);
         }
 
         Client client = applied.client();
 
-        // If any protected profile field changed without the second OTP,
-        // pause here. Do not save the quotation request or traveller rows.
         if (applied.hasBlockedChanges()) {
             return new SubmissionResult(
                     null,
                     "OTP_REQUIRED",
                     null,
-                    "Your saved customer details have changed. Please verify the code sent to your registered phone number to authorize these changes.",
+                    link == null
+                            ? "Your details are already saved. Use the personal link from our email to change them."
+                            : "To change saved personal details please verify the code sent to your registered phone.",
                     applied.blocked());
         }
 
-        // Consume the second OTP only after Client Master accepts the changes.
-        if (link == null
-                && form.getProfileEditVerificationToken() != null
-                && !form.getProfileEditVerificationToken().isBlank()) {
-
-            boolean consumed = otp.consumePhoneVerification(
-                    form.getProfileEditVerificationToken(),
-                    originalVerifiedPhone);
-
-            if (!consumed) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Your profile-edit verification has expired. Please verify again.");
-            }
-        }
-
-        // ------------------------------------------------------------
-        // 4. Create or reuse the quotation request.
-        // ------------------------------------------------------------
+        // ============================================================
+        // 3. QUOTATION REQUEST
+        // ============================================================
 
         QuotationRequest request =
                 link != null && link.requestId() != null
@@ -313,10 +219,7 @@ public class FormSubmissionService {
         }
 
         request.setPolicyType("TRAVEL");
-        request.setPurposeOfTravel(
-                form.getPurposeOfTravel() == null
-                        ? null
-                        : form.getPurposeOfTravel().trim());
+        request.setPurposeOfTravel(form.getPurposeOfTravel().trim());
         request.setStatus(RequestStatus.EMAIL_RECEIVED);
         request.setUpdatedAt(LocalDateTime.now());
 
@@ -331,9 +234,9 @@ public class FormSubmissionService {
                         request.getId())
                 .isPresent();
 
-        // ------------------------------------------------------------
-        // 5. Save traveller details.
-        // ------------------------------------------------------------
+        // ============================================================
+        // 4. TRAVELLERS
+        // ============================================================
 
         if (reused) {
             travellerRepository.deleteByQuotationRequestId(request.getId());
@@ -341,10 +244,7 @@ public class FormSubmissionService {
 
         List<TravellerForm> all = new ArrayList<>();
         all.add(applicant);
-
-        if (form.getAdditionalTravellers() != null) {
-            all.addAll(form.getAdditionalTravellers());
-        }
+        all.addAll(form.getAdditionalTravellers());
 
         int number = 1;
 
@@ -379,9 +279,9 @@ public class FormSubmissionService {
             travellerRepository.save(row);
         }
 
-        // ------------------------------------------------------------
-        // 6. Run the existing quotation workflow.
-        // ------------------------------------------------------------
+        // ============================================================
+        // 5. WORKFLOW
+        // ============================================================
 
         List<ExtractedFieldData> fields = List.of(
                 field("name", client.getName(), FieldDataType.TEXT),
@@ -400,19 +300,21 @@ public class FormSubmissionService {
                         form.getTravelEndDate().toString(),
                         FieldDataType.DATE),
 
-                
-                field("travellers", String.valueOf(all.size()),
-                        FieldDataType.NUMBER),
-                field("policyType", "TRAVEL", FieldDataType.TEXT),
-                field("purposeOfTravel", form.getPurposeOfTravel(),
-                        FieldDataType.TEXT));
+                // FIX: Pass purpose of travel to the quotation workflow.
+                field("purposeOfTravel",
+                        form.getPurposeOfTravel().trim(),
+                        FieldDataType.TEXT),
 
+                field("travellers", String.valueOf(form.getTravellers()),
+                        FieldDataType.NUMBER),
+                field("policyType", "TRAVEL", FieldDataType.TEXT));
 
         try {
             QuotationWorkflowService.Outcome outcome =
                     workflow.process(request, client, fields, hadQuotation);
 
-            consumeNewCustomerOtpIfRequired(link, form, originalVerifiedPhone);
+            // Consume a new-customer OTP only after the workflow has returned.
+            consumeNewCustomerOtpIfRequired(link, form, applicant);
 
             Long id = request.getId();
 
@@ -435,17 +337,17 @@ public class FormSubmissionService {
                                         + client.getEmail() + ".");
 
                 case MISSING_INFORMATION -> {
-                    List<String> missing =
+                    List<String> all2 =
                             new ArrayList<>(outcome.missingFields());
 
-                    missing.addAll(outcome.invalidFields());
+                    all2.addAll(outcome.invalidFields());
 
                     yield new SubmissionResult(
                             id,
                             "MISSING_INFORMATION",
                             null,
                             "We still need a few details: "
-                                    + String.join(", ", missing) + ".");
+                                    + String.join(", ", all2) + ".");
                 }
 
                 case EMAIL_SEND_FAILED ->
@@ -475,7 +377,9 @@ public class FormSubmissionService {
             request.setUpdatedAt(LocalDateTime.now());
             requestRepository.save(request);
 
-            consumeNewCustomerOtpIfRequired(link, form, originalVerifiedPhone);
+            // The request and traveller data have already been accepted and saved.
+            // Consume the new-customer token to prevent duplicate submissions.
+            consumeNewCustomerOtpIfRequired(link, form, applicant);
 
             return new SubmissionResult(
                     request.getId(),
@@ -486,21 +390,10 @@ public class FormSubmissionService {
         }
     }
 
-    private List<Client> findClientsByPhone(String verifiedPhone) {
-        if (verifiedPhone == null || verifiedPhone.isBlank()) {
-            return List.of();
-        }
-
-        return clientRepository.findAll().stream()
-                .filter(c -> c.getPhone() != null)
-                .filter(c -> digitsOnly(c.getPhone()).equals(verifiedPhone))
-                .toList();
-    }
-
     private void consumeNewCustomerOtpIfRequired(
             FormLinkService.FormLink link,
             QuotationFormRequest form,
-            String originalVerifiedPhone) {
+            TravellerForm applicant) {
 
         if (link != null) {
             return;
@@ -508,7 +401,7 @@ public class FormSubmissionService {
 
         boolean consumed = otp.consumePhoneVerification(
                 form.getVerificationToken(),
-                originalVerifiedPhone);
+                applicant.getPhone());
 
         if (!consumed) {
             log.warn(

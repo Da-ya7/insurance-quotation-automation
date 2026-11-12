@@ -20,7 +20,8 @@ import com.insurance.quotation.service.master.FormLinkService;
 @Service
 public class QuotationEmailService {
 
-    private static final Logger log = LoggerFactory.getLogger(QuotationEmailService.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(QuotationEmailService.class);
 
     private final OutboundMailer mailer;
     private final QuotationRepository quotationRepository;
@@ -35,11 +36,19 @@ public class QuotationEmailService {
         this.formLinks = formLinks;
     }
 
+<<<<<<< HEAD
     /** Missing-details email with a personal form link. */
+=======
+    /** Sends missing-information email using the general public form URL. */
+>>>>>>> origin/Zaferah
     public String sendMissingInformationEmail(
-            Client client, Long requestId, String insuranceType,
-            List<String> missingFields, List<String> invalidFields) {
+            Client client,
+            Long requestId,
+            String insuranceType,
+            List<String> missingFields,
+            List<String> invalidFields) {
 
+<<<<<<< HEAD
         FormLinkService.FormLink link =
                 formLinks.create(client.getId(), requestId, insuranceType);
 
@@ -51,15 +60,46 @@ public class QuotationEmailService {
         mailer.sendPlain(client.getEmail(), mail.subject(), mail.body());
 
         log.info("Missing-information email sent to {} (request {})",
+=======
+        if (client == null || client.getEmail() == null
+                || client.getEmail().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Client email is required.");
+        }
+
+        String url = formLinks.publicUrl();
+
+        MailTemplates.Mail mail =
+                MailTemplates.missingInformation(
+                        missingFields, invalidFields, url);
+
+        mailer.sendPlain(client.getEmail(), mail.subject(), mail.body());
+
+        log.info(
+                "Missing-information email sent to {} (request {})",
+>>>>>>> origin/Zaferah
                 client.getEmail(), requestId);
 
         return url;
     }
 
+<<<<<<< HEAD
     /** Missing-information email without a personal form link. */
+=======
+    /** Missing-information email for older web-form flows. */
+>>>>>>> origin/Zaferah
     public void sendMissingInformationEmail(
-            String recipient, List<String> missingFields, List<String> invalidFields) {
+            String recipient,
+            List<String> missingFields,
+            List<String> invalidFields) {
 
+        String url = formLinks.publicUrl();
+
+        MailTemplates.Mail mail =
+                MailTemplates.missingInformation(
+                        missingFields, invalidFields, url);
+
+<<<<<<< HEAD
         MailTemplates.Mail mail =
                 MailTemplates.missingInformation(missingFields, invalidFields, null);
 
@@ -82,6 +122,29 @@ public class QuotationEmailService {
         MailTemplates.Mail mail =
                 MailTemplates.formLink(existingClientOrNull != null, url);
 
+=======
+        mailer.sendPlain(recipient, mail.subject(), mail.body());
+    }
+
+    /** Sends the general quotation form link without a personal token. */
+    public String sendFormLinkEmail(
+            String recipient,
+            Client existingClientOrNull,
+            String insuranceType,
+            Long requestId) {
+
+        if (recipient == null || recipient.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Recipient email is required.");
+        }
+
+        String url = formLinks.publicUrl();
+
+        MailTemplates.Mail mail =
+                MailTemplates.formLink(
+                        existingClientOrNull != null, url);
+
+>>>>>>> origin/Zaferah
         mailer.sendPlain(recipient, mail.subject(), mail.body());
 
         log.info("Form-link email sent to {}", recipient);
@@ -109,12 +172,23 @@ public class QuotationEmailService {
     @Transactional
     public void sendQuotation(Quotation quotation) {
 
+        if (quotation == null) {
+            throw new IllegalArgumentException(
+                    "Quotation is required.");
+        }
+
         if ("SENT".equals(quotation.getStatus())) {
+<<<<<<< HEAD
             log.info("Quotation {} was already sent - skipping",
+=======
+            log.info(
+                    "Quotation {} was already sent - skipping",
+>>>>>>> origin/Zaferah
                     quotation.getQuotationNumber());
             return;
         }
 
+<<<<<<< HEAD
         if (quotation.getPdfPath() == null || quotation.getPdfPath().isBlank()) {
             throw new IllegalStateException(
                     "Cannot send quotation: PDF path is missing."
@@ -128,11 +202,26 @@ public class QuotationEmailService {
             );
         }
 
+=======
+        if (quotation.getPdfPath() == null
+                || quotation.getPdfPath().isBlank()) {
+            throw new IllegalStateException(
+                    "Cannot send quotation: PDF path is missing.");
+        }
+
+        if (quotation.getQuotationRequest() == null
+                || quotation.getQuotationRequest().getClient() == null) {
+            throw new IllegalStateException(
+                    "Cannot send quotation: client details are missing.");
+        }
+
+>>>>>>> origin/Zaferah
         String recipient =
                 quotation.getQuotationRequest().getClient().getEmail();
 
         if (recipient == null || recipient.isBlank()) {
             throw new IllegalStateException(
+<<<<<<< HEAD
                     "Cannot send quotation: client email is missing."
             );
         }
@@ -141,20 +230,38 @@ public class QuotationEmailService {
                 quotation.getQuotationNumber(),
                 quotation.getVersionNo()
         );
+=======
+                    "Cannot send quotation: client email is missing.");
+        }
+
+        MailTemplates.Mail mail =
+                MailTemplates.quotation(
+                        quotation.getQuotationNumber(),
+                        quotation.getVersionNo());
+>>>>>>> origin/Zaferah
 
         mailer.sendWithAttachment(
                 recipient,
                 mail.subject(),
                 mail.body(),
+<<<<<<< HEAD
                 quotation.getPdfPath()
         );
+=======
+                quotation.getPdfPath());
+>>>>>>> origin/Zaferah
 
         quotation.setStatus("SENT");
         quotation.setSentAt(LocalDateTime.now());
 
         quotationRepository.save(quotation);
 
+<<<<<<< HEAD
         log.info("Quotation {} sent to {}",
+=======
+        log.info(
+                "Quotation {} sent to {}",
+>>>>>>> origin/Zaferah
                 quotation.getQuotationNumber(), recipient);
     }
 }

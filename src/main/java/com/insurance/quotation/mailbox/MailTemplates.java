@@ -1,4 +1,3 @@
-
 package com.insurance.quotation.mailbox;
 
 import java.util.List;
@@ -64,7 +63,7 @@ public final class MailTemplates {
             b.append('\n');
         }
 
-        if (formUrl != null) {
+        if (formUrl != null && !formUrl.isBlank()) {
             b.append("The quickest way is to complete these details in your personal form:\n")
              .append(formUrl).append("\n\n");
         }
