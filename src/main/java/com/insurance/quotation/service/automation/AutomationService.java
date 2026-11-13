@@ -9,6 +9,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +25,6 @@ import com.insurance.quotation.entity.enums.FieldDataType;
 import com.insurance.quotation.entity.enums.FieldSource;
 import com.insurance.quotation.entity.enums.RequestStatus;
 import com.insurance.quotation.mailbox.EmailMessage;
-import com.insurance.quotation.repository.ClientRepository;
 import com.insurance.quotation.repository.IncomingEmailRepository;
 import com.insurance.quotation.repository.QuotationRequestRepository;
 import com.insurance.quotation.repository.RequestFieldValueRepository;
@@ -47,6 +48,18 @@ public class AutomationService {
 
     public static final int MAX_RETRIES = 3;
 
+    /*
+     * A reply must contain an explicit request reference:
+     *
+     * IQAS-REQUEST-318
+     * IQAS-REQ-318
+     */
+    private static final Pattern REQUEST_REFERENCE_PATTERN =
+            Pattern.compile(
+                    "IQAS-(?:REQUEST|REQ)-(\\d+)",
+                    Pattern.CASE_INSENSITIVE
+            );
+
     private final EmailIngestionService ingestion;
     private final EmailExtractionService extraction;
     private final EmailClassificationService classifier;
@@ -58,7 +71,6 @@ public class AutomationService {
     private final IncomingEmailRepository incomingEmailRepository;
     private final QuotationRequestRepository requestRepository;
     private final RequestFieldValueRepository fieldValueRepository;
-    private final ClientRepository clientRepository;
 
     private final ReentrantLock running = new ReentrantLock();
 
@@ -73,8 +85,7 @@ public class AutomationService {
             RequiredFieldRepository requiredFieldRepository,
             IncomingEmailRepository incomingEmailRepository,
             QuotationRequestRepository requestRepository,
-            RequestFieldValueRepository fieldValueRepository,
-            ClientRepository clientRepository) {
+            RequestFieldValueRepository fieldValueRepository) {
 
         this.ingestion = ingestion;
         this.extraction = extraction;
@@ -87,7 +98,6 @@ public class AutomationService {
         this.incomingEmailRepository = incomingEmailRepository;
         this.requestRepository = requestRepository;
         this.fieldValueRepository = fieldValueRepository;
-        this.clientRepository = clientRepository;
     }
 
     // ---------------------------------------------------------
@@ -118,8 +128,7 @@ public class AutomationService {
 
                     boolean done =
                             "PROCESSED".equals(status)
-                                    || "IGNORED".equals(status)
-                                    || "MANUAL_REVIEW_REQUIRED".equals(status);
+                                    || "IGNORED".equals(status);
 
                     boolean exhausted =
                             "FAILED".equals(status)
@@ -179,86 +188,39 @@ public class AutomationService {
                                 f.getFieldName()));
 
         // -----------------------------------------------------
-        // IDENTIFY CUSTOMER
+        // MATCH ONLY USING AN EXPLICIT REQUEST REFERENCE
         // -----------------------------------------------------
-
-        ClientMasterService.ClientDetails details =
-                toClientDetails(email, sender, firstPass);
-
-        Optional<Client> knownClient =
-                clientMaster.find(details);
 
         Optional<QuotationRequest> pending =
-                knownClient.flatMap(this::findPendingRequest);
+                findPendingRequestByReference(email, sender);
 
-        log.info("Sender: {}", sender);
-        log.info("Existing client found: {}", knownClient.isPresent());
-        log.info("Pending request found: {}", pending.isPresent());
+        Optional<Client> knownClient;
 
-        // -----------------------------------------------------
-        // ADDITIONAL REPLY MATCHING
-        // -----------------------------------------------------
+        if (pending.isPresent()) {
 
-        /*
-         * If the client could not be identified using the extracted
-         * name or identity details, check pending requests belonging
-         * to clients who use this sender email address.
-         *
-         * Only match automatically when exactly ONE pending request
-         * is found. Never guess between multiple customers/requests.
-         */
+            knownClient = Optional.of(
+                    pending.get().getClient());
 
-        if (pending.isEmpty()) {
+            log.info(
+                    "Explicit request reference matched. "
+                            + "Request ID: {}, Client ID: {}",
+                    pending.get().getId(),
+                    pending.get().getClient().getId()
+            );
 
-            List<QuotationRequest> senderPendingRequests =
-                    findPendingRequestsBySender(sender);
+        } else {
 
-            if (senderPendingRequests.size() == 1) {
+            ClientMasterService.ClientDetails details =
+                    toClientDetails(email, sender, firstPass);
 
-                QuotationRequest matchedRequest =
-                        senderPendingRequests.get(0);
+            knownClient = clientMaster.find(details);
 
-                pending = Optional.of(matchedRequest);
-
-                knownClient = Optional.of(
-                        matchedRequest.getClient());
-
-                log.info(
-                        "Matched customer reply by sender email. "
-                                + "Client ID: {}, Request ID: {}",
-                        matchedRequest.getClient().getId(),
-                        matchedRequest.getId()
-                );
-
-            } else if (senderPendingRequests.size() > 1) {
-
-                log.warn(
-                        "Multiple pending requests found for sender {}. "
-                                + "Manual review required.",
-                        sender
-                );
-
-                IncomingEmail row = existingRow != null
-                        ? existingRow
-                        : newRow(email, sender);
-
-                row.setEmailKind(
-                        EmailClassificationService.Kind.CLIENT_REPLY.name());
-
-                row.setProcessingStatus("MANUAL_REVIEW_REQUIRED");
-
-                row.setLastError(
-                        "Multiple pending quotation requests found "
-                                + "for the sender email. Customer matching "
-                                + "requires manual review."
-                );
-
-                incomingEmailRepository.save(row);
-
-                markProcessedQuietly(email.getMessageId());
-
-                return;
-            }
+            log.info(
+                    "No request reference found. "
+                            + "Processing as a new request. "
+                            + "Existing client found: {}",
+                    knownClient.isPresent()
+            );
         }
 
         // -----------------------------------------------------
@@ -322,16 +284,16 @@ public class AutomationService {
         // FIND OR APPLY CUSTOMER DETAILS
         // -----------------------------------------------------
 
+        ClientMasterService.ClientDetails details =
+                toClientDetails(email, sender, firstPass);
+
         ClientMasterService.ApplyResult applied;
 
         if (pending.isPresent()) {
 
             /*
-             * When a pending request has been matched, use the client
-             * attached to that request directly.
-             *
-             * This prevents creating a duplicate client when multiple
-             * people share the same email address.
+             * Use the client attached to the explicitly referenced
+             * request. Do not search for another pending request.
              */
 
             Client matchedClient =
@@ -381,21 +343,28 @@ public class AutomationService {
         // FIND OR CREATE QUOTATION REQUEST
         // -----------------------------------------------------
 
-        Optional<QuotationRequest> openRequest =
-                pending.isPresent()
-                        ? pending
-                        : findPendingRequest(client);
+        /*
+         * Important:
+         *
+         * If an explicit request reference was supplied and validated,
+         * update that request.
+         *
+         * Otherwise, ALWAYS create a new quotation request.
+         *
+         * Do not find an old request using sender email or client ID.
+         */
 
-        boolean isReply = openRequest.isPresent();
+        boolean isReply = pending.isPresent();
 
         QuotationRequest request;
 
         if (isReply) {
 
-            request = openRequest.get();
+            request = pending.get();
 
             log.info(
-                    "Customer reply matched existing request ID: {}",
+                    "Customer reply matched explicitly referenced "
+                            + "request ID: {}",
                     request.getId()
             );
 
@@ -418,6 +387,11 @@ public class AutomationService {
             request.setClient(client);
             request.setStatus(RequestStatus.EMAIL_RECEIVED);
             request.setCreatedAt(LocalDateTime.now());
+
+            log.info(
+                    "Creating a new quotation request for client {}",
+                    client.getId()
+            );
         }
 
         request.setPolicyType(type);
@@ -527,48 +501,104 @@ public class AutomationService {
 
         /*
          * MISSING_INFORMATION:
-         * QuotationWorkflowService already sends an email containing
-         * the personal form link.
+         * QuotationWorkflowService sends the personal form link.
          *
          * QUOTATION_SENT:
-         * QuotationWorkflowService already generates and sends the PDF.
+         * QuotationWorkflowService generates and sends the PDF.
          */
 
         finish(row, email);
     }
 
     // ---------------------------------------------------------
-    // FIND PENDING REQUESTS BY SENDER EMAIL
+    // FIND REQUEST USING EXPLICIT REQUEST REFERENCE
     // ---------------------------------------------------------
 
-    private List<QuotationRequest> findPendingRequestsBySender(
+    private Optional<QuotationRequest> findPendingRequestByReference(
+            EmailMessage email,
             String sender) {
 
-        if (sender == null || sender.isBlank()) {
-            return List.of();
+        String subject = email.getSubject() == null
+                ? ""
+                : email.getSubject();
+
+        String body = email.getBody() == null
+                ? ""
+                : email.getBody();
+
+        String content = subject + "\n" + body;
+
+        Matcher matcher =
+                REQUEST_REFERENCE_PATTERN.matcher(content);
+
+        if (!matcher.find()) {
+
+            log.info(
+                    "No explicit quotation request reference found "
+                            + "in email from {}",
+                    sender
+            );
+
+            return Optional.empty();
         }
 
-        List<Client> clients =
-                clientRepository.findAllByEmailIgnoreCase(sender);
+        Long requestId;
 
-        List<QuotationRequest> matches =
-                new ArrayList<>();
+        try {
 
-        for (Client client : clients) {
+            requestId = Long.parseLong(matcher.group(1));
 
-            Optional<QuotationRequest> request =
-                    findPendingRequest(client);
+        } catch (NumberFormatException e) {
 
-            request.ifPresent(matches::add);
+            throw new IllegalArgumentException(
+                    "Invalid quotation request reference in email.",
+                    e
+            );
+        }
+
+        QuotationRequest request =
+                requestRepository.findById(requestId)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException(
+                                        "Referenced quotation request "
+                                                + requestId
+                                                + " was not found."
+                                ));
+
+        if (request.getClient() == null
+                || request.getClient().getEmail() == null
+                || !request.getClient().getEmail()
+                        .trim()
+                        .equalsIgnoreCase(sender)) {
+
+            throw new IllegalArgumentException(
+                    "The sender email does not match the client "
+                            + "of referenced request " + requestId
+            );
+        }
+
+        RequestStatus status = request.getStatus();
+
+        boolean validStatus =
+                status == RequestStatus.MISSING_INFORMATION
+                        || status == RequestStatus.WAITING_FOR_CLIENT;
+
+        if (!validStatus) {
+
+            throw new IllegalArgumentException(
+                    "Request " + requestId
+                            + " cannot receive a reply because its "
+                            + "current status is " + status
+            );
         }
 
         log.info(
-                "Found {} pending requests for sender email {}",
-                matches.size(),
+                "Validated explicit request reference {} for sender {}",
+                requestId,
                 sender
         );
 
-        return matches;
+        return Optional.of(request);
     }
 
     // ---------------------------------------------------------
@@ -591,7 +621,7 @@ public class AutomationService {
          * Every incomplete new quotation email from a human sender
          * receives a form link.
          *
-         * The previous 24-hour suppression has been removed.
+         * No quotation request is created at this stage.
          */
 
         if (isHumanSender(sender)) {
@@ -825,42 +855,6 @@ public class AutomationService {
                 email.getBody(),
                 types
         );
-    }
-
-    // ---------------------------------------------------------
-    // FIND CUSTOMER'S PENDING REQUEST
-    // ---------------------------------------------------------
-
-    private Optional<QuotationRequest> findPendingRequest(
-            Client client) {
-
-        if (client == null || client.getId() == null) {
-            return Optional.empty();
-        }
-
-        List<RequestStatus> pendingStatuses = List.of(
-                RequestStatus.MISSING_INFORMATION,
-                RequestStatus.WAITING_FOR_CLIENT,
-                RequestStatus.EMAIL_PROCESSING_FAILED
-        );
-
-        Optional<QuotationRequest> request =
-                requestRepository
-                        .findFirstByClientIdAndStatusInOrderByIdDesc(
-                                client.getId(),
-                                pendingStatuses
-                        );
-
-        request.ifPresent(r ->
-                log.info(
-                        "Found pending request {} with status {} for client {}",
-                        r.getId(),
-                        r.getStatus(),
-                        client.getId()
-                )
-        );
-
-        return request;
     }
 
     // ---------------------------------------------------------

@@ -31,12 +31,13 @@ public class QuotationEmailService {
             OutboundMailer mailer,
             QuotationRepository quotationRepository,
             FormLinkService formLinks) {
+
         this.mailer = mailer;
         this.quotationRepository = quotationRepository;
         this.formLinks = formLinks;
     }
 
-    /** Sends missing-information email using the general public form URL. */
+    /** Sends missing-information email with quotation request reference. */
     public String sendMissingInformationEmail(
             Client client,
             Long requestId,
@@ -46,6 +47,7 @@ public class QuotationEmailService {
 
         if (client == null || client.getEmail() == null
                 || client.getEmail().isBlank()) {
+
             throw new IllegalArgumentException(
                     "Client email is required.");
         }
@@ -54,13 +56,23 @@ public class QuotationEmailService {
 
         MailTemplates.Mail mail =
                 MailTemplates.missingInformation(
-                        missingFields, invalidFields, url);
+                        missingFields,
+                        invalidFields,
+                        url,
+                        requestId
+                );
 
-        mailer.sendPlain(client.getEmail(), mail.subject(), mail.body());
+        mailer.sendPlain(
+                client.getEmail(),
+                mail.subject(),
+                mail.body()
+        );
 
         log.info(
                 "Missing-information email sent to {} (request {})",
-                client.getEmail(), requestId);
+                client.getEmail(),
+                requestId
+        );
 
         return url;
     }
@@ -75,12 +87,22 @@ public class QuotationEmailService {
 
         MailTemplates.Mail mail =
                 MailTemplates.missingInformation(
-                        missingFields, invalidFields, url);
+                        missingFields,
+                        invalidFields,
+                        url
+                );
 
-        mailer.sendPlain(recipient, mail.subject(), mail.body());
+        mailer.sendPlain(
+                recipient,
+                mail.subject(),
+                mail.body()
+        );
     }
 
-    /** Sends the general quotation form link without a personal token. */
+    /**
+     * Sends the general quotation form link with a unique
+     * quotation request reference.
+     */
     public String sendFormLinkEmail(
             String recipient,
             Client existingClientOrNull,
@@ -96,11 +118,22 @@ public class QuotationEmailService {
 
         MailTemplates.Mail mail =
                 MailTemplates.formLink(
-                        existingClientOrNull != null, url);
+                        existingClientOrNull != null,
+                        url,
+                        requestId
+                );
 
-        mailer.sendPlain(recipient, mail.subject(), mail.body());
+        mailer.sendPlain(
+                recipient,
+                mail.subject(),
+                mail.body()
+        );
 
-        log.info("Form-link email sent to {}", recipient);
+        log.info(
+                "Form-link email sent to {} (request {})",
+                recipient,
+                requestId
+        );
 
         return url;
     }
@@ -118,23 +151,28 @@ public class QuotationEmailService {
             log.info(
                     "Quotation {} was already sent - skipping",
                     quotation.getQuotationNumber());
+
             return;
         }
 
         if (quotation.getPdfPath() == null
                 || quotation.getPdfPath().isBlank()) {
+
             throw new IllegalStateException(
                     "Cannot send quotation: PDF path is missing.");
         }
 
         if (quotation.getQuotationRequest() == null
                 || quotation.getQuotationRequest().getClient() == null) {
+
             throw new IllegalStateException(
                     "Cannot send quotation: client details are missing.");
         }
 
         String recipient =
-                quotation.getQuotationRequest().getClient().getEmail();
+                quotation.getQuotationRequest()
+                        .getClient()
+                        .getEmail();
 
         if (recipient == null || recipient.isBlank()) {
             throw new IllegalStateException(
@@ -155,10 +193,12 @@ public class QuotationEmailService {
         // Only after the provider accepted the message:
         quotation.setStatus("SENT");
         quotation.setSentAt(LocalDateTime.now());
+
         quotationRepository.save(quotation);
 
         log.info(
                 "Quotation {} sent to {}",
-                quotation.getQuotationNumber(), recipient);
+                quotation.getQuotationNumber(),
+                recipient);
     }
 }
