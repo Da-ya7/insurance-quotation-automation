@@ -17,8 +17,23 @@ public final class MailTemplates {
 
     /**
      * Email asking the customer to complete the PUBLIC quotation form.
+     * Existing method retained for compatibility.
      */
-    public static Mail formLink(boolean returningClient, String formUrl) {
+    public static Mail formLink(
+            boolean returningClient,
+            String formUrl) {
+
+        return formLink(returningClient, formUrl, null);
+    }
+
+    /**
+     * Email asking the customer to complete the PUBLIC quotation form
+     * with a unique quotation request reference.
+     */
+    public static Mail formLink(
+            boolean returningClient,
+            String formUrl,
+            Long requestId) {
 
         StringBuilder b = new StringBuilder();
 
@@ -38,24 +53,58 @@ public final class MailTemplates {
              .append("requirements accurately.\n\n");
         }
 
+        // Add a unique request reference when available.
+        if (requestId != null) {
+            String reference = "IQAS-REQ-" + requestId;
+
+            b.append("Your quotation request reference is: ")
+             .append(reference)
+             .append("\n\n");
+
+            b.append("Please keep this reference when replying ")
+             .append("to our emails.\n\n");
+        }
+
         b.append("Once you submit the form, our team will process ")
          .append("your request and contact you regarding your quotation.");
 
         b.append(SIGNATURE);
 
-        return new Mail(
-                "Insurance Quotation - Complete Your Details",
-                b.toString()
-        );
+        String subject =
+                "Insurance Quotation - Complete Your Details";
+
+        if (requestId != null) {
+            subject += " [IQAS-REQ-" + requestId + "]";
+        }
+
+        return new Mail(subject, b.toString());
     }
 
     /**
      * Email asking for specific missing or invalid details.
+     * Existing method retained for compatibility.
      */
     public static Mail missingInformation(
             List<String> missing,
             List<String> invalid,
             String formUrl) {
+
+        return missingInformation(
+                missing,
+                invalid,
+                formUrl,
+                null
+        );
+    }
+
+    /**
+     * Missing-information email with a unique quotation request reference.
+     */
+    public static Mail missingInformation(
+            List<String> missing,
+            List<String> invalid,
+            String formUrl,
+            Long requestId) {
 
         StringBuilder b = new StringBuilder();
 
@@ -94,12 +143,26 @@ public final class MailTemplates {
         b.append("You can also reply to this email using the format ")
          .append("Field Name: Value.");
 
+        String subject =
+                "Additional Information Required - Insurance Quotation";
+
+        // Add the request reference to the subject and email body.
+        if (requestId != null) {
+
+            String reference = "IQAS-REQ-" + requestId;
+
+            subject += " [" + reference + "]";
+
+            b.append("\n\nYour quotation request reference is: ")
+             .append(reference)
+             .append("\n");
+
+            b.append("Please keep this reference when replying.");
+        }
+
         b.append(SIGNATURE);
 
-        return new Mail(
-                "Additional Information Required - Insurance Quotation",
-                b.toString()
-        );
+        return new Mail(subject, b.toString());
     }
 
     /**
