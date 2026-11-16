@@ -236,7 +236,8 @@
                 [(ngModel)]="a.dateOfBirth"
                 name="dob" />
             </label>
- 
+
+            <!-- GENDER: OPTION VALUES MATCH BACKEND -->
             <label>
               Gender
               <select
@@ -245,9 +246,9 @@
                 name="gender">
  
                 <option [ngValue]="null">Select</option>
-                <option>MALE</option>
-                <option>FEMALE</option>
-                <option>OTHER</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
               </select>
             </label>
  

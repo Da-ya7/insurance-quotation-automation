@@ -91,8 +91,6 @@ public class EmailExtractionService {
                 "Insurance Type"
         ));
 
-        // Additional travel and customer information.
-
         fields.add(extractAny(
                 body,
                 "dateOfBirth",
@@ -164,21 +162,24 @@ public class EmailExtractionService {
                 new LinkedHashMap<>();
 
         if (requiredFields != null) {
-
             for (RequiredField rf : requiredFields) {
 
-                if (rf == null || rf.getFieldName() == null) {
+                if (rf == null || rf.getFieldName() == null
+                        || rf.getFieldName().isBlank()) {
                     continue;
                 }
 
+                List<String> labels = labelsForField(
+                        rf.getFieldName(),
+                        rf.getDisplayLabel()
+                );
+
                 String value = firstValue(
                         body,
-                        rf.getDisplayLabel(),
-                        humanize(rf.getFieldName())
+                        labels.toArray(new String[0])
                 );
 
                 if (value == null || value.isBlank()) {
-
                     result.put(
                             rf.getFieldName(),
                             missingField(
@@ -186,14 +187,11 @@ public class EmailExtractionService {
                                     rf.getDataType()
                             )
                     );
-
                     continue;
                 }
 
                 if (rf.getDataType() == FieldDataType.EMAIL) {
-
                     Matcher matcher = EMAIL_PATTERN.matcher(value);
-
                     value = matcher.find()
                             ? matcher.group().trim()
                             : value;
@@ -216,10 +214,115 @@ public class EmailExtractionService {
             }
         }
 
-        // Identity document extraction.
+        /*
+         * Also extract known customer and travel fields.
+         * The automation workflow uses this database-configured overload.
+         * These values are returned as extracted data. The existing workflow
+         * remains responsible for deciding which values are persisted.
+         */
+        addFixedFieldIfMissing(
+                result, body, "name", FieldDataType.TEXT,
+                "Name", "Full Name", "Customer Name"
+        );
 
+        addFixedFieldIfMissing(
+                result, body, "email", FieldDataType.EMAIL,
+                "Email", "Email Address", "E-mail"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "phone", FieldDataType.PHONE,
+                "Phone", "Phone Number", "Mobile", "Mobile Number",
+                "Contact Number"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "dateOfBirth", FieldDataType.DATE,
+                "Date of Birth", "DOB", "Birth Date"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "age", FieldDataType.NUMBER,
+                "Age"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "gender", FieldDataType.TEXT,
+                "Gender", "Sex"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "nationality", FieldDataType.TEXT,
+                "Nationality", "National Origin"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "countryOfResidence", FieldDataType.TEXT,
+                "Country of Residence", "Country of Residency",
+                "Residence Country", "Residential Country"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "passportNumber", FieldDataType.TEXT,
+                "Passport Number", "Passport No", "Passport",
+                "Passport No."
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "originCountry", FieldDataType.TEXT,
+                "Origin Country", "Country of Origin",
+                "Departure Country", "From Country"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "destinationCountry", FieldDataType.TEXT,
+                "Destination Country", "Country of Destination",
+                "Travel Destination", "To Country"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "travelStartDate", FieldDataType.DATE,
+                "Travel Start Date", "Start Date",
+                "Departure Date", "Trip Start Date"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "travelEndDate", FieldDataType.DATE,
+                "Travel End Date", "End Date",
+                "Return Date", "Trip End Date"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "travellers", FieldDataType.NUMBER,
+                "Travellers", "Travelers", "Number of Travellers",
+                "Number of Travelers", "No. of Travellers",
+                "No. of Travelers"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "policyType", FieldDataType.TEXT,
+                "Policy Type", "Insurance Type"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "preExistingMedicalConditions",
+                FieldDataType.TEXT,
+                "Pre-existing Medical Conditions",
+                "Pre Existing Medical Conditions",
+                "Pre-existing Conditions",
+                "Medical Conditions"
+        );
+
+        addFixedFieldIfMissing(
+                result, body, "purposeOfTravel", FieldDataType.TEXT,
+                "Purpose of Travel", "Travel Purpose",
+                "Purpose"
+        );
+
+        // Identity document extraction.
         String type = firstValue(
                 body,
+                "Identity Document Type",
                 "Identity Type",
                 "ID Type",
                 "Document Type"
@@ -227,6 +330,7 @@ public class EmailExtractionService {
 
         String number = firstValue(
                 body,
+                "Identity Document Number",
                 "Identity Number",
                 "ID Number",
                 "Document Number"
@@ -234,22 +338,20 @@ public class EmailExtractionService {
 
         String country = firstValue(
                 body,
+                "Identity Document Issuing Country",
+                "Issuing Country",
                 "Identity Country",
                 "ID Country",
-                "Country of Issue"
+                "Country of Issue",
+                "Country of Issuance"
         );
 
         if (number == null) {
-
             for (String[] entry : IDENTITY_LABELS) {
 
-                String value = extractLabelValue(
-                        body,
-                        entry[0]
-                );
+                String value = extractLabelValue(body, entry[0]);
 
                 if (value != null && !value.isBlank()) {
-
                     number = value;
                     type = entry[1];
 
@@ -263,12 +365,196 @@ public class EmailExtractionService {
         }
 
         putIdentity(result, "identityType", type);
-
         putIdentity(result, "identityNumber", number);
-
         putIdentity(result, "identityCountry", country);
 
         return new ArrayList<>(result.values());
+    }
+
+    /**
+     * Return common email labels for a configured field.
+     */
+    private List<String> labelsForField(
+            String fieldName,
+            String displayLabel) {
+
+        List<String> labels = new ArrayList<>();
+
+        addLabel(labels, displayLabel);
+        addLabel(labels, humanize(fieldName));
+
+        String key = fieldName == null
+                ? ""
+                : fieldName.replaceAll("[^A-Za-z0-9]", "")
+                        .toLowerCase();
+
+        switch (key) {
+
+            case "name":
+            case "fullname":
+            case "clientname":
+            case "customername":
+                addLabels(labels, "Name", "Full Name", "Customer Name");
+                break;
+
+            case "email":
+            case "emailaddress":
+                addLabels(labels, "Email", "Email Address", "E-mail");
+                break;
+
+            case "phone":
+            case "phonenumber":
+            case "mobile":
+            case "mobilenumber":
+            case "contactnumber":
+                addLabels(labels, "Phone", "Phone Number", "Mobile",
+                        "Mobile Number", "Contact Number");
+                break;
+
+            case "dateofbirth":
+            case "dob":
+            case "birthdate":
+                addLabels(labels, "Date of Birth", "DOB", "Birth Date");
+                break;
+
+            case "gender":
+            case "sex":
+                addLabels(labels, "Gender", "Sex");
+                break;
+
+            case "nationality":
+            case "nationalorigin":
+                addLabels(labels, "Nationality", "National Origin");
+                break;
+
+            case "countryofresidence":
+            case "countryofresidency":
+            case "residencecountry":
+            case "residentialcountry":
+                addLabels(labels, "Country of Residence",
+                        "Country of Residency", "Residence Country",
+                        "Residential Country");
+                break;
+
+            case "passportnumber":
+            case "passportno":
+            case "passport":
+                addLabels(labels, "Passport Number", "Passport No",
+                        "Passport", "Passport No.");
+                break;
+
+            case "origincountry":
+            case "countryoforigin":
+                addLabels(labels, "Origin Country", "Country of Origin",
+                        "Departure Country", "From Country");
+                break;
+
+            case "destinationcountry":
+            case "countryofdestination":
+                addLabels(labels, "Destination Country",
+                        "Country of Destination", "Travel Destination",
+                        "To Country");
+                break;
+
+            case "travelstartdate":
+            case "startdate":
+            case "departuredate":
+                addLabels(labels, "Travel Start Date", "Start Date",
+                        "Departure Date", "Trip Start Date");
+                break;
+
+            case "travelenddate":
+            case "enddate":
+            case "returndate":
+                addLabels(labels, "Travel End Date", "End Date",
+                        "Return Date", "Trip End Date");
+                break;
+
+            case "travellers":
+            case "travelers":
+            case "numberoftravellers":
+            case "numberoftravelers":
+                addLabels(labels, "Travellers", "Travelers",
+                        "Number of Travellers", "Number of Travelers",
+                        "No. of Travellers", "No. of Travelers");
+                break;
+
+            case "policytype":
+            case "insurancetype":
+                addLabels(labels, "Policy Type", "Insurance Type");
+                break;
+
+            case "preexistingmedicalconditions":
+            case "medicalconditions":
+                addLabels(labels, "Pre-existing Medical Conditions",
+                        "Pre Existing Medical Conditions",
+                        "Pre-existing Conditions", "Medical Conditions");
+                break;
+
+            case "purposeoftravel":
+            case "travelpurpose":
+                addLabels(labels, "Purpose of Travel", "Travel Purpose",
+                        "Purpose");
+                break;
+
+            default:
+                break;
+        }
+
+        return labels;
+    }
+
+    private void addFixedFieldIfMissing(
+            Map<String, ExtractedFieldData> result,
+            String body,
+            String fieldName,
+            FieldDataType dataType,
+            String... labels) {
+
+        if (result.containsKey(fieldName)) {
+            return;
+        }
+
+        String value = firstValue(body, labels);
+
+        if (value == null || value.isBlank()) {
+            return;
+        }
+
+        if (dataType == FieldDataType.EMAIL) {
+            Matcher matcher = EMAIL_PATTERN.matcher(value);
+
+            if (matcher.find()) {
+                value = matcher.group().trim();
+            }
+        }
+
+        result.put(
+                fieldName,
+                new ExtractedFieldData(
+                        fieldName,
+                        ValueNormalizer.normalize(value, dataType),
+                        dataType,
+                        FieldSource.EMAIL_EXTRACTED,
+                        0.95,
+                        false
+                )
+        );
+    }
+
+    private void addLabel(List<String> labels, String label) {
+
+        if (label != null && !label.isBlank()
+                && !labels.contains(label)) {
+            labels.add(label);
+        }
+    }
+
+    private void addLabels(List<String> labels, String... values) {
+
+        for (String value : values) {
+            addLabel(labels, value);
+        }
     }
 
     /**
@@ -425,15 +711,10 @@ public class EmailExtractionService {
     }
 
     /**
-     * Extract values from these formats:
-     *
+     * Extract values from email label formats such as:
      * Phone: 7896546785
      * Phone - 7896546785
-     * Phone – 7896546785
-     * Phone — 7896546785
      * - Phone: 7896546785
-     *
-     * Also supports Gmail quoted reply prefixes.
      */
     private String extractLabelValue(
             String body,
@@ -441,7 +722,6 @@ public class EmailExtractionService {
 
         if (body == null || body.isBlank()
                 || label == null || label.isBlank()) {
-
             return null;
         }
 
@@ -461,7 +741,6 @@ public class EmailExtractionService {
                 continue;
             }
 
-            // Extract mailto addresses from email replies.
             Matcher mailto = Pattern.compile(
                     "(?i)mailto:([^\\s)]+)"
             ).matcher(value);
@@ -470,7 +749,6 @@ public class EmailExtractionService {
                 return mailto.group(1).trim();
             }
 
-            // Convert Markdown email links into plain text.
             value = value.replaceAll(
                     "\\[([^\\]]*)\\]\\([^)]*\\)",
                     "$1"
@@ -497,35 +775,26 @@ public class EmailExtractionService {
         }
 
         return body
-
-                // Preserve HTML line breaks.
                 .replaceAll(
                         "(?i)<br\\s*/?>",
                         "\n"
                 )
-
                 .replaceAll(
                         "(?i)</p\\s*>",
                         "\n"
                 )
-
                 .replaceAll(
                         "(?i)</div\\s*>",
                         "\n"
                 )
-
                 .replaceAll(
                         "(?i)</li\\s*>",
                         "\n"
                 )
-
-                // Remove remaining HTML tags.
                 .replaceAll(
                         "<[^>]+>",
                         " "
                 )
-
-                // Decode common HTML entities.
                 .replace("&nbsp;", " ")
                 .replace("&amp;", "&")
                 .replace("&lt;", "<")
@@ -533,8 +802,6 @@ public class EmailExtractionService {
                 .replace("&quot;", "\"")
                 .replace("&#39;", "'")
                 .replace("&#x27;", "'")
-
-                // Normalize line endings.
                 .replace("\r\n", "\n")
                 .replace('\r', '\n');
     }
