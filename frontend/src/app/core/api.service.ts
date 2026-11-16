@@ -615,12 +615,13 @@
 
 
 
+
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 // All calls use a relative /api path. In development, proxy.conf.json
-// forwards /api to Spring Boot, so the browser only ever uses ONE port.
+// forwards /api to Spring Boot.
 
 // ------------------------------------------------------------------ auth
 export interface LoginResponse {
@@ -914,6 +915,7 @@ export interface CountryDto {
   code: string;
   name: string;
   active: boolean;
+  callingCode?: string | null;
 }
 
 export interface IdentityTypeDto {
@@ -966,6 +968,7 @@ export interface PublicInsuranceType {
 export interface PublicCountry {
   code: string;
   name: string;
+  callingCode?: string | null;
 }
 
 export interface PublicIdentityType {
@@ -1033,20 +1036,13 @@ export interface NewCustomerOtpSendResult {
   expiresInSeconds: number;
 }
 
-/** Response from the new-customer OTP verification endpoint. */
 export interface NewCustomerOtpVerifyResult {
   verified: boolean;
   verificationToken?: string;
   attemptsLeft?: number;
   message?: string;
-
-  /** True when exactly one saved customer matches the verified phone. */
   existingClient?: boolean;
-
-  /** True when multiple customer records match the verified phone. */
   ambiguousPhone?: boolean;
-
-  /** Saved personal details returned only after successful OTP verification. */
   client?: FormLinkClient | null;
 }
 
@@ -1309,9 +1305,8 @@ export class ApiService {
     return this.http.delete(`/api/master/email-keywords/${id}`);
   }
 
-  // ---- public (no login)
+  // ---- public: new customer phone verification
 
-  // ---- new customer phone verification
   sendNewCustomerOtp(
     phone: string
   ): Observable<NewCustomerOtpSendResult> {

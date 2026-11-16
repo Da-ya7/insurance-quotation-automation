@@ -36,8 +36,40 @@
           {{ r.status === 'QUOTATION_SENT' ? '✓' : 'i' }}
         </div>
 
-        <h2>{{ r.status === 'QUOTATION_SENT' ? 'Thank you!' : 'Almost there' }}</h2>
+        @if (r.status === 'QUOTATION_SENT') {
+          <h2>
+            {{ type() === 'TRAVEL'
+              ? 'Travel quotation submitted successfully!'
+              : 'Quotation submitted successfully!' }}
+          </h2>
+        } @else {
+          <h2>Almost there</h2>
+        }
+
         <p>{{ r.message }}</p>
+
+        <div class="cf-result-details">
+
+          <p>
+            <strong>Applicant:</strong>
+            {{ a.name }}
+          </p>
+
+          <p>
+            <strong>Insurance Type:</strong>
+            {{ type() === 'TRAVEL'
+              ? 'Travel Insurance'
+              : (form()?.label || type()) }}
+          </p>
+
+          @if (type() === 'TRAVEL') {
+            <p>
+              <strong>Travellers:</strong>
+              {{ values['travellers'] }}
+            </p>
+          }
+
+        </div>
 
         @if (r.quotationNumber) {
           <p class="cf-qno">
@@ -51,6 +83,11 @@
             {{ r.blockedFields!.join(', ') }}
           </div>
         }
+
+        @if (r.status === 'QUOTATION_SENT') {
+          <p><strong>Submission successful</strong></p>
+        }
+
       </div>
     }
 
@@ -107,16 +144,35 @@
         } @else if (!token) {
           <label class="cf-phone-label">
             Mobile number
-            <input
-              class="cf-input"
-              type="tel"
-              [(ngModel)]="a.phone"
-              (ngModelChange)="onNewPhoneChange()"
-              name="otpPhone"
-              placeholder="Enter your mobile number"
-              autocomplete="tel"
-              [disabled]="busy() || otpSent()"
-              required />
+
+            <div class="cf-phone-group">
+              <select
+                class="cf-input cf-phone-code"
+                [(ngModel)]="phoneCallingCode"
+                (ngModelChange)="onPhoneCallingCodeChange()"
+                name="otpPhoneCallingCode"
+                [disabled]="busy() || otpSent()">
+
+                @for (c of countries(); track c.code) {
+                  @if (getCallingCode(c)) {
+                    <option [value]="getCallingCode(c)">
+                      {{ getCallingCode(c) }} ({{ c.code }})
+                    </option>
+                  }
+                }
+              </select>
+
+              <input
+                class="cf-input cf-phone-number"
+                type="tel"
+                [(ngModel)]="a.phone"
+                (ngModelChange)="onNewPhoneChange()"
+                name="otpPhone"
+                placeholder="Enter your mobile number"
+                autocomplete="tel-national"
+                [disabled]="busy() || otpSent()"
+                required />
+            </div>
           </label>
         } @else {
           <div class="cf-alert cf-alert-info">
@@ -217,15 +273,34 @@
                 required />
             </label>
 
-            <label>
+            <label class="cf-phone-label">
               Phone
-              <input
-                class="cf-input"
-                type="tel"
-                [(ngModel)]="a.phone"
-                name="phone"
-                [placeholder]="link()?.client?.phoneMasked || 'Enter your phone number'"
-                [required]="!link()?.existingClient" />
+
+              <div class="cf-phone-group">
+                <select
+                  class="cf-input cf-phone-code"
+                  [(ngModel)]="phoneCallingCode"
+                  (ngModelChange)="onPhoneCallingCodeChange()"
+                  name="formPhoneCallingCode">
+
+                  @for (c of countries(); track c.code) {
+                    @if (getCallingCode(c)) {
+                      <option [value]="getCallingCode(c)">
+                        {{ getCallingCode(c) }} ({{ c.code }})
+                      </option>
+                    }
+                  }
+                </select>
+
+                <input
+                  class="cf-input cf-phone-number"
+                  type="tel"
+                  [(ngModel)]="a.phone"
+                  (ngModelChange)="onNewPhoneChange()"
+                  name="phone"
+                  [placeholder]="link()?.client?.phoneMasked || 'Enter your phone number'"
+                  [required]="!link()?.existingClient" />
+              </div>
             </label>
 
             <label>
@@ -237,7 +312,7 @@
                 name="dob" />
             </label>
 
-            <!-- GENDER: OPTION VALUES MATCH BACKEND -->
+            <!-- GENDER -->
             <label>
               Gender
               <select
