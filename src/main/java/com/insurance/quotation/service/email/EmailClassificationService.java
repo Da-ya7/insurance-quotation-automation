@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.service.email;
 
 import java.util.List;
@@ -9,9 +10,8 @@ import org.springframework.stereotype.Service;
 import com.insurance.quotation.service.master.InsuranceTypeDef;
 
 /**
- * First-level email filter. The SUBJECT must contain a quotation-related
- * keyword (kept in the database) unless the sender is answering a request that
- * is waiting for information.
+ * First-level email filter.
+ * Configured quotation keywords are checked in both subject and body.
  */
 @Service
 public class EmailClassificationService {
@@ -32,85 +32,181 @@ public class EmailClassificationService {
         }
     }
 
-    public record Classification(Kind kind, boolean subjectMatched, String reason) { }
+    public record Classification(
+            Kind kind,
+            boolean subjectMatched,
+            String reason) {
+    }
 
+    /**
+     * Classifies an email using configured keywords in both subject and body.
+     */
+    public Classification classify(
+            String subject,
+            String body,
+            boolean senderHasPendingRequest,
+            boolean bodyHasRequestDetails,
+            List<String> keywords) {
+
+        boolean subjectMatched =
+                containsKeyword(subject, keywords);
+
+        boolean bodyMatched =
+                containsKeyword(body, keywords);
+
+        boolean looksLikeReply = subject != null
+                && subject.trim().toLowerCase(Locale.ROOT)
+                        .matches("^(re|fw|fwd)\\s*:.*");
+
+        if (senderHasPendingRequest
+                && (subjectMatched
+                    || bodyMatched
+                    || looksLikeReply
+                    || bodyHasRequestDetails)) {
+
+            return new Classification(
+                    Kind.CLIENT_REPLY,
+                    subjectMatched,
+                    "Sender has a request waiting for information"
+            );
+        }
+
+        if (subjectMatched || bodyMatched) {
+
+            String reason = subjectMatched && bodyMatched
+                    ? "Quotation keyword found in subject and body"
+                    : subjectMatched
+                        ? "Quotation keyword found in subject"
+                        : "Quotation keyword found in body";
+
+            return new Classification(
+                    Kind.NEW_REQUEST,
+                    subjectMatched,
+                    reason
+            );
+        }
+
+        return new Classification(
+                Kind.UNRELATED,
+                false,
+                "No quotation-related keyword found in subject or body"
+        );
+    }
+
+    /**
+     * Backward-compatible overload for existing callers and tests.
+     */
     public Classification classify(
             String subject,
             boolean senderHasPendingRequest,
             boolean bodyHasRequestDetails,
-            List<String> subjectKeywords) {
+            List<String> keywords) {
 
-        boolean subjectMatched = subjectContainsKeyword(subject, subjectKeywords);
-        boolean looksLikeReply = subject != null
-                && subject.trim().toLowerCase(Locale.ROOT).matches("^(re|fw|fwd)\\s*:.*");
-
-        if (senderHasPendingRequest
-                && (subjectMatched || looksLikeReply || bodyHasRequestDetails)) {
-            return new Classification(Kind.CLIENT_REPLY, subjectMatched,
-                    "Sender has a request waiting for information");
-        }
-        if (subjectMatched) {
-            return new Classification(Kind.NEW_REQUEST, true,
-                    "Subject contains a quotation keyword");
-        }
-        return new Classification(Kind.UNRELATED, false,
-                "Subject has no quotation-related keyword");
+        return classify(
+                subject,
+                null,
+                senderHasPendingRequest,
+                bodyHasRequestDetails,
+                keywords
+        );
     }
 
-    public static boolean subjectContainsKeyword(String subject, List<String> keywords) {
-        if (subject == null || subject.isBlank() || keywords == null) {
+    public static boolean subjectContainsKeyword(
+            String subject,
+            List<String> keywords) {
+
+        return containsKeyword(subject, keywords);
+    }
+
+    /**
+     * Checks whether any configured keyword occurs in the supplied text.
+     * Case-insensitive. Word-start matching means "travel" also matches
+     * "travelling".
+     */
+    public static boolean containsKeyword(
+            String text,
+            List<String> keywords) {
+
+        if (text == null || text.isBlank()
+                || keywords == null || keywords.isEmpty()) {
             return false;
         }
-        for (String k : keywords) {
-            if (k == null || k.isBlank()) {
+
+        for (String keyword : keywords) {
+
+            if (keyword == null || keyword.isBlank()) {
                 continue;
             }
-            // word START match: "travel" also matches "travelling"
-            Pattern p = Pattern.compile("(?i)\\b" + Pattern.quote(k.trim()));
-            if (p.matcher(subject).find()) {
+
+            Pattern pattern = Pattern.compile(
+                    "(?i)\\b" + Pattern.quote(keyword.trim())
+            );
+
+            if (pattern.matcher(text).find()) {
                 return true;
             }
         }
+
         return false;
     }
 
     /**
-     * Picks the insurance type whose code/keywords occur most in the text.
-     * Returns null when nothing matches (the client then chooses on the form).
+     * Detects the insurance type using its code and configured type keywords
+     * in both the subject and body.
      */
     public String detectInsuranceType(
-            String subject, String body, List<InsuranceTypeDef> types) {
+            String subject,
+            String body,
+            List<InsuranceTypeDef> types) {
 
         String text = ((subject == null ? "" : subject) + " "
-                + (body == null ? "" : body)).toLowerCase(Locale.ROOT);
+                + (body == null ? "" : body))
+                .toLowerCase(Locale.ROOT);
 
         String best = null;
         int bestScore = 0;
-        for (InsuranceTypeDef t : types) {
-            if (!t.active()) {
+
+        for (InsuranceTypeDef type : types) {
+
+            if (!type.active()) {
                 continue;
             }
+
             int score = 0;
-            if (containsWord(text, t.code().toLowerCase(Locale.ROOT))) {
+
+            if (containsWord(
+                    text,
+                    type.code().toLowerCase(Locale.ROOT))) {
                 score += 3;
             }
-            if (t.keywords() != null) {
-                for (String k : t.keywords().split(",")) {
-                    String kw = k.trim().toLowerCase(Locale.ROOT);
-                    if (!kw.isEmpty() && containsWord(text, kw)) {
+
+            if (type.keywords() != null) {
+
+                for (String keyword : type.keywords().split(",")) {
+
+                    String normalized = keyword.trim()
+                            .toLowerCase(Locale.ROOT);
+
+                    if (!normalized.isEmpty()
+                            && containsWord(text, normalized)) {
                         score++;
                     }
                 }
             }
+
             if (score > bestScore) {
                 bestScore = score;
-                best = t.code();
+                best = type.code();
             }
         }
+
         return best;
     }
 
     private static boolean containsWord(String text, String word) {
-        return Pattern.compile("\\b" + Pattern.quote(word)).matcher(text).find();
+
+        return Pattern.compile(
+                "\\b" + Pattern.quote(word)
+        ).matcher(text).find();
     }
 }
