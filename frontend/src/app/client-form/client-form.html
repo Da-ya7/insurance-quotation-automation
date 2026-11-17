@@ -706,23 +706,59 @@
                     Personal details are required for the applicant only.
                   </small>
                 </label>
+
+                <!-- PASSPORT ISSUING COUNTRY: ALWAYS DISPLAY FOR TRAVEL -->
+                <label>
+                  Passport issuing country
+                  <i class="cf-req">*</i>
+
+                  <select
+                    class="cf-input"
+                    [(ngModel)]="values['passportCountry']"
+                    name="passportCountry"
+                    required
+                    [disabled]="busy()">
+
+                    <option value="">Select passport issuing country</option>
+
+                    @for (c of countries(); track c.code) {
+                      <option [value]="c.code">
+                        {{ c.name }}
+                      </option>
+                    }
+                  </select>
+
+                  <small class="cf-hint">
+                    Select the country that issued the applicant's passport.
+                  </small>
+                </label>
               }
 
+              <!-- DYNAMIC INSURANCE FIELDS -->
               @for (f of otherFields(); track f.fieldName) {
-                <label>
-                  {{ f.displayLabel }}
-                  @if (f.isMandatory) {
-                    <i class="cf-req">*</i>
-                  }
- 
-                  <input
-                    class="cf-input"
-                    [type]="inputType(f.dataType)"
-                    [(ngModel)]="values[f.fieldName]"
-                    [name]="f.fieldName"
-                    [required]="f.isMandatory"
-                    [placeholder]="f.helpText || ''" />
-                </label>
+
+                <!-- Avoid duplicate passport-country field -->
+                @if (
+                  type() !== 'TRAVEL' ||
+                  (f.fieldName !== 'passportCountry' &&
+                   f.fieldName !== 'passportIssuingCountry')
+                ) {
+                  <label>
+                    {{ f.displayLabel }}
+
+                    @if (f.isMandatory) {
+                      <i class="cf-req">*</i>
+                    }
+
+                    <input
+                      class="cf-input"
+                      [type]="inputType(f.dataType)"
+                      [(ngModel)]="values[f.fieldName]"
+                      [name]="f.fieldName"
+                      [required]="f.isMandatory"
+                      [placeholder]="f.helpText || ''" />
+                  </label>
+                }
               }
  
             </div>
