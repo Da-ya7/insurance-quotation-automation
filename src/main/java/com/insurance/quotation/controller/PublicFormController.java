@@ -4,10 +4,13 @@ package com.insurance.quotation.controller;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +45,9 @@ import com.insurance.quotation.service.validation.ValidationService;
 @RestController
 @RequestMapping("/api/public")
 public class PublicFormController {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(PublicFormController.class);
 
     private final MasterDataService masterData;
     private final FormLinkService formLinks;
@@ -217,6 +223,7 @@ public class PublicFormController {
         }
     }
 
+    @Transactional(readOnly = true)
     @PostMapping("/phone-otp/verify")
     public ResponseEntity<?> verifyNewCustomerOtp(
             @RequestBody NewCustomerOtpVerifyRequest body) {
@@ -266,6 +273,11 @@ public class PublicFormController {
                         "Phone verification expired. Please verify your number again."));
             }
 
+            log.info(
+                    "[OTP DEBUG] Verified phone length: {}, last four digits: {}",
+                    normalizedPhone.length(),
+                    lastFour(normalizedPhone));
+
             List<Client> matches = findClientsByPhone(normalizedPhone);
 
             Map<String, Object> response = new LinkedHashMap<>();
@@ -276,15 +288,21 @@ public class PublicFormController {
             // CASE 1: Exactly one Client Master record uses this phone.
             if (matches.size() == 1) {
 
+                Client matchedClient = matches.get(0);
+
                 response.put("existingClient", true);
                 response.put("ambiguousPhone", false);
                 response.put("requiresIdentityCheck", false);
                 response.put("newCustomerAllowed", false);
-                response.put("client", buildClientDetails(matches.get(0)));
+                response.put("client", buildClientDetails(matchedClient));
 
                 response.put(
                         "message",
                         "Phone verified. Your existing customer details have been loaded.");
+
+                log.info(
+                        "[OTP DEBUG] One existing client matched: {}",
+                        matchedClient.getClientCode());
 
                 return ResponseEntity.ok(response);
             }
@@ -302,6 +320,10 @@ public class PublicFormController {
                         "message",
                         "Phone verified. Multiple customers use this number. Please complete additional identity verification.");
 
+                log.info(
+                        "[OTP DEBUG] Multiple clients matched. Count: {}",
+                        matches.size());
+
                 return ResponseEntity.ok(response);
             }
 
@@ -315,6 +337,8 @@ public class PublicFormController {
             response.put(
                     "message",
                     "Phone verified. You can continue as a new customer.");
+
+            log.info("[OTP DEBUG] No existing client matched.");
 
             return ResponseEntity.ok(response);
 
@@ -427,20 +451,10 @@ public class PublicFormController {
         /*
          * Older records may have the passport stored in
          * quotation_request_travellers instead of Client Master.
-         *
-         * Match the submitted identity against previous traveller
-         * records, then verify that the associated Client Master
-         * record belongs to the OTP-verified phone.
-         *
-         * Do not require the historical traveller phone to match:
-         * the verified phone on the associated Client Master record
-         * is the phone ownership check.
          */
         List<Client> travellerMatches =
                 findClientsByPreviousTravellerIdentity(submittedIdentity);
 
-        // Keep only customers whose Client Master phone matches
-        // the phone number verified through OTP.
         List<Client> validMatches = travellerMatches.stream()
                 .filter(client -> belongsToPhoneMatches(client, phoneMatches))
                 .toList();
@@ -463,9 +477,8 @@ public class PublicFormController {
         }
 
         /*
-         * If the identity exists in previous traveller records
-         * but belongs to a different Client Master phone, do not
-         * allow it to be registered as a new customer.
+         * If the identity exists in previous traveller records but
+         * belongs to a different Client Master phone, block registration.
          */
         if (!travellerMatches.isEmpty()) {
 
@@ -493,9 +506,6 @@ public class PublicFormController {
     /**
      * Searches previous primary-traveller records for the submitted
      * identity number and returns their associated Client Master records.
-     *
-     * Duplicate quotation records belonging to the same client are
-     * reduced to one Client using the client ID.
      */
     private List<Client> findClientsByPreviousTravellerIdentity(
             String submittedIdentity) {
@@ -507,11 +517,6 @@ public class PublicFormController {
             return List.of();
         }
 
-        /*
-         * Existing repository method retrieves primary travellers.
-         * The supplied Shifana and Subha records both have
-         * traveller_number = 1.
-         */
         List<QuotationRequestTraveller> previousTravellers =
                 travellerRepository
                         .findByTravellerNumberOrderByCreatedAtDesc(1);
@@ -604,13 +609,46 @@ public class PublicFormController {
 
     // ---------------- shared customer matching helpers ----------------
 
+    /**
+     * Uses the repository's native normalized-phone query.
+     *
+     * This avoids loading every Client Master record into Java.
+     * The repository query must compare phone values after removing
+     * spaces, + signs, hyphens and other non-digit characters.
+     */
     private List<Client> findClientsByPhone(String normalizedPhone) {
 
-        return clientRepository.findAllByPhoneIsNotNull()
-                .stream()
-                .filter(client -> normalizedPhone.equals(
-                        normalizePhone(client.getPhone())))
-                .toList();
+        if (isBlank(normalizedPhone)) {
+            log.warn("[OTP DEBUG] Phone lookup skipped because phone is blank.");
+            return List.of();
+        }
+
+        String phone = normalizePhone(normalizedPhone);
+
+        if (phone.isBlank()) {
+            log.warn("[OTP DEBUG] Phone lookup skipped because normalized phone is blank.");
+            return List.of();
+        }
+
+        log.info(
+                "[OTP DEBUG] Running normalized phone query. Length: {}, last four digits: {}",
+                phone.length(),
+                lastFour(phone));
+
+        List<Client> matches =
+                clientRepository.findAllByNormalizedPhone(phone);
+
+        log.info(
+                "[OTP DEBUG] Matching clients count: {}",
+                matches.size());
+
+        for (Client client : matches) {
+            log.info(
+                    "[OTP DEBUG] Matched Client ID: {}",
+                    client.getClientCode());
+        }
+
+        return matches;
     }
 
     /**
@@ -654,7 +692,7 @@ public class PublicFormController {
         }
 
         return value.replaceAll("[^A-Za-z0-9]", "")
-                .toUpperCase(java.util.Locale.ROOT);
+                .toUpperCase(Locale.ROOT);
     }
 
     private static boolean isBlank(String value) {
@@ -675,6 +713,15 @@ public class PublicFormController {
         }
 
         return digits;
+    }
+
+    private static String lastFour(String value) {
+
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+
+        return value.substring(Math.max(0, value.length() - 4));
     }
 
     // ---------------- personal form links ----------------
