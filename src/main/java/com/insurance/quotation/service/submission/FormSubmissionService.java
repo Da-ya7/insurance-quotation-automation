@@ -34,8 +34,9 @@ import com.insurance.quotation.service.stats.RequestStatusInfo;
 
 /**
  * Handles a submission from the public web form.
- * It stores the data, then reuses the SAME validation, quotation and
- * email services that the email automation uses.
+ *
+ * It stores the data, then reuses the SAME validation,
+ * quotation and email services that the email automation uses.
  */
 @Service
 public class FormSubmissionService {
@@ -50,8 +51,12 @@ public class FormSubmissionService {
             String message,
             List<String> blockedFields) {
 
-        public SubmissionResult(Long requestId, String status,
-                                String quotationNumber, String message) {
+        public SubmissionResult(
+                Long requestId,
+                String status,
+                String quotationNumber,
+                String message) {
+
             this(requestId, status, quotationNumber, message, List.of());
         }
     }
@@ -89,7 +94,7 @@ public class FormSubmissionService {
         return submit(form, null);
     }
 
-    // NOTE: deliberately NOT @Transactional as a whole, so that a failure
+    // Deliberately NOT @Transactional as a whole, so that a failure
     // status can still be saved after something goes wrong.
     public SubmissionResult submit(QuotationFormRequest form, String token) {
 
@@ -111,6 +116,7 @@ public class FormSubmissionService {
         FormLinkService.FormLink link = null;
 
         if (token != null && !token.isBlank()) {
+
             link = formLinks.find(token)
                     .orElseThrow(() -> new IllegalArgumentException(
                             "This link is not valid."));
@@ -137,9 +143,12 @@ public class FormSubmissionService {
         boolean otpOk;
 
         if (link != null) {
+
             // Returning customer: OTP must be verified for this personal link.
             otpOk = otp.isVerified(link.token());
+
         } else {
+
             // New customer: verification token must match the submitted phone.
             otpOk = otp.isPhoneVerified(
                     form.getVerificationToken(),
@@ -161,6 +170,22 @@ public class FormSubmissionService {
         // 2. CLIENT MASTER
         // ============================================================
 
+        /*
+         * IMPORTANT:
+         *
+         * Nationality and passport issuing country are different fields.
+         *
+         * Use applicant.getPassportCountry() for identity matching.
+         * This must match the country used during identity verification.
+         */
+
+        if (applicant.getPassportCountry() == null
+                || applicant.getPassportCountry().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Passport issuing country is required.");
+        }
+
         ClientMasterService.ClientDetails details =
                 new ClientMasterService.ClientDetails(
                         applicant.getName(),
@@ -170,27 +195,39 @@ public class FormSubmissionService {
                         applicant.getGender(),
                         applicant.getNationality(),
                         applicant.getCountryOfResidence(),
-                        applicant.getNationality(),
+                        applicant.getPassportCountry().trim(),
                         "PASSPORT",
-                        applicant.getPassportNumber());
+                        applicant.getPassportNumber()
+                );
 
         ClientMasterService.ApplyResult applied;
 
         if (link != null && link.clientId() != null) {
+
             Client linked = clientRepository.findById(link.clientId())
                     .orElseThrow(() -> new IllegalArgumentException(
                             "This link is not valid."));
 
             applied = clientMasterService.apply(
-                    linked, details, "FORM", "CUSTOMER_FORM", otpOk);
+                    linked,
+                    details,
+                    "FORM",
+                    "CUSTOMER_FORM",
+                    otpOk);
+
         } else {
+
             applied = clientMasterService.findOrCreateAndApply(
-                    details, "FORM", "CUSTOMER_FORM", otpOk);
+                    details,
+                    "FORM",
+                    "CUSTOMER_FORM",
+                    otpOk);
         }
 
         Client client = applied.client();
 
         if (applied.hasBlockedChanges()) {
+
             return new SubmissionResult(
                     null,
                     "OTP_REQUIRED",
@@ -213,6 +250,7 @@ public class FormSubmissionService {
         boolean reused = request != null;
 
         if (request == null) {
+
             request = new QuotationRequest();
             request.setClient(client);
             request.setCreatedAt(LocalDateTime.now());
@@ -249,6 +287,7 @@ public class FormSubmissionService {
         int number = 1;
 
         for (TravellerForm t : all) {
+
             QuotationRequestTraveller row =
                     new QuotationRequestTraveller();
 
@@ -276,6 +315,7 @@ public class FormSubmissionService {
                             : t.getPreExistingMedicalConditions().trim());
 
             row.setCreatedAt(LocalDateTime.now());
+
             travellerRepository.save(row);
         }
 
@@ -284,32 +324,48 @@ public class FormSubmissionService {
         // ============================================================
 
         List<ExtractedFieldData> fields = List.of(
+
                 field("name", client.getName(), FieldDataType.TEXT),
+
                 field("email", client.getEmail(), FieldDataType.EMAIL),
+
                 field("phone", client.getPhone(), FieldDataType.PHONE),
-                field("passportNumber", applicant.getPassportNumber(),
+
+                field("passportNumber",
+                        applicant.getPassportNumber(),
                         FieldDataType.TEXT),
-                field("originCountry", form.getDepartureCountry(),
+
+                field("originCountry",
+                        form.getDepartureCountry(),
                         FieldDataType.TEXT),
-                field("destinationCountry", form.getDestinationCountry(),
+
+                field("destinationCountry",
+                        form.getDestinationCountry(),
                         FieldDataType.TEXT),
+
                 field("travelStartDate",
                         form.getTravelStartDate().toString(),
                         FieldDataType.DATE),
+
                 field("travelEndDate",
                         form.getTravelEndDate().toString(),
                         FieldDataType.DATE),
 
-                // FIX: Pass purpose of travel to the quotation workflow.
                 field("purposeOfTravel",
                         form.getPurposeOfTravel().trim(),
                         FieldDataType.TEXT),
 
-                field("travellers", String.valueOf(form.getTravellers()),
+                field("travellers",
+                        String.valueOf(form.getTravellers()),
                         FieldDataType.NUMBER),
-                field("policyType", "TRAVEL", FieldDataType.TEXT));
+
+                field("policyType",
+                        "TRAVEL",
+                        FieldDataType.TEXT)
+        );
 
         try {
+
             QuotationWorkflowService.Outcome outcome =
                     workflow.process(request, client, fields, hadQuotation);
 
@@ -321,12 +377,14 @@ public class FormSubmissionService {
             if (link != null
                     && outcome.result()
                     == QuotationWorkflowService.Result.QUOTATION_SENT) {
+
                 formLinks.markUsed(link.id());
             }
 
             return switch (outcome.result()) {
 
                 case QUOTATION_SENT ->
+
                         new SubmissionResult(
                                 id,
                                 "QUOTATION_SENT",
@@ -337,6 +395,7 @@ public class FormSubmissionService {
                                         + client.getEmail() + ".");
 
                 case MISSING_INFORMATION -> {
+
                     List<String> all2 =
                             new ArrayList<>(outcome.missingFields());
 
@@ -351,6 +410,7 @@ public class FormSubmissionService {
                 }
 
                 case EMAIL_SEND_FAILED ->
+
                         new SubmissionResult(
                                 id,
                                 "EMAIL_SEND_FAILED",
@@ -360,6 +420,7 @@ public class FormSubmissionService {
                                 "Your quotation was created but the email could not be sent. Our team will send it to you.");
 
                 case QUOTATION_GENERATION_FAILED ->
+
                         new SubmissionResult(
                                 id,
                                 "QUOTATION_GENERATION_FAILED",
@@ -368,6 +429,7 @@ public class FormSubmissionService {
             };
 
         } catch (Exception e) {
+
             log.error(
                     "Quotation processing failed for request {}",
                     request.getId(),
@@ -424,6 +486,7 @@ public class FormSubmissionService {
     }
 
     private String digitsOnly(String value) {
+
         return value == null
                 ? ""
                 : value.replaceAll("[^0-9]", "");
