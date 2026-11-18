@@ -22,7 +22,29 @@ public class TravellerForm {
     @Past(message = "Date of birth must be in the past.")
     private LocalDate dateOfBirth;
 
-    // Controlled by Master Data.
+    @NotBlank(message = "Passport number is required")
+    @Size(max = 20, message = "Passport number is too long")
+    private String passportNumber;
+
+    @NotBlank(message = "Passport issuing country is required")
+    @Size(max = 100, message = "Passport issuing country is too long")
+    private String passportCountry;
+
+    // Optional PAN number
+    @Pattern(
+        regexp = "(?i)^[A-Z]{5}[0-9]{4}[A-Z]$",
+        message = "Enter a valid PAN number"
+    )
+    private String panNumber;
+
+    // Optional Aadhaar number
+    @Pattern(
+        regexp = "^[2-9][0-9]{11}$",
+        message = "Enter a valid 12-digit Aadhaar number"
+    )
+    private String aadhaarNumber;
+
+    @Size(max = 30)
     private String gender;
 
     // Controlled by Master Data.
@@ -74,6 +96,40 @@ public class TravellerForm {
 
     public void setDateOfBirth(LocalDate dateOfBirth) {
         this.dateOfBirth = dateOfBirth;
+    }
+
+    public String getPassportNumber() {
+        return passportNumber;
+    }
+
+    public void setPassportNumber(String passportNumber) {
+        this.passportNumber = passportNumber;
+    }
+
+    public String getPassportCountry() {
+        return passportCountry;
+    }
+
+    public void setPassportCountry(String passportCountry) {
+        this.passportCountry = passportCountry;
+    }
+
+    public String getPanNumber() {
+        return panNumber;
+    }
+
+    public void setPanNumber(String panNumber) {
+        this.panNumber = panNumber == null || panNumber.isBlank()
+                ? null : panNumber.trim().toUpperCase();
+    }
+
+    public String getAadhaarNumber() {
+        return aadhaarNumber;
+    }
+
+    public void setAadhaarNumber(String aadhaarNumber) {
+        this.aadhaarNumber = aadhaarNumber == null || aadhaarNumber.isBlank()
+                ? null : aadhaarNumber.trim();
     }
 
     public String getGender() {
