@@ -5,7 +5,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -55,6 +57,9 @@ public class ValidationService {
 
     /**
      * Checks whether a required field applies to the selected policy type.
+     *
+     * A blank policy type means the field applies to all insurance types.
+     * Multiple policy types can be comma-separated.
      */
     public static boolean appliesTo(
             RequiredField field,
@@ -71,13 +76,91 @@ public class ValidationService {
         }
 
         for (String type : configured.split(",")) {
-
             if (type.trim().equalsIgnoreCase(policyType.trim())) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Selects the most specific active configuration for each field.
+     *
+     * Priority:
+     * 1. Exact policy configuration, e.g. TRAVEL
+     * 2. Multiple-policy configuration, e.g. TRAVEL,HEALTH
+     * 3. Global configuration, where policy_type is NULL
+     *
+     * This prevents duplicate field validation when a global field and
+     * a policy-specific field have the same field name.
+     */
+    public List<RequiredField> getApplicableFields(String policyType) {
+
+        List<RequiredField> applicable =
+                requiredFieldRepository
+                        .findByIsActiveTrueOrderBySortOrderAscIdAsc()
+                        .stream()
+                        .filter(field -> appliesTo(field, policyType))
+                        .toList();
+
+        Map<String, RequiredField> selected = new LinkedHashMap<>();
+
+        for (RequiredField field : applicable) {
+
+            String key = normalize(field.getFieldName());
+
+            RequiredField existing = selected.get(key);
+
+            if (existing == null
+                    || policySpecificity(field, policyType)
+                    > policySpecificity(existing, policyType)) {
+
+                selected.put(key, field);
+            }
+        }
+
+        return selected.values()
+                .stream()
+                .sorted(
+                        Comparator.comparingInt(
+                                (RequiredField field) ->
+                                        field.getSortOrder() == null
+                                                ? 0
+                                                : field.getSortOrder())
+                                .thenComparingLong(
+                                        field -> field.getId() == null
+                                                ? 0L
+                                                : field.getId()))
+                .toList();
+    }
+
+    private int policySpecificity(
+            RequiredField field,
+            String policyType) {
+
+        String configured = field.getPolicyType();
+
+        if (configured == null || configured.isBlank()) {
+            return 0;
+        }
+
+        String[] types = configured.split(",");
+
+        boolean matches = false;
+
+        for (String type : types) {
+            if (type.trim().equalsIgnoreCase(policyType)) {
+                matches = true;
+                break;
+            }
+        }
+
+        if (!matches) {
+            return 0;
+        }
+
+        return types.length == 1 ? 3 : 2;
     }
 
     @Transactional
@@ -97,14 +180,7 @@ public class ValidationService {
         quotationRequest.setStatus(RequestStatus.VALIDATING);
 
         List<RequiredField> applicable =
-                requiredFieldRepository
-                        .findByIsActiveTrueOrderBySortOrderAscIdAsc()
-                        .stream()
-                        .filter(field ->
-                                appliesTo(
-                                        field,
-                                        quotationRequest.getPolicyType()))
-                        .toList();
+                getApplicableFields(quotationRequest.getPolicyType());
 
         if (applicable.isEmpty()) {
             throw new IllegalStateException(
@@ -132,10 +208,14 @@ public class ValidationService {
 
                 if (!field.isMissing()
                         && !isBlank(field.getFieldValue())) {
+
                     byName.put(key, field);
+
                 } else if (existing == null) {
+
                     byName.put(key, field);
                 }
+
             } else {
                 byName.put(key, field);
             }
@@ -250,7 +330,7 @@ public class ValidationService {
             }
         }
 
-        // If information is still missing or invalid, request only those fields.
+        // If information is still missing or invalid, request those fields.
         if (!missing.isEmpty() || !invalid.isEmpty()) {
 
             quotationRequest.setStatus(
@@ -264,7 +344,9 @@ public class ValidationService {
                     invalid);
         }
 
-        // All required information is valid.
+        // Resolve all remaining OPEN missing-field records.
+        // This also closes records belonging to fields that are now inactive
+        // or no longer applicable to this insurance type.
         for (MissingField open :
                 missingFieldRepository
                         .findByQuotationRequestIdAndStatus(
@@ -342,6 +424,8 @@ public class ValidationService {
 
         } catch (PatternSyntaxException e) {
 
+            // An invalid admin-configured regex should not silently
+            // reject customer submissions.
             return true;
         }
     }
@@ -463,13 +547,13 @@ public class ValidationService {
     }
 
     /**
-     * Uses the same normalization rule as AutomationService.
-     * Examples:
+     * Normalizes field names for matching.
+     *
      * "Origin Country" -> "origincountry"
      * "originCountry"  -> "origincountry"
      * "Travel Start Date" -> "travelstartdate"
      */
-    private String normalize(String value) {
+    private static String normalize(String value) {
 
         if (value == null) {
             return "";

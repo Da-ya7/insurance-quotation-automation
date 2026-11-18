@@ -5,55 +5,60 @@ import java.time.LocalDate;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class TravellerForm {
 
-    @NotBlank(message = "Traveller name is required")
-    @Size(max = 150, message = "Name is too long")
+    // Applicant personal details
+    // Name remains mandatory for the current client workflow.
+    @NotBlank(message = "Full name is required.")
+    @Size(max = 150, message = "Full name cannot exceed 150 characters.")
     private String name;
 
-    @NotNull(message = "Date of birth is required")
-    @Past(message = "Date of birth must be in the past")
+    // Date of birth is controlled by Master Data.
+    // If supplied, it must be a date in the past.
+    @Past(message = "Date of birth must be in the past.")
     private LocalDate dateOfBirth;
 
-    @NotBlank(message = "Passport number is required")
-    @Size(max = 20, message = "Passport number is too long")
-    private String passportNumber;
-
-    @NotBlank(message = "Passport issuing country is required")
-    @Size(max = 100, message = "Passport issuing country is too long")
-    private String passportCountry;
-
-    @Size(max = 30)
+    // Controlled by Master Data.
     private String gender;
 
-    @NotBlank(message = "Nationality is required")
-    @Size(max = 100)
+    // Controlled by Master Data.
     private String nationality;
 
-    @NotBlank(message = "Country of residence is required")
-    @Size(max = 100)
+    // Controlled by Master Data.
     private String countryOfResidence;
 
-    @NotBlank(message = "Email is required")
-    @Email(message = "Email is not valid")
+    // Passport details are controlled by Master Data.
+    private String passportNumber;
+
+    private String passportCountry;
+
+    // Government identity document details.
+    // Identity document capture remains optional at form submission.
+    private String identityCountry;
+    private String identityType;
+    private String identityNumber;
+
+    // Contact details.
+    // Email remains mandatory for the current submission workflow.
+    @Email(message = "Please enter a valid email address.")
+    @NotBlank(message = "Email is required.")
     @Size(max = 150)
     private String email;
 
-    @NotBlank(message = "Phone is required")
+    // Phone remains mandatory because OTP verification depends on it.
+    @NotBlank(message = "Phone number is required.")
     @Pattern(
-        regexp = "^\\+?[0-9 ()-]{10,20}$",
-        message = "Phone must have 10-15 digits"
+        regexp = "^[0-9+()\\-\\s]{7,20}$",
+        message = "Please enter a valid phone number."
     )
     private String phone;
 
+    // Controlled by Master Data if configured as a form field.
     private String preExistingMedicalConditions;
-
-    // Getters and setters
 
     public String getName() {
         return name;
@@ -69,22 +74,6 @@ public class TravellerForm {
 
     public void setDateOfBirth(LocalDate dateOfBirth) {
         this.dateOfBirth = dateOfBirth;
-    }
-
-    public String getPassportNumber() {
-        return passportNumber;
-    }
-
-    public void setPassportNumber(String passportNumber) {
-        this.passportNumber = passportNumber;
-    }
-
-    public String getPassportCountry() {
-        return passportCountry;
-    }
-
-    public void setPassportCountry(String passportCountry) {
-        this.passportCountry = passportCountry;
     }
 
     public String getGender() {
@@ -111,6 +100,46 @@ public class TravellerForm {
         this.countryOfResidence = countryOfResidence;
     }
 
+    public String getPassportNumber() {
+        return passportNumber;
+    }
+
+    public void setPassportNumber(String passportNumber) {
+        this.passportNumber = passportNumber;
+    }
+
+    public String getPassportCountry() {
+        return passportCountry;
+    }
+
+    public void setPassportCountry(String passportCountry) {
+        this.passportCountry = passportCountry;
+    }
+
+    public String getIdentityCountry() {
+        return identityCountry;
+    }
+
+    public void setIdentityCountry(String identityCountry) {
+        this.identityCountry = identityCountry;
+    }
+
+    public String getIdentityType() {
+        return identityType;
+    }
+
+    public void setIdentityType(String identityType) {
+        this.identityType = identityType;
+    }
+
+    public String getIdentityNumber() {
+        return identityNumber;
+    }
+
+    public void setIdentityNumber(String identityNumber) {
+        this.identityNumber = identityNumber;
+    }
+
     public String getEmail() {
         return email;
     }
@@ -131,7 +160,8 @@ public class TravellerForm {
         return preExistingMedicalConditions;
     }
 
-    public void setPreExistingMedicalConditions(String preExistingMedicalConditions) {
+    public void setPreExistingMedicalConditions(
+            String preExistingMedicalConditions) {
         this.preExistingMedicalConditions = preExistingMedicalConditions;
     }
 }

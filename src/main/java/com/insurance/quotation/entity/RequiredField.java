@@ -31,6 +31,9 @@ public class RequiredField {
     @Column(name = "policy_type", length = 60)
     private String policyType;
 
+    @Column(name = "section", nullable = false, length = 60)
+    private String section = "INSURANCE_DETAILS";
+
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
@@ -90,6 +93,14 @@ public class RequiredField {
 
     public void setPolicyType(String policyType) {
         this.policyType = policyType;
+    }
+
+    public String getSection() {
+        return section;
+    }
+
+    public void setSection(String section) {
+        this.section = section;
     }
 
     public Boolean getIsActive() {

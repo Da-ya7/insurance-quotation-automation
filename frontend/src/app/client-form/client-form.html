@@ -1,4 +1,4 @@
- 
+
 <div class="cf-page">
 
   <!-- HEADER -->
@@ -61,7 +61,7 @@
     @if (result(); as r) {
       <div class="cf-card cf-result"
            [class.cf-result-ok]="r.status === 'QUOTATION_SENT'">
- 
+
         <div class="cf-result-icon">
           {{ r.status === 'QUOTATION_SENT' ? '✓' : 'i' }}
         </div>
@@ -109,7 +109,7 @@
             <b>{{ r.quotationNumber }}</b>
           </div>
         }
- 
+
         @if (r.blockedFields?.length) {
           <div class="cf-alert cf-alert-warn">
             These saved details were not changed:
@@ -124,7 +124,7 @@
         }
       </div>
     }
- 
+
     <!-- INSURANCE TYPE SELECTION -->
     @if (!type() && !loading() && !result()) {
       <section class="cf-card cf-selection-card">
@@ -245,7 +245,7 @@
             </p>
 
             <b>{{ link()!.client?.phoneMasked }}</b>
- 
+
             @if (link()!.missingFields.length) {
               <div class="cf-need">
                 <strong>Still needed:</strong>
@@ -294,7 +294,7 @@
             Verify your phone number to continue with this application.
           </div>
         }
- 
+
         @if (!otpSent()) {
           <button
             type="button"
@@ -325,7 +325,7 @@
                 placeholder="• • • • • •"
                 [disabled]="busy()" />
             </label>
- 
+
             <button
               type="button"
               class="cf-btn cf-btn-primary cf-btn-full"
@@ -335,11 +335,11 @@
             </button>
           </div>
         }
- 
+
         @if (otpMsg()) {
           <div class="cf-otp-msg">{{ otpMsg() }}</div>
         }
- 
+
         @if (!token && otpSent()) {
           <button
             type="button"
@@ -506,243 +506,460 @@
           }
         </section>
 
-        <!-- PERSONAL DETAILS -->
-        <section class="cf-card">
-          <div class="cf-section-title">
-            <span class="cf-step">1</span>
-            <div>
-              <h3>Personal details</h3>
-              <p>Enter the applicant's contact and personal information.</p>
-            </div>
-          </div>
+        <!-- TRAVEL: DYNAMIC APPLICANT DETAILS -->
+        @if (type()?.toUpperCase() === 'TRAVEL') {
 
-          <div class="cf-grid">
- 
-            <label>
-              Full name <i class="cf-req">*</i>
-              <input
-                class="cf-input"
-                [(ngModel)]="a.name"
-                name="name"
-                placeholder="Enter your full name"
-                required />
-            </label>
- 
-            <label>
-              Email address <i class="cf-req">*</i>
-              <input
-                class="cf-input"
-                type="email"
-                [(ngModel)]="a.email"
-                name="email"
-                placeholder="Enter your email address"
-                required />
-            </label>
-
-            <label class="cf-phone-label">
-              Verified phone number
-              <div class="cf-phone-group">
-                <select
-                  class="cf-input cf-phone-code"
-                  [(ngModel)]="phoneCallingCode"
-                  name="formPhoneCallingCode"
-                  [disabled]="true">
-                  @for (c of countries(); track c.code) {
-                    @if (getCallingCode(c)) {
-                      <option [value]="getCallingCode(c)">
-                        {{ getCallingCode(c) }} ({{ c.code }})
-                      </option>
-                    }
-                  }
-                </select>
-
-                <input
-                  class="cf-input cf-phone-number"
-                  type="tel"
-                  [ngModel]="a.phone"
-                  name="phone"
-                  [placeholder]="link()?.client?.phoneMasked || 'Verified phone number'"
-                  readonly />
+          @if (applicantFields().length) {
+            <section class="cf-card">
+              <div class="cf-section-title">
+                <span class="cf-step">1</span>
+                <div>
+                  <h3>Applicant details</h3>
+                  <p>Enter the applicant's contact and personal information.</p>
+                </div>
               </div>
-              <small class="cf-field-note">✓ Mobile number verified</small>
-            </label>
- 
-            <label>
-              Date of birth
-              <input
-                class="cf-input"
-                type="date"
-                [(ngModel)]="a.dateOfBirth"
-                name="dob" />
-            </label>
 
-            <label>
-              Gender
-              <select
-                class="cf-input"
-                [(ngModel)]="a.gender"
-                name="gender">
-                <option [ngValue]="null">Select gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </label>
- 
-            <label>
-              Nationality
-              <input
-                class="cf-input"
-                [(ngModel)]="a.nationality"
-                name="nat"
-                placeholder="Enter your nationality" />
-            </label>
- 
-            <label>
-              Country of residence
-              <select
-                class="cf-input"
-                [(ngModel)]="a.countryOfResidence"
-                name="cor">
-                <option [ngValue]="null">Select country</option>
-                @for (c of countries(); track c.code) {
-                  <option [value]="c.code">{{ c.name }}</option>
+              <div class="cf-grid">
+
+                @for (f of applicantFields(); track f.fieldName) {
+                  <label [class.cf-wide]="f.fieldName === 'phone'">
+
+                    {{ f.displayLabel }}
+
+                    @if (f.isMandatory) {
+                      <i class="cf-req">*</i>
+                    }
+
+                    <!-- VERIFIED PHONE -->
+                    @if (isPhoneField(f.fieldName)) {
+                      <div class="cf-phone-group">
+                        <select
+                          class="cf-input cf-phone-code"
+                          [(ngModel)]="phoneCallingCode"
+                          [name]="'callingCode_' + f.fieldName"
+                          [disabled]="true">
+
+                          @for (c of countries(); track c.code) {
+                            @if (getCallingCode(c)) {
+                              <option [value]="getCallingCode(c)">
+                                {{ getCallingCode(c) }} ({{ c.code }})
+                              </option>
+                            }
+                          }
+                        </select>
+
+                        <input
+                          class="cf-input cf-phone-number"
+                          type="tel"
+                          [ngModel]="a.phone"
+                          [name]="f.fieldName"
+                          [placeholder]="link()?.client?.phoneMasked || 'Verified phone number'"
+                          readonly
+                          [required]="f.isMandatory" />
+                      </div>
+                      <small class="cf-field-note">✓ Mobile number verified</small>
+                    }
+
+                    <!-- COUNTRY OF RESIDENCE -->
+                    @else if (f.fieldName === 'countryOfResidence') {
+                      <select
+                        class="cf-input"
+                        [ngModel]="a.countryOfResidence"
+                        (ngModelChange)="onConfiguredFieldChange(f.fieldName, $event)"
+                        [name]="f.fieldName"
+                        [required]="f.isMandatory">
+
+                        <option value="">Select country</option>
+                        @for (c of countries(); track c.code) {
+                          <option [value]="c.code">{{ c.name }}</option>
+                        }
+                      </select>
+                    }
+
+                    <!-- GENDER -->
+                    @else if (isGenderField(f.fieldName)) {
+                      <select
+                        class="cf-input"
+                        [ngModel]="a.gender"
+                        (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
+                        [name]="f.fieldName"
+                        [required]="f.isMandatory">
+
+                        <option value="">Select gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    }
+
+                    <!-- OTHER APPLICANT FIELDS -->
+                    @else {
+                      <input
+                        class="cf-input"
+                        [type]="inputType(f.dataType)"
+                        [ngModel]="getConfiguredFieldValue(f.fieldName)"
+                        (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
+                        [name]="f.fieldName"
+                        [required]="f.isMandatory"
+                        [placeholder]="f.helpText || ''" />
+                    }
+
+                    @if (f.helpText && !isPhoneField(f.fieldName)) {
+                      <small class="cf-hint">{{ f.helpText }}</small>
+                    }
+                  </label>
                 }
-              </select>
-            </label>
- 
-          </div>
-        </section>
 
-        <!-- GOVERNMENT ID -->
-        <section class="cf-card">
-          <div class="cf-section-title">
-            <span class="cf-step">2</span>
-            <div>
-              <h3>Government ID</h3>
-              <p>Provide your identity document details.</p>
-            </div>
-          </div>
+              </div>
+            </section>
+          }
 
-          <div class="cf-alert cf-alert-info">
-            Your identity number is protected and is not displayed in full.
-          </div>
+          <!-- TRAVEL: DYNAMIC GOVERNMENT ID -->
+          @if (governmentIdFields().length) {
+            <section class="cf-card">
+              <div class="cf-section-title">
+                <span class="cf-step">2</span>
+                <div>
+                  <h3>Government ID</h3>
+                  <p>Provide your identity document details.</p>
+                </div>
+              </div>
 
-          <div class="cf-grid">
- 
-            <label>
-              Issuing country
-              <select
-                class="cf-input"
-                [ngModel]="a.identityCountry"
-                (ngModelChange)="onIdCountry($event)"
-                name="idc">
-                <option [ngValue]="null">Select country</option>
-                @for (c of countries(); track c.code) {
-                  <option [value]="c.code">{{ c.name }}</option>
+              <div class="cf-alert cf-alert-info">
+                Your identity number is protected and is not displayed in full.
+              </div>
+
+              <div class="cf-grid">
+
+                @for (f of governmentIdFields(); track f.fieldName) {
+                  <label [class.cf-wide]="f.fieldName === 'identityNumber'">
+
+                    {{ f.displayLabel }}
+
+                    @if (f.isMandatory) {
+                      <i class="cf-req">*</i>
+                    }
+
+                    <!-- ID ISSUING COUNTRY -->
+                    @if (f.fieldName === 'identityCountry') {
+                      <select
+                        class="cf-input"
+                        [ngModel]="a.identityCountry"
+                        (ngModelChange)="onConfiguredFieldChange(f.fieldName, $event)"
+                        [name]="f.fieldName"
+                        [required]="f.isMandatory">
+
+                        <option value="">Select country</option>
+                        @for (c of countries(); track c.code) {
+                          <option [value]="c.code">{{ c.name }}</option>
+                        }
+                      </select>
+                    }
+
+                    <!-- ID TYPE -->
+                    @else if (isIdentityTypeField(f.fieldName)) {
+                      <select
+                        class="cf-input"
+                        [ngModel]="a.identityType"
+                        (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
+                        [name]="f.fieldName"
+                        [required]="f.isMandatory"
+                        [disabled]="!a.identityCountry">
+
+                        <option value="">Select identity type</option>
+                        @for (t of idTypes(); track t.code) {
+                          <option [value]="t.code">{{ t.label }}</option>
+                        }
+                      </select>
+                    }
+
+                    <!-- ID NUMBER -->
+                    @else if (isIdentityNumberField(f.fieldName)) {
+                      <input
+                        class="cf-input"
+                        type="password"
+                        [ngModel]="a.identityNumber"
+                        (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
+                        [name]="f.fieldName"
+                        autocomplete="off"
+                        [required]="f.isMandatory"
+                        [placeholder]="idExample()
+                          ? 'e.g. ' + idExample()
+                          : (link()?.client?.identityNumberMasked ?? '')" />
+                    }
+
+                    <!-- OTHER CONFIGURED ID FIELDS -->
+                    @else {
+                      <input
+                        class="cf-input"
+                        [type]="inputType(f.dataType)"
+                        [ngModel]="getConfiguredFieldValue(f.fieldName)"
+                        (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
+                        [name]="f.fieldName"
+                        [required]="f.isMandatory"
+                        [placeholder]="f.helpText || ''" />
+                    }
+
+                    @if (f.helpText) {
+                      <small class="cf-hint">{{ f.helpText }}</small>
+                    }
+                  </label>
                 }
-              </select>
-            </label>
- 
-            <label>
-              ID type
-              <select
-                class="cf-input"
-                [(ngModel)]="a.identityType"
-                name="idt">
-                <option [ngValue]="null">Select identity type</option>
-                @for (t of idTypes(); track t.code) {
-                  <option [value]="t.code">{{ t.label }}</option>
-                }
-              </select>
-            </label>
- 
-            <label class="cf-wide">
-              ID number
-              <input
-                class="cf-input"
-                [(ngModel)]="a.identityNumber"
-                name="idn"
-                [placeholder]="idExample()
-                  ? 'e.g. ' + idExample()
-                  : (link()?.client?.identityNumberMasked ?? '')" />
-            </label>
- 
-          </div>
-        </section>
 
-        <!-- INSURANCE DETAILS -->
-        @if (otherFields().length || type() === 'TRAVEL') {
+              </div>
+            </section>
+          }
+
+          <!-- TRAVEL: DYNAMIC TRAVEL INSURANCE DETAILS -->
+          @if (travelFields().length) {
+            <section class="cf-card">
+              <div class="cf-section-title">
+                <span class="cf-step">3</span>
+                <div>
+                  <h3>Travel Insurance Details</h3>
+                  <p>Provide the information required for your travel quotation.</p>
+                </div>
+              </div>
+
+              <div class="cf-grid">
+
+                @for (f of travelFields(); track f.fieldName) {
+                  <label>
+
+                    {{ f.displayLabel }}
+
+                    @if (f.isMandatory) {
+                      <i class="cf-req">*</i>
+                    }
+
+                    <!-- COUNTRY FIELDS -->
+                    @if (isCountryField(f.fieldName)) {
+                      <select
+                        class="cf-input"
+                        [ngModel]="getConfiguredFieldValue(f.fieldName)"
+                        (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
+                        [name]="f.fieldName"
+                        [required]="f.isMandatory">
+
+                        <option value="">Select country</option>
+                        @for (c of countries(); track c.code) {
+                          <option [value]="c.code">{{ c.name }}</option>
+                        }
+                      </select>
+                    }
+
+                    <!-- OTHER CONFIGURED TRAVEL FIELDS -->
+                    @else {
+                      <input
+                        class="cf-input"
+                        [type]="inputType(f.dataType)"
+                        [ngModel]="getConfiguredFieldValue(f.fieldName)"
+                        (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
+                        [name]="f.fieldName"
+                        [required]="f.isMandatory"
+                        [min]="f.fieldName === 'travellers' ? 1 : null"
+                        [max]="f.fieldName === 'travellers' ? 20 : null"
+                        [step]="f.fieldName === 'travellers' ? 1 : null"
+                        [placeholder]="f.helpText || ''" />
+                    }
+
+                    @if (f.helpText) {
+                      <small class="cf-hint">{{ f.helpText }}</small>
+                    }
+
+                    @if (f.fieldName === 'travellers') {
+                      <small class="cf-hint">
+                        Enter the total number of people covered.
+                        Personal details are required for the applicant only.
+                      </small>
+                    }
+                  </label>
+                }
+
+              </div>
+            </section>
+          }
+
+        } @else {
+
+          <!-- NON-TRAVEL: EXISTING PERSONAL DETAILS LAYOUT -->
           <section class="cf-card">
-
             <div class="cf-section-title">
-              <span class="cf-step">3</span>
+              <span class="cf-step">1</span>
               <div>
-                <h3>{{ form()!.label }} details</h3>
-                <p>Provide the information required for your insurance quotation.</p>
+                <h3>Personal details</h3>
+                <p>Enter the applicant's contact and personal information.</p>
               </div>
             </div>
 
             <div class="cf-grid">
 
-              @if (type() === 'TRAVEL') {
-                <label>
-                  Number of travellers
-                  <i class="cf-req">*</i>
- 
-                  <input
-                    class="cf-input"
-                    type="number"
-                    [(ngModel)]="values['travellers']"
-                    name="travellers"
-                    min="1"
-                    max="20"
-                    step="1"
-                    required
-                    placeholder="Enter 1 to 20" />
- 
-                  <small class="cf-hint">
-                    Enter the total number of people covered.
-                    Personal details are required for the applicant only.
-                  </small>
-                </label>
+              <label>
+                Full name <i class="cf-req">*</i>
+                <input
+                  class="cf-input"
+                  [(ngModel)]="a.name"
+                  name="name"
+                  placeholder="Enter your full name"
+                  required />
+              </label>
 
-                <!-- PASSPORT ISSUING COUNTRY: ALWAYS DISPLAY FOR TRAVEL -->
-                <label>
-                  Passport issuing country
-                  <i class="cf-req">*</i>
+              <label>
+                Email address <i class="cf-req">*</i>
+                <input
+                  class="cf-input"
+                  type="email"
+                  [(ngModel)]="a.email"
+                  name="email"
+                  placeholder="Enter your email address"
+                  required />
+              </label>
 
+              <label class="cf-phone-label">
+                Verified phone number
+                <div class="cf-phone-group">
                   <select
-                    class="cf-input"
-                    [(ngModel)]="values['passportCountry']"
-                    name="passportCountry"
-                    required
-                    [disabled]="busy()">
-
-                    <option value="">Select passport issuing country</option>
-
+                    class="cf-input cf-phone-code"
+                    [(ngModel)]="phoneCallingCode"
+                    name="formPhoneCallingCode"
+                    [disabled]="true">
                     @for (c of countries(); track c.code) {
-                      <option [value]="c.code">
-                        {{ c.name }}
-                      </option>
+                      @if (getCallingCode(c)) {
+                        <option [value]="getCallingCode(c)">
+                          {{ getCallingCode(c) }} ({{ c.code }})
+                        </option>
+                      }
                     }
                   </select>
 
-                  <small class="cf-hint">
-                    Select the country that issued the applicant's passport.
-                  </small>
-                </label>
-              }
+                  <input
+                    class="cf-input cf-phone-number"
+                    type="tel"
+                    [ngModel]="a.phone"
+                    name="phone"
+                    [placeholder]="link()?.client?.phoneMasked || 'Verified phone number'"
+                    readonly />
+                </div>
+                <small class="cf-field-note">✓ Mobile number verified</small>
+              </label>
 
-              <!-- DYNAMIC INSURANCE FIELDS -->
-              @for (f of otherFields(); track f.fieldName) {
+              <label>
+                Date of birth
+                <input
+                  class="cf-input"
+                  type="date"
+                  [(ngModel)]="a.dateOfBirth"
+                  name="dob" />
+              </label>
 
-                <!-- Avoid duplicate passport-country field -->
-                @if (
-                  type() !== 'TRAVEL' ||
-                  (f.fieldName !== 'passportCountry' &&
-                   f.fieldName !== 'passportIssuingCountry')
-                ) {
+              <label>
+                Gender
+                <select
+                  class="cf-input"
+                  [(ngModel)]="a.gender"
+                  name="gender">
+                  <option [ngValue]="null">Select gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+
+              <label>
+                Nationality
+                <input
+                  class="cf-input"
+                  [(ngModel)]="a.nationality"
+                  name="nat"
+                  placeholder="Enter your nationality" />
+              </label>
+
+              <label>
+                Country of residence
+                <select
+                  class="cf-input"
+                  [(ngModel)]="a.countryOfResidence"
+                  name="cor">
+                  <option [ngValue]="null">Select country</option>
+                  @for (c of countries(); track c.code) {
+                    <option [value]="c.code">{{ c.name }}</option>
+                  }
+                </select>
+              </label>
+
+            </div>
+          </section>
+
+          <!-- NON-TRAVEL: EXISTING GOVERNMENT ID LAYOUT -->
+          <section class="cf-card">
+            <div class="cf-section-title">
+              <span class="cf-step">2</span>
+              <div>
+                <h3>Government ID</h3>
+                <p>Provide your identity document details.</p>
+              </div>
+            </div>
+
+            <div class="cf-alert cf-alert-info">
+              Your identity number is protected and is not displayed in full.
+            </div>
+
+            <div class="cf-grid">
+
+              <label>
+                Issuing country
+                <select
+                  class="cf-input"
+                  [ngModel]="a.identityCountry"
+                  (ngModelChange)="onIdCountry($event)"
+                  name="idc">
+                  <option [ngValue]="null">Select country</option>
+                  @for (c of countries(); track c.code) {
+                    <option [value]="c.code">{{ c.name }}</option>
+                  }
+                </select>
+              </label>
+
+              <label>
+                ID type
+                <select
+                  class="cf-input"
+                  [(ngModel)]="a.identityType"
+                  name="idt">
+                  <option [ngValue]="null">Select identity type</option>
+                  @for (t of idTypes(); track t.code) {
+                    <option [value]="t.code">{{ t.label }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="cf-wide">
+                ID number
+                <input
+                  class="cf-input"
+                  [(ngModel)]="a.identityNumber"
+                  name="idn"
+                  [placeholder]="idExample()
+                    ? 'e.g. ' + idExample()
+                    : (link()?.client?.identityNumberMasked ?? '')" />
+              </label>
+
+            </div>
+          </section>
+
+          <!-- NON-TRAVEL: EXISTING DYNAMIC INSURANCE FIELDS -->
+          @if (otherFields().length) {
+            <section class="cf-card">
+              <div class="cf-section-title">
+                <span class="cf-step">3</span>
+                <div>
+                  <h3>{{ form()!.label }} details</h3>
+                  <p>Provide the information required for your insurance quotation.</p>
+                </div>
+              </div>
+
+              <div class="cf-grid">
+                @for (f of otherFields(); track f.fieldName) {
                   <label>
                     {{ f.displayLabel }}
 
@@ -759,12 +976,12 @@
                       [placeholder]="f.helpText || ''" />
                   </label>
                 }
-              }
- 
-            </div>
-          </section>
+              </div>
+            </section>
+          }
+
         }
- 
+
         <!-- SUBMIT -->
         <section class="cf-submit-card">
           <div>
@@ -783,7 +1000,7 @@
 
       </form>
     }
- 
+
   </main>
 
   <!-- FOOTER -->
@@ -794,7 +1011,5 @@
       <span>Secure online application</span>
     </div>
   </footer>
- 
+
 </div>
- 
- 
