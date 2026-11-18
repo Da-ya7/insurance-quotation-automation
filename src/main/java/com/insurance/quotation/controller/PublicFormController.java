@@ -142,10 +142,13 @@ public class PublicFormController {
     // ---------------- dynamic form definition ----------------
 
     public record FormField(
+        
             String fieldName,
             String displayLabel,
             String dataType,
+            String section,
             boolean isMandatory,
+            String validationRegex,
             String helpText,
             int sortOrder) {
     }
@@ -165,25 +168,114 @@ public class PublicFormController {
                         HttpStatus.NOT_FOUND,
                         "Unknown insurance type"));
 
-        List<FormField> fields = requiredFieldRepository
+        boolean isTravel = "TRAVEL".equalsIgnoreCase(def.code());
+
+        List<RequiredField> applicableFields = requiredFieldRepository
                 .findByIsActiveTrueOrderBySortOrderAscIdAsc()
                 .stream()
                 .filter(f -> ValidationService.appliesTo(f, def.code()))
-                .filter(f -> !GenericSubmissionService.APPLICANT_FIELDS
-                        .contains(f.getFieldName()))
+                .filter(f -> {
+                    if (isTravel) {
+                        return !"policyType".equalsIgnoreCase(f.getFieldName());
+                    }
+
+                    return !GenericSubmissionService.APPLICANT_FIELDS
+                            .contains(f.getFieldName());
+                })
+                .toList();
+
+        /*
+         * For TRAVEL, prefer the TRAVEL-specific field configuration
+         * over a global configuration with the same field name.
+         *
+         * This prevents duplicate fields from appearing on the form.
+         */
+        if (isTravel) {
+
+            Map<String, RequiredField> selectedFields =
+                    new LinkedHashMap<>();
+
+            for (RequiredField field : applicableFields) {
+
+                String key = field.getFieldName()
+                        .trim()
+                        .toLowerCase(Locale.ROOT);
+
+                RequiredField existing = selectedFields.get(key);
+
+                if (existing == null
+                        || travelScopePriority(field.getPolicyType())
+                        < travelScopePriority(existing.getPolicyType())) {
+
+                    selectedFields.put(key, field);
+                }
+            }
+
+            applicableFields = new ArrayList<>(selectedFields.values());
+
+            applicableFields.sort((a, b) -> {
+
+                int orderA = a.getSortOrder() == null
+                        ? 0 : a.getSortOrder();
+
+                int orderB = b.getSortOrder() == null
+                        ? 0 : b.getSortOrder();
+
+                int result = Integer.compare(orderA, orderB);
+
+                if (result != 0) {
+                    return result;
+                }
+
+                return Long.compare(
+                        a.getId() == null ? 0L : a.getId(),
+                        b.getId() == null ? 0L : b.getId());
+            });
+        }
+
+        List<FormField> fields = applicableFields.stream()
                 .map(f -> new FormField(
                         f.getFieldName(),
                         f.getDisplayLabel(),
                         f.getDataType().name(),
+                        f.getSection() == null || f.getSection().isBlank()
+                                ? "INSURANCE_DETAILS"
+                                : f.getSection(),
                         !Boolean.FALSE.equals(f.getIsMandatory()),
+                        f.getValidationRegex(),
                         f.getHelpText(),
-                        f.getSortOrder() == null ? 0 : f.getSortOrder()))
+                        f.getSortOrder() == null
+                                ? 0 : f.getSortOrder()))
                 .toList();
 
         return new FormDefinition(
                 def.code(),
                 def.label(),
                 fields);
+    }
+
+    /**
+     * Lower priority number means a more specific configuration.
+     *
+     * Exact TRAVEL configuration takes priority over broader scopes.
+     * Global configuration has the lowest priority.
+     */
+    private int travelScopePriority(String policyType) {
+
+        if (policyType == null || policyType.isBlank()) {
+            return Integer.MAX_VALUE;
+        }
+
+        String[] policies = policyType.split(",");
+
+        for (String policy : policies) {
+
+            if ("TRAVEL".equalsIgnoreCase(policy.trim())) {
+                return policies.length;
+            }
+        }
+
+        return Integer.MAX_VALUE;
     }
 
     // ---------------- new customer phone verification ----------------

@@ -89,6 +89,9 @@ export class ClientMaster implements OnInit {
   identityNumberFull = '';
   identityNumberError = '';
 
+  // Track which client's identity number is being requested
+  private identityNumberRequestClientId: number | null = null;
+
   // REQUEST AND QUOTATION HISTORY POPUP
   historyPopupType: HistoryPopupType = null;
 
@@ -176,7 +179,6 @@ export class ClientMaster implements OnInit {
       const validDateA = Number.isFinite(dateA) ? dateA : 0;
       const validDateB = Number.isFinite(dateB) ? dateB : 0;
 
-      // Latest quotation first
       return validDateB - validDateA;
     });
   }
@@ -620,30 +622,44 @@ export class ClientMaster implements OnInit {
   // =========================================
 
   toggleIdentityNumber(): void {
+
+    // Hide immediately when the number is already visible.
     if (this.identityNumberVisible) {
       this.identityNumberVisible = false;
       return;
     }
 
+    // Reveal immediately if the number was already retrieved.
     if (this.identityNumberFull) {
       this.identityNumberVisible = true;
       return;
     }
 
-    if (!this.selectedClient || this.identityNumberLoading) {
+    // Do not send duplicate requests.
+    if (
+      !this.selectedClient ||
+      this.identityNumberLoading
+    ) {
       return;
     }
 
     const clientId = this.selectedClient.id;
 
-    this.identityNumberLoading = true;
+    // Give immediate visual feedback.
     this.identityNumberError = '';
+    this.identityNumberLoading = true;
+    this.identityNumberRequestClientId = clientId;
 
     this.http.get<{ identityNumber: string }>(
       `/api/clients/${clientId}/identity-number`
     ).subscribe({
       next: (response) => {
-        if (this.selectedClient?.id !== clientId) {
+
+        // Ignore responses belonging to another selected client.
+        if (
+          this.selectedClient?.id !== clientId ||
+          this.identityNumberRequestClientId !== clientId
+        ) {
           return;
         }
 
@@ -659,20 +675,26 @@ export class ClientMaster implements OnInit {
         }
 
         this.identityNumberLoading = false;
+        this.identityNumberRequestClientId = null;
       },
+
       error: (error) => {
         console.error(
           'Unable to reveal identity number:',
           error
         );
 
-        if (this.selectedClient?.id === clientId) {
+        if (
+          this.selectedClient?.id === clientId &&
+          this.identityNumberRequestClientId === clientId
+        ) {
           this.identityNumberError =
             error?.status === 404
               ? 'Identity number is not available.'
               : 'Unable to retrieve identity number. Please try again.';
 
           this.identityNumberLoading = false;
+          this.identityNumberRequestClientId = null;
         }
       }
     });
@@ -687,6 +709,7 @@ export class ClientMaster implements OnInit {
     this.identityNumberLoading = false;
     this.identityNumberFull = '';
     this.identityNumberError = '';
+    this.identityNumberRequestClientId = null;
   }
 
   // =========================================
@@ -1024,3 +1047,8 @@ export class ClientMaster implements OnInit {
     return entry.quotation.quotationId;
   }
 }
+
+
+
+
+
