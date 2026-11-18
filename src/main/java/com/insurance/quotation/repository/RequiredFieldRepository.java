@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.repository;
 
 import java.util.List;
@@ -13,4 +14,8 @@ public interface RequiredFieldRepository extends JpaRepository<RequiredField, Lo
     List<RequiredField> findAllByOrderBySortOrderAscIdAsc();
 
     boolean existsByFieldNameIgnoreCase(String fieldName);
+
+    boolean existsByFieldNameIgnoreCaseAndPolicyType(
+            String fieldName,
+            String policyType);
 }

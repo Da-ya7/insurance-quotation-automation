@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,26 +20,22 @@ import com.insurance.quotation.dto.request.TravellerForm;
 import com.insurance.quotation.entity.Client;
 import com.insurance.quotation.entity.QuotationRequest;
 import com.insurance.quotation.entity.QuotationRequestTraveller;
-import com.insurance.quotation.entity.enums.FieldDataType;
+import com.insurance.quotation.entity.RequiredField;
 import com.insurance.quotation.entity.enums.FieldSource;
 import com.insurance.quotation.entity.enums.RequestStatus;
-import com.insurance.quotation.service.client.ClientMasterService;
 import com.insurance.quotation.repository.ClientRepository;
 import com.insurance.quotation.repository.QuotationRepository;
 import com.insurance.quotation.repository.QuotationRequestRepository;
 import com.insurance.quotation.repository.QuotationRequestTravellerRepository;
+import com.insurance.quotation.service.client.ClientMasterService;
 import com.insurance.quotation.service.extraction.ExtractedFieldData;
+import com.insurance.quotation.service.extraction.ValueNormalizer;
 import com.insurance.quotation.service.master.FormLinkService;
 import com.insurance.quotation.service.otp.OtpService;
 import com.insurance.quotation.service.quotation.QuotationWorkflowService;
 import com.insurance.quotation.service.stats.RequestStatusInfo;
+import com.insurance.quotation.service.validation.ValidationService;
 
-/**
- * Handles a submission from the public web form.
- *
- * It stores the data, then reuses the SAME validation,
- * quotation and email services that the email automation uses.
- */
 @Service
 public class FormSubmissionService {
 
@@ -69,6 +67,7 @@ public class FormSubmissionService {
     private final QuotationWorkflowService workflow;
     private final FormLinkService formLinks;
     private final OtpService otp;
+    private final ValidationService validationService;
 
     public FormSubmissionService(
             ClientMasterService clientMasterService,
@@ -78,7 +77,8 @@ public class FormSubmissionService {
             QuotationRepository quotationRepository,
             QuotationWorkflowService workflow,
             FormLinkService formLinks,
-            OtpService otp) {
+            OtpService otp,
+            ValidationService validationService) {
 
         this.clientMasterService = clientMasterService;
         this.clientRepository = clientRepository;
@@ -88,6 +88,7 @@ public class FormSubmissionService {
         this.workflow = workflow;
         this.formLinks = formLinks;
         this.otp = otp;
+        this.validationService = validationService;
     }
 
     public SubmissionResult submit(QuotationFormRequest form) {
@@ -96,19 +97,28 @@ public class FormSubmissionService {
 
     // Deliberately NOT @Transactional as a whole, so that a failure
     // status can still be saved after something goes wrong.
-    public SubmissionResult submit(QuotationFormRequest form, String token) {
+    public SubmissionResult submit(
+            QuotationFormRequest form,
+            String token) {
 
         if (form == null || form.getApplicant() == null) {
             throw new IllegalArgumentException(
                     "Applicant details are required.");
         }
 
-        if (form.getTravelEndDate().isBefore(form.getTravelStartDate())) {
+        // Validate dates only when both are supplied.
+        if (form.getTravelStartDate() != null
+                && form.getTravelEndDate() != null
+                && form.getTravelEndDate().isBefore(
+                        form.getTravelStartDate())) {
+
             throw new IllegalArgumentException(
                     "Travel end date must be on or after the travel start date.");
         }
 
-        if (form.getTravelStartDate().isBefore(LocalDate.now())) {
+        if (form.getTravelStartDate() != null
+                && form.getTravelStartDate().isBefore(LocalDate.now())) {
+
             throw new IllegalArgumentException(
                     "Travel start date cannot be in the past.");
         }
@@ -143,13 +153,8 @@ public class FormSubmissionService {
         boolean otpOk;
 
         if (link != null) {
-
-            // Returning customer: OTP must be verified for this personal link.
             otpOk = otp.isVerified(link.token());
-
         } else {
-
-            // New customer: verification token must match the submitted phone.
             otpOk = otp.isPhoneVerified(
                     form.getVerificationToken(),
                     submittedPhone);
@@ -161,9 +166,19 @@ public class FormSubmissionService {
                     "Please verify your phone number before submitting the form.");
         }
 
-        // No client creation or profile update is allowed before the OTP check.
+        // No client creation or profile update is allowed before OTP check.
 
-        String email = applicant.getEmail().trim().toLowerCase();
+        if (applicant.getEmail() == null
+                || applicant.getEmail().isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Email address is required.");
+        }
+
+        String email = applicant.getEmail()
+                .trim()
+                .toLowerCase(Locale.ROOT);
+
         String phone = digitsOnly(submittedPhone);
 
         // ============================================================
@@ -171,20 +186,13 @@ public class FormSubmissionService {
         // ============================================================
 
         /*
-         * IMPORTANT:
+         * Government identity and passport details are different.
          *
-         * Nationality and passport issuing country are different fields.
+         * ClientMasterService stores the Government ID:
+         * identityCountry, identityType, identityNumber.
          *
-         * Use applicant.getPassportCountry() for identity matching.
-         * This must match the country used during identity verification.
+         * Passport details are kept separately for the quotation request.
          */
-
-        if (applicant.getPassportCountry() == null
-                || applicant.getPassportCountry().isBlank()) {
-
-            throw new IllegalArgumentException(
-                    "Passport issuing country is required.");
-        }
 
         ClientMasterService.ClientDetails details =
                 new ClientMasterService.ClientDetails(
@@ -195,9 +203,9 @@ public class FormSubmissionService {
                         applicant.getGender(),
                         applicant.getNationality(),
                         applicant.getCountryOfResidence(),
-                        applicant.getPassportCountry().trim(),
-                        "PASSPORT",
-                        applicant.getPassportNumber()
+                        applicant.getIdentityCountry(),
+                        applicant.getIdentityType(),
+                        applicant.getIdentityNumber()
                 );
 
         ClientMasterService.ApplyResult applied;
@@ -257,7 +265,10 @@ public class FormSubmissionService {
         }
 
         request.setPolicyType("TRAVEL");
-        request.setPurposeOfTravel(form.getPurposeOfTravel().trim());
+
+        request.setPurposeOfTravel(
+                trimToNull(form.getPurposeOfTravel()));
+
         request.setStatus(RequestStatus.EMAIL_RECEIVED);
         request.setUpdatedAt(LocalDateTime.now());
 
@@ -277,42 +288,96 @@ public class FormSubmissionService {
         // ============================================================
 
         if (reused) {
-            travellerRepository.deleteByQuotationRequestId(request.getId());
+            travellerRepository.deleteByQuotationRequestId(
+                    request.getId());
         }
 
         List<TravellerForm> all = new ArrayList<>();
         all.add(applicant);
-        all.addAll(form.getAdditionalTravellers());
+
+        if (form.getAdditionalTravellers() != null) {
+            all.addAll(form.getAdditionalTravellers());
+        }
 
         int number = 1;
 
         for (TravellerForm t : all) {
+
+            if (t == null) {
+                throw new IllegalArgumentException(
+                        "Traveller details cannot be empty.");
+            }
 
             QuotationRequestTraveller row =
                     new QuotationRequestTraveller();
 
             row.setQuotationRequest(request);
             row.setTravellerNumber(number++);
-            row.setName(t.getName().trim());
+
+            // Name remains mandatory.
+            String travellerName = trimToNull(t.getName());
+
+            if (travellerName == null) {
+                throw new IllegalArgumentException(
+                        "Traveller name is required.");
+            }
+
+            row.setName(travellerName);
+
+            // Date of birth is optional.
             row.setDateOfBirth(t.getDateOfBirth());
+            row.setAgeAtSubmission(null);
 
-            row.setAgeAtSubmission(
-                    Period.between(
-                            t.getDateOfBirth(),
-                            LocalDate.now()).getYears());
+            if (t.getDateOfBirth() != null) {
+                row.setAgeAtSubmission(
+                        Period.between(
+                                t.getDateOfBirth(),
+                                LocalDate.now()).getYears());
+            }
 
-            row.setPassportNumber(t.getPassportNumber().trim());
-            row.setGender(t.getGender());
-            row.setNationality(t.getNationality().trim());
-            row.setCountryOfResidence(t.getCountryOfResidence().trim());
-            row.setEmail(t.getEmail().trim().toLowerCase());
-            row.setPhone(digitsOnly(t.getPhone()));
+            // These fields are controlled by Master Data.
+            row.setPassportNumber(
+                    trimToNull(t.getPassportNumber()));
+
+            row.setGender(
+                    trimToNull(t.getGender()));
+
+            row.setNationality(
+                    trimToNull(t.getNationality()));
+
+            row.setCountryOfResidence(
+                    trimToNull(t.getCountryOfResidence()));
+
+            // Email remains mandatory in the current database schema.
+            String travellerEmail = trimToNull(t.getEmail());
+
+            if (travellerEmail == null) {
+                throw new IllegalArgumentException(
+                        "Traveller email is required.");
+            }
+
+            row.setEmail(
+                    travellerEmail.toLowerCase(Locale.ROOT));
+
+            // Phone remains mandatory in the current database schema.
+            String travellerPhone = trimToNull(t.getPhone());
+
+            if (travellerPhone == null) {
+                throw new IllegalArgumentException(
+                        "Traveller phone is required.");
+            }
+
+            String cleanedPhone = digitsOnly(travellerPhone);
+
+            if (cleanedPhone.isBlank()) {
+                throw new IllegalArgumentException(
+                        "A valid traveller phone number is required.");
+            }
+
+            row.setPhone(cleanedPhone);
 
             row.setPreExistingMedicalConditions(
-                    t.getPreExistingMedicalConditions() == null
-                            || t.getPreExistingMedicalConditions().isBlank()
-                            ? null
-                            : t.getPreExistingMedicalConditions().trim());
+                    trimToNull(t.getPreExistingMedicalConditions()));
 
             row.setCreatedAt(LocalDateTime.now());
 
@@ -320,57 +385,69 @@ public class FormSubmissionService {
         }
 
         // ============================================================
-        // 5. WORKFLOW
+        // 5. DYNAMIC MASTER DATA FIELD MAPPING
         // ============================================================
 
-        List<ExtractedFieldData> fields = List.of(
+        /*
+         * Get only active fields applicable to TRAVEL.
+         *
+         * ValidationService handles policy-specific configuration,
+         * mandatory checks, data-type validation and persistence.
+         */
 
-                field("name", client.getName(), FieldDataType.TEXT),
+        List<RequiredField> configuredFields =
+                validationService.getApplicableFields("TRAVEL");
 
-                field("email", client.getEmail(), FieldDataType.EMAIL),
+        Map<String, String> submittedFields =
+                form.getFields() == null
+                        ? Map.of()
+                        : form.getFields();
 
-                field("phone", client.getPhone(), FieldDataType.PHONE),
+        List<ExtractedFieldData> fields = new ArrayList<>();
 
-                field("passportNumber",
-                        applicant.getPassportNumber(),
-                        FieldDataType.TEXT),
+        for (RequiredField requiredField : configuredFields) {
 
-                field("originCountry",
-                        form.getDepartureCountry(),
-                        FieldDataType.TEXT),
+            String fieldName = requiredField.getFieldName();
 
-                field("destinationCountry",
-                        form.getDestinationCountry(),
-                        FieldDataType.TEXT),
+            String value = getConfiguredFieldValue(
+                    fieldName,
+                    form,
+                    applicant,
+                    client,
+                    submittedFields);
 
-                field("travelStartDate",
-                        form.getTravelStartDate().toString(),
-                        FieldDataType.DATE),
+            String normalizedValue = isBlank(value)
+                    ? null
+                    : ValueNormalizer.normalize(
+                            value,
+                            requiredField.getDataType());
 
-                field("travelEndDate",
-                        form.getTravelEndDate().toString(),
-                        FieldDataType.DATE),
+            fields.add(new ExtractedFieldData(
+                    fieldName,
+                    normalizedValue,
+                    requiredField.getDataType(),
+                    FieldSource.MANUAL_ENTRY,
+                    1.0,
+                    isBlank(value)));
+        }
 
-                field("purposeOfTravel",
-                        form.getPurposeOfTravel().trim(),
-                        FieldDataType.TEXT),
-
-                field("travellers",
-                        String.valueOf(form.getTravellers()),
-                        FieldDataType.NUMBER),
-
-                field("policyType",
-                        "TRAVEL",
-                        FieldDataType.TEXT)
-        );
+        // ============================================================
+        // 6. WORKFLOW
+        // ============================================================
 
         try {
 
             QuotationWorkflowService.Outcome outcome =
-                    workflow.process(request, client, fields, hadQuotation);
+                    workflow.process(
+                            request,
+                            client,
+                            fields,
+                            hadQuotation);
 
-            // Consume a new-customer OTP only after the workflow has returned.
-            consumeNewCustomerOtpIfRequired(link, form, applicant);
+            consumeNewCustomerOtpIfRequired(
+                    link,
+                    form,
+                    applicant);
 
             Long id = request.getId();
 
@@ -396,17 +473,17 @@ public class FormSubmissionService {
 
                 case MISSING_INFORMATION -> {
 
-                    List<String> all2 =
+                    List<String> allMissing =
                             new ArrayList<>(outcome.missingFields());
 
-                    all2.addAll(outcome.invalidFields());
+                    allMissing.addAll(outcome.invalidFields());
 
                     yield new SubmissionResult(
                             id,
                             "MISSING_INFORMATION",
                             null,
                             "We still need a few details: "
-                                    + String.join(", ", all2) + ".");
+                                    + String.join(", ", allMissing) + ".");
                 }
 
                 case EMAIL_SEND_FAILED ->
@@ -439,9 +516,10 @@ public class FormSubmissionService {
             request.setUpdatedAt(LocalDateTime.now());
             requestRepository.save(request);
 
-            // The request and traveller data have already been accepted and saved.
-            // Consume the new-customer token to prevent duplicate submissions.
-            consumeNewCustomerOtpIfRequired(link, form, applicant);
+            consumeNewCustomerOtpIfRequired(
+                    link,
+                    form,
+                    applicant);
 
             return new SubmissionResult(
                     request.getId(),
@@ -450,6 +528,118 @@ public class FormSubmissionService {
                     "We received your request and our team will review it. Status: "
                             + RequestStatusInfo.label(request.getStatus()) + ".");
         }
+    }
+
+    // ================================================================
+    // GET VALUE FOR A CONFIGURED MASTER DATA FIELD
+    // ================================================================
+
+    private String getConfiguredFieldValue(
+            String fieldName,
+            QuotationFormRequest form,
+            TravellerForm applicant,
+            Client client,
+            Map<String, String> submittedFields) {
+
+        String standardValue = switch (fieldName) {
+
+            // Applicant details
+            case "name" ->
+                    client.getName();
+
+            case "email" ->
+                    client.getEmail();
+
+            case "phone" ->
+                    client.getPhone();
+
+            case "dateOfBirth" ->
+                    applicant.getDateOfBirth() == null
+                            ? null
+                            : applicant.getDateOfBirth().toString();
+
+            case "age" ->
+                    applicant.getDateOfBirth() == null
+                            ? null
+                            : String.valueOf(
+                                    Period.between(
+                                            applicant.getDateOfBirth(),
+                                            LocalDate.now()).getYears());
+
+            case "gender" ->
+                    applicant.getGender();
+
+            case "nationality" ->
+                    applicant.getNationality();
+
+            case "countryOfResidence" ->
+                    applicant.getCountryOfResidence();
+
+            // Government identity
+            case "identityCountry" ->
+                    applicant.getIdentityCountry();
+
+            case "identityType" ->
+                    applicant.getIdentityType();
+
+            case "identityNumber" ->
+                    applicant.getIdentityNumber();
+
+            // Passport details
+            case "passportCountry" ->
+                    applicant.getPassportCountry();
+
+            case "passportNumber" ->
+                    applicant.getPassportNumber();
+
+            // Travel details
+            case "originCountry", "departureCountry" ->
+                    form.getDepartureCountry();
+
+            case "destinationCountry" ->
+                    form.getDestinationCountry();
+
+            case "travelStartDate" ->
+                    form.getTravelStartDate() == null
+                            ? null
+                            : form.getTravelStartDate().toString();
+
+            case "travelEndDate" ->
+                    form.getTravelEndDate() == null
+                            ? null
+                            : form.getTravelEndDate().toString();
+
+            case "travellers" ->
+                    form.getTravellers() == null
+                            ? null
+                            : String.valueOf(form.getTravellers());
+
+            case "purposeOfTravel" ->
+                    form.getPurposeOfTravel();
+
+            case "policyType" ->
+                    "TRAVEL";
+
+            default ->
+                    null;
+        };
+
+        /*
+         * Standard fields use their structured DTO values first.
+         * Other fields are read from the dynamic fields map.
+         *
+         * Government identity number is deliberately excluded from
+         * the dynamic fallback to avoid bypassing the applicant's
+         * identity-protection flow.
+         */
+
+        if ("identityNumber".equals(fieldName)) {
+            return standardValue;
+        }
+
+        return firstNonBlank(
+                standardValue,
+                submittedFields.get(fieldName));
     }
 
     private void consumeNewCustomerOtpIfRequired(
@@ -471,24 +661,34 @@ public class FormSubmissionService {
         }
     }
 
-    private ExtractedFieldData field(
-            String name,
-            String value,
-            FieldDataType type) {
-
-        return new ExtractedFieldData(
-                name,
-                value == null ? null : value.trim(),
-                type,
-                FieldSource.MANUAL_ENTRY,
-                1.0,
-                false);
-    }
-
     private String digitsOnly(String value) {
 
         return value == null
                 ? ""
                 : value.replaceAll("[^0-9]", "");
+    }
+
+    private String trimToNull(String value) {
+
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim();
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String firstNonBlank(String... values) {
+
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+
+        return null;
     }
 }

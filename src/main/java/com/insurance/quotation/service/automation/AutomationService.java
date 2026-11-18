@@ -1334,6 +1334,7 @@ public class AutomationService {
         EmailClassificationService.Classification classification =
                 classifier.classify(
                         email.getSubject(),
+                        email.getBody(),
                         pending.isPresent(),
                         useful,
                         masterData.activeSubjectKeywords());

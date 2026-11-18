@@ -324,6 +324,7 @@ export interface RequiredFieldDto {
   displayLabel: string;
   dataType: FieldDataType;
   policyType: string | null;
+  section: string;
   isActive: boolean;
   isMandatory: boolean;
   validationRegex: string | null;
@@ -370,7 +371,9 @@ export interface PublicFormField {
   fieldName: string;
   displayLabel: string;
   dataType: FieldDataType;
+  section: string;
   isMandatory: boolean;
+  validationRegex: string | null;
   helpText: string | null;
   sortOrder: number;
 }

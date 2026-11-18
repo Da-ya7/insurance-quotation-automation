@@ -1,8 +1,6 @@
-
 /* ================================
    MAIN PAGE
 ================================ */
-
 :host {
   display: block;
   min-width: 0;
@@ -24,7 +22,6 @@
 /* ================================
    PAGE HEADER
 ================================ */
-
 .page-header {
   display: flex;
   align-items: center;
@@ -51,7 +48,6 @@
 }
 
 /* BACK ARROW */
-
 .back-arrow-btn {
   width: 42px;
   height: 42px;
@@ -78,7 +74,6 @@
 /* ================================
    SUMMARY CARDS
 ================================ */
-
 .summary-cards {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -154,7 +149,6 @@
 /* ================================
    REQUEST CONTAINER
 ================================ */
-
 .request-container {
   width: 100%;
   background: #ffffff;
@@ -167,7 +161,6 @@
 /* ================================
    SECTION HEADER
 ================================ */
-
 .section-header {
   display: flex;
   justify-content: space-between;
@@ -210,7 +203,6 @@
 /* ================================
    SEARCH AND FILTER
 ================================ */
-
 .toolbar {
   display: flex;
   justify-content: space-between;
@@ -219,6 +211,7 @@
   padding: 18px 26px;
   background: #fafbfc;
   border-bottom: 1px solid #edf0f4;
+  flex-wrap: wrap;
 }
 
 .search-box {
@@ -278,7 +271,6 @@
 /* ================================
    TABLE
 ================================ */
-
 .table-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -328,7 +320,6 @@ tbody tr:last-child td {
 /* ================================
    REQUEST ID
 ================================ */
-
 .request-id {
   font-size: 13px;
   font-weight: 700;
@@ -339,7 +330,6 @@ tbody tr:last-child td {
 /* ================================
    CLIENT DETAILS
 ================================ */
-
 .client-cell {
   display: flex;
   align-items: center;
@@ -395,7 +385,6 @@ tbody tr:last-child td {
 /* ================================
    DESTINATION
 ================================ */
-
 .destination {
   display: flex;
   align-items: center;
@@ -412,7 +401,6 @@ tbody tr:last-child td {
 /* ================================
    TRAVELLERS
 ================================ */
-
 .traveller-count {
   color: #596273;
   white-space: nowrap;
@@ -421,7 +409,6 @@ tbody tr:last-child td {
 /* ================================
    STATUS BADGES
 ================================ */
-
 .status {
   display: inline-flex;
   align-items: center;
@@ -471,7 +458,6 @@ tbody tr:last-child td {
 /* ================================
    VIEW BUTTON
 ================================ */
-
 .view-btn {
   padding: 7px 13px;
   background: #ffffff;
@@ -493,7 +479,6 @@ tbody tr:last-child td {
 /* ================================
    EMPTY SEARCH RESULT
 ================================ */
-
 .empty-state {
   padding: 45px 20px;
   text-align: center;
@@ -521,7 +506,6 @@ tbody tr:last-child td {
 /* ================================
    TABLE FOOTER
 ================================ */
-
 .table-footer {
   display: flex;
   justify-content: space-between;
@@ -537,6 +521,9 @@ tbody tr:last-child td {
   color: #4b5563;
 }
 
+/* ================================
+   PAGINATION
+================================ */
 .pagination {
   display: flex;
   align-items: center;
@@ -544,36 +531,76 @@ tbody tr:last-child td {
 }
 
 .pagination button {
-  min-width: 30px;
-  height: 30px;
-  padding: 0 8px;
+  min-width: 75px;
+  height: 34px;
+  padding: 0 12px;
   border: 1px solid #e0e4eb;
   border-radius: 6px;
   background: #ffffff;
-  color: #667085;
+  color: #5267d8;
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
 }
 
 .pagination button:hover:not(:disabled) {
-  background: #f4f6fa;
+  background: #f1f4ff;
+  border-color: #bfc8ef;
 }
 
 .pagination button:disabled {
-  color: #c4c9d2;
+  background: #f5f6f8;
+  color: #b8bec8;
   cursor: not-allowed;
 }
 
-.pagination .active-page {
-  background: #5267d8;
-  border-color: #5267d8;
-  color: #ffffff;
+/* ================================
+   DETAIL PANEL
+================================ */
+.sub {
+  display: block;
+  color: #6b7280;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.missing-list {
+  margin-top: 6px;
+  max-width: 280px;
+}
+
+.detail-panel {
+  margin-top: 22px;
+}
+
+.detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.detail-head h3 {
+  margin: 0;
+}
+
+.scroll-x {
+  overflow-x: auto;
+}
+
+.summary-card.clickable {
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.summary-card.clickable:hover {
+  background: #fafbff;
+  box-shadow: 0 4px 12px rgba(31, 41, 55, 0.08);
 }
 
 /* ================================
    RESPONSIVE DESIGN
 ================================ */
-
 @media (max-width: 1100px) {
   .quotation-request-page {
     padding: 26px 24px;
@@ -679,15 +706,3 @@ tbody tr:last-child td {
     font-size: 10px;
   }
 }
-
-/* ---- additions ---- */
-.summary-cards { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
-.summary-card.clickable { cursor: pointer; }
-.attention-icon { background: #fdeaea; color: #b91c1c; }
-.sub { display: block; color: #6b7280; font-size: 11px; margin-top: 2px; }
-.missing-list { margin-top: 6px; max-width: 280px; }
-.detail-panel { margin-top: 22px; }
-.detail-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.detail-head h3 { margin: 0; }
-.scroll-x { overflow-x: auto; }
-.toolbar { flex-wrap: wrap; gap: 10px; }

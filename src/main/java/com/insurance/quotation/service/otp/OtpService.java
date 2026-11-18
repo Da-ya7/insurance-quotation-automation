@@ -897,7 +897,34 @@ public class OtpService {
                 true,
                 verificationToken,
                 MAX_ATTEMPTS - challenge.attempts,
-                "Phone number verified.");
+                "Phone number verified."
+        );
+    }
+
+    /**
+     * Returns the normalized phone number belonging to a valid OTP
+     * verification token. Returns null if the token is missing or expired.
+     *
+     * The browser does not get to choose the phone number used for lookup.
+     */
+    public String getVerifiedPhone(String verificationToken) {
+
+        if (verificationToken == null || verificationToken.isBlank()) {
+            return null;
+        }
+
+        VerifiedPhone verifiedPhone = newVerifiedPhones.get(verificationToken);
+
+        if (verifiedPhone == null) {
+            return null;
+        }
+
+        if (clock.instant().isAfter(verifiedPhone.expiresAt())) {
+            newVerifiedPhones.remove(verificationToken);
+            return null;
+        }
+
+        return verifiedPhone.normalizedPhone();
     }
 
     public boolean isPhoneVerified(

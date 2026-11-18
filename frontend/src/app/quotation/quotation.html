@@ -69,7 +69,8 @@
             type="text"
             placeholder="Number, client or email..."
             aria-label="Search quotations"
-            [(ngModel)]="searchText">
+            [(ngModel)]="searchText"
+            (ngModelChange)="onSearchChange()">
         </div>
       </div>
 
@@ -129,7 +130,8 @@
       <p class="x-banner x-error" *ngIf="errorMessage">{{ errorMessage }}</p>
       <p class="x-banner x-error" *ngIf="actionError">{{ actionError }}</p>
 
-      <div class="quotation-card" *ngFor="let q of filteredQuotations"
+      <!-- QUOTATION CARDS: 5 RECORDS PER PAGE -->
+      <div class="quotation-card" *ngFor="let q of paginatedQuotations"
            [class.x-faded]="q.status === 'SUPERSEDED'"
            [class.x-row-selected]="q.id === selectedId">
 
@@ -192,6 +194,7 @@
       </div>
 
       <p *ngIf="loading && quotations.length === 0" class="x-muted">Loading quotations...</p>
+
       <p *ngIf="!loading && !errorMessage && filteredQuotations.length === 0" class="x-empty">
         No quotations found.
       </p>
@@ -254,10 +257,30 @@
         </ng-container>
       </div>
 
+      <!-- PAGINATION -->
       <div class="pagination">
         <span>
-          Showing {{ filteredQuotations.length }} of {{ summary?.total ?? quotations.length }} quotations
+          Showing <strong>{{ showingFrom }}–{{ showingTo }}</strong>
+          of <strong>{{ filteredQuotations.length }}</strong> quotations
         </span>
+
+        <div class="pagination-buttons">
+          <button
+            type="button"
+            (click)="previousPage()"
+            [disabled]="currentPage === 0">
+            Previous
+          </button>
+
+          <span>Page {{ currentPage + 1 }} of {{ totalPages }}</span>
+
+          <button
+            type="button"
+            (click)="nextPage()"
+            [disabled]="currentPage + 1 >= totalPages">
+            Next
+          </button>
+        </div>
       </div>
 
     </main>

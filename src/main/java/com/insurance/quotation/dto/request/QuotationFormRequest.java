@@ -3,19 +3,22 @@ package com.insurance.quotation.dto.request;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
  * Body sent by the public quotation form.
- * Only the main applicant's details are collected.
- * The travellers field stores the total number of people in the group.
+ *
+ * The applicant contains the main customer's details.
+ * Additional configured insurance fields are received through fields.
+ * The travellers property stores the total number of people in the group.
  */
 public class QuotationFormRequest {
 
@@ -23,12 +26,17 @@ public class QuotationFormRequest {
     @NotNull(message = "Applicant details are required")
     private TravellerForm applicant;
 
+    /**
+     * Dynamic values submitted by the public form.
+     * Keys correspond to RequiredField.fieldName in Master Data.
+     */
+    private Map<String, String> fields = new LinkedHashMap<>();
+
     @Valid
     @Size(max = 19, message = "Maximum 20 travellers are allowed")
     private List<TravellerForm> additionalTravellers = new ArrayList<>();
 
     // Total number of travellers in the group (1–20).
-    // Only the applicant's personal details are collected.
     @NotNull(message = "Number of travellers is required")
     @Min(value = 1, message = "At least 1 traveller is required")
     @Max(value = 20, message = "Maximum 20 travellers are allowed")
@@ -37,21 +45,18 @@ public class QuotationFormRequest {
     // Issued by the backend after successful phone OTP verification.
     private String verificationToken;
 
-    @NotBlank(message = "Departure country is required")
+    // Configurable travel fields.
+    // Mandatory validation is controlled by Master Data.
     @Size(max = 100)
     private String departureCountry;
 
-    @NotBlank(message = "Destination country is required")
     @Size(max = 100)
     private String destinationCountry;
 
-    @NotNull(message = "Travel start date is required")
     private LocalDate travelStartDate;
 
-    @NotNull(message = "Travel end date is required")
     private LocalDate travelEndDate;
 
-    @NotBlank(message = "Purpose of travel is required")
     @Size(max = 60)
     private String purposeOfTravel;
 
@@ -61,6 +66,16 @@ public class QuotationFormRequest {
 
     public void setApplicant(TravellerForm applicant) {
         this.applicant = applicant;
+    }
+
+    public Map<String, String> getFields() {
+        return fields;
+    }
+
+    public void setFields(Map<String, String> fields) {
+        this.fields = fields == null
+                ? new LinkedHashMap<>()
+                : new LinkedHashMap<>(fields);
     }
 
     public List<TravellerForm> getAdditionalTravellers() {
