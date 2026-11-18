@@ -28,6 +28,20 @@ public class TravellerForm {
     @Size(max = 100, message = "Passport issuing country is too long")
     private String passportCountry;
 
+    // Optional PAN number
+    @Pattern(
+        regexp = "(?i)^[A-Z]{5}[0-9]{4}[A-Z]$",
+        message = "Enter a valid PAN number"
+    )
+    private String panNumber;
+
+    // Optional Aadhaar number
+    @Pattern(
+        regexp = "^[2-9][0-9]{11}$",
+        message = "Enter a valid 12-digit Aadhaar number"
+    )
+    private String aadhaarNumber;
+
     @Size(max = 30)
     private String gender;
 
@@ -85,6 +99,24 @@ public class TravellerForm {
 
     public void setPassportCountry(String passportCountry) {
         this.passportCountry = passportCountry;
+    }
+
+    public String getPanNumber() {
+        return panNumber;
+    }
+
+    public void setPanNumber(String panNumber) {
+        this.panNumber = panNumber == null || panNumber.isBlank()
+                ? null : panNumber.trim().toUpperCase();
+    }
+
+    public String getAadhaarNumber() {
+        return aadhaarNumber;
+    }
+
+    public void setAadhaarNumber(String aadhaarNumber) {
+        this.aadhaarNumber = aadhaarNumber == null || aadhaarNumber.isBlank()
+                ? null : aadhaarNumber.trim();
     }
 
     public String getGender() {

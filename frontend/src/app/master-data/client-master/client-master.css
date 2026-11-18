@@ -1989,3 +1989,809 @@ tbody tr:hover {
     min-width: 540px;
   }
 }
+/* =========================================
+   IDENTITY DOCUMENT NUMBER - SHOW / HIDE
+========================================= */
+
+.identity-number-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.identity-number-row .masked-number {
+  overflow-wrap: anywhere;
+}
+
+.identity-toggle-btn {
+  width: 30px;
+  height: 28px;
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #1e40af;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.identity-toggle-btn:hover:not(:disabled) {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+.identity-toggle-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.detail-item small {
+  color: #b91c1c;
+  font-size: 10px;
+}
+
+/* =========================================
+   CLICKABLE REQUEST / QUOTATION CARDS
+========================================= */
+
+button.request-summary-card {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  font-family: Arial, Helvetica, sans-serif;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+button.request-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(15, 35, 75, 0.10);
+}
+
+button.request-summary-card:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+button.request-summary-card .request-summary-icon {
+  font-size: 19px;
+}
+
+/* =========================================
+   REQUESTS / QUOTATIONS HISTORY POPUP
+========================================= */
+
+.history-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px;
+  background: rgba(15, 23, 42, 0.68);
+  backdrop-filter: blur(5px);
+}
+
+.history-modal {
+  width: min(850px, 96%);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.28);
+  animation: historyModalEnter 0.2s ease-out;
+}
+
+@keyframes historyModalEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* HISTORY POPUP HEADER */
+
+.history-modal-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  color: #ffffff;
+  background: #0b1f3a;
+}
+
+.history-modal-header h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.history-modal-header p {
+  margin: 5px 0 0;
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+.history-modal-header button {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.history-modal-header button:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* HISTORY POPUP BODY */
+
+.history-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+.history-modal-body::-webkit-scrollbar {
+  width: 7px;
+}
+
+.history-modal-body::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+.history-modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+/* REQUEST AND QUOTATION CARDS */
+
+.history-request-card,
+.history-quotation-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.history-card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.history-card-heading h3 {
+  margin: 0;
+  color: #172b4d;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+/* HISTORY INFORMATION GRID */
+
+.history-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 15px;
+}
+
+.history-data-item {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-data-item span {
+  display: block;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.history-data-item strong {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+/* ADDITIONAL REQUEST DETAILS */
+
+.history-additional-details {
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid #edf1f6;
+}
+
+.history-additional-details h4 {
+  margin: 0 0 10px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+/* EMPTY HISTORY */
+
+.history-empty {
+  padding: 25px;
+  text-align: center;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+/* =========================================
+   FIRST VERSION - FULL DETAILS
+========================================= */
+
+.first-version-details {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.first-version-details > div {
+  min-width: 0;
+}
+
+/* =========================================
+   HISTORY POPUP RESPONSIVE
+========================================= */
+
+@media (max-width: 650px) {
+  .history-modal-overlay {
+    padding: 8px;
+  }
+
+  .history-modal {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 11px;
+  }
+
+  .history-modal-header {
+    padding: 13px;
+  }
+
+  .history-modal-header h2 {
+    font-size: 16px;
+  }
+
+  .history-modal-body {
+    padding: 12px;
+  }
+
+  .history-request-card,
+  .history-quotation-card {
+    padding: 11px;
+  }
+
+  .history-data-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .first-version-details {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================
+   PROFESSIONAL PREVIOUS INSURANCE REQUESTS
+   OVERRIDES
+========================================= */
+
+.professional-request-card {
+  padding: 18px;
+  border: 1px solid #dfe7f1;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 35, 75, 0.035);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.professional-request-card:hover {
+  border-color: #bfdbfe;
+  box-shadow: 0 5px 15px rgba(15, 35, 75, 0.07);
+}
+
+/* REQUEST HEADING */
+
+.professional-request-card .history-card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.request-heading-left {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.history-card-label {
+  color: #2563eb;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.professional-request-card .history-card-heading h3 {
+  color: #172b4d;
+  font-size: 16px;
+  font-weight: 750;
+  margin: 0;
+}
+
+/* REQUEST STATUS */
+
+.request-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: 180px;
+  padding: 6px 11px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 750;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.request-status-success {
+  color: #15803d;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+}
+
+.request-status-warning {
+  color: #b91c1c;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+}
+
+.request-status-pending {
+  color: #a16207;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+}
+
+.request-status-neutral {
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+/* REQUEST OVERVIEW */
+
+.request-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e5eaf2;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.request-overview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.request-overview-item span {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.request-overview-item strong {
+  color: #26364c;
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* GROUPED REQUEST DETAILS */
+
+.request-detail-group {
+  padding-top: 15px;
+  margin-top: 14px;
+  border-top: 1px solid #edf1f6;
+}
+
+.request-detail-group h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: #172b4d;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.request-detail-group h4::before {
+  content: "";
+  width: 4px;
+  height: 15px;
+  border-radius: 4px;
+  background: #2563eb;
+}
+
+.request-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+
+.request-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid #edf1f6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.request-detail-item span {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 550;
+}
+
+.request-detail-item strong {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* REQUEST POPUP RESPONSIVE */
+
+@media (max-width: 650px) {
+  .professional-request-card {
+    padding: 12px;
+  }
+
+  .professional-request-card .history-card-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .request-status-badge {
+    max-width: 100%;
+  }
+
+  .request-overview,
+  .request-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .request-overview {
+    padding: 11px;
+  }
+
+  .request-detail-item {
+    padding: 9px;
+  }
+}
+
+/* =========================================
+   CLIENT QUOTATIONS - PROFESSIONAL CARD DESIGN
+   Append this section at the VERY BOTTOM
+========================================= */
+
+/* Quotation card */
+.professional-quotation-card,
+.history-quotation-card {
+  width: 100%;
+  min-width: 0;
+  padding: 22px;
+  margin: 0 0 16px;
+  background: #ffffff;
+  border: 1px solid #dce5f0;
+  border-radius: 13px;
+  box-shadow: 0 3px 12px rgba(15, 35, 75, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.professional-quotation-card:hover,
+.history-quotation-card:hover {
+  border-color: #a9c9f5;
+  box-shadow: 0 6px 18px rgba(15, 35, 75, 0.09);
+}
+
+/* Quotation number and status */
+.professional-quotation-card .quotation-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+  padding-bottom: 17px;
+  margin-bottom: 17px;
+  border-bottom: 1px solid #e8edf4;
+}
+
+.quotation-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.quotation-eyebrow {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.quotation-title-group h3 {
+  margin: 0;
+  color: #142d50;
+  font-size: 20px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.quotation-id {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.quotation-status {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  border: 1px solid #bbf7d0;
+  border-radius: 20px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+/* Request, policy and version information */
+.quotation-information-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 17px;
+}
+
+.quotation-information-item {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #e5eaf2;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.quotation-information-item span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.quotation-information-item strong {
+  color: #172b4d;
+  font-size: 13px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+/* Amount details */
+.quotation-amount-section {
+  padding: 16px 18px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f5f9ff;
+}
+
+.quotation-amount-section h4 {
+  margin: 0 0 12px;
+  color: #172b4d;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.quotation-amount-row,
+.quotation-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+}
+
+.quotation-amount-row span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.quotation-amount-row strong {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: right;
+}
+
+.quotation-total-row {
+  margin-top: 7px;
+  padding-top: 13px;
+  border-top: 1px solid #dbe3ed;
+}
+
+.quotation-total-row span {
+  color: #172b4d;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.quotation-total-row strong {
+  color: #1d4ed8;
+  font-size: 18px;
+  font-weight: 800;
+  text-align: right;
+}
+
+/* Created and sent dates */
+.quotation-date-section {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 17px;
+  padding-top: 15px;
+  border-top: 1px solid #edf1f6;
+}
+
+.quotation-date-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.quotation-date-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 17px;
+}
+
+.quotation-date-item div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.quotation-date-item div span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.quotation-date-item div strong {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+/* Empty quotation history */
+.quotation-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 45px 20px;
+  text-align: center;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.quotation-empty-state h3 {
+  margin: 12px 0 5px;
+  color: #172b4d;
+  font-size: 16px;
+}
+
+.quotation-empty-state p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+/* Quotation popup spacing */
+.history-modal-body {
+  gap: 15px;
+}
+
+/* Responsive quotation cards */
+@media (max-width: 650px) {
+  .professional-quotation-card,
+  .history-quotation-card {
+    padding: 14px;
+  }
+
+  .professional-quotation-card .quotation-card-header {
+    flex-direction: column;
+  }
+
+  .quotation-information-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quotation-date-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 400px) {
+  .quotation-information-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quotation-amount-section {
+    padding: 12px;
+  }
+}
