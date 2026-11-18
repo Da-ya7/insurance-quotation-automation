@@ -294,6 +294,7 @@
             <strong>{{ client.identityCountry || 'Not available' }}</strong>
           </div>
 
+          <!-- DOCUMENT NUMBER WITH RESPONSIVE EYE BUTTON -->
           <div class="detail-item">
             <label>Document Number</label>
 
@@ -308,7 +309,6 @@
                 type="button"
                 class="identity-toggle-btn"
                 (click)="toggleIdentityNumber()"
-                [disabled]="identityNumberLoading"
                 [attr.aria-label]="identityNumberVisible
                   ? 'Hide identity number'
                   : 'Show identity number'"
@@ -316,11 +316,15 @@
                   ? 'Hide identity number'
                   : 'Reveal identity number'">
 
-                <span *ngIf="!identityNumberLoading">
+                <span>
                   {{ identityNumberVisible ? '🙈' : '👁' }}
                 </span>
 
-                <span *ngIf="identityNumberLoading">...</span>
+                <span
+                  *ngIf="identityNumberLoading"
+                  class="identity-loading">
+                  ⏳
+                </span>
               </button>
             </div>
 
@@ -347,7 +351,6 @@
         </div>
       </section>
 
-      
       <!-- 04 PREVIOUS REQUESTS AND QUOTATIONS -->
       <section class="detail-section">
         <div class="section-heading">
@@ -362,7 +365,6 @@
           class="request-summary-grid"
           *ngIf="!insuranceLoading && !insuranceError">
 
-          <!-- REQUESTS CARD -->
           <button
             type="button"
             class="request-summary-card clickable-summary-card"
@@ -371,10 +373,8 @@
             <span class="history-icon">📋</span>
             <label>Total Previous Requests</label>
             <h2>{{ insuranceDetails.length }}</h2>
-            
           </button>
 
-          <!-- QUOTATIONS CARD -->
           <button
             type="button"
             class="request-summary-card clickable-summary-card"
@@ -383,7 +383,6 @@
             <span class="history-icon">📑</span>
             <label>Total Quotations</label>
             <h2>{{ totalQuotationVersions }}</h2>
-            
           </button>
 
         </div>
@@ -397,7 +396,6 @@
         </div>
       </section>
 
-      
       <!-- 06 CLIENT VERSION HISTORY -->
       <section class="detail-section">
         <div class="section-heading">
@@ -416,7 +414,6 @@
           <p>No client version history is available.</p>
         </div>
 
-        <!-- VERSION HISTORY LIST -->
         <div
           class="version-timeline"
           *ngIf="clientVersions.length > 0">
@@ -562,13 +559,9 @@
       </button>
     </div>
 
-    <!-- HISTORY MODAL BODY -->
     <div class="history-modal-body">
 
-      <!-- =============================================
-           PROFESSIONAL REQUEST HISTORY
-      ============================================== -->
-
+      <!-- REQUEST HISTORY -->
       <ng-container *ngIf="historyPopupType === 'requests'">
 
         <div
@@ -593,12 +586,10 @@
           <p>No previous insurance requests are available for this client.</p>
         </div>
 
-        <!-- REQUEST CARDS: NEWEST FIRST -->
         <article
           class="history-request-card professional-request-card"
           *ngFor="let request of sortedInsuranceDetails; trackBy: trackByInsurance">
 
-          <!-- REQUEST HEADER -->
           <div class="history-card-heading">
 
             <div class="request-heading-left">
@@ -609,14 +600,11 @@
             <span
               class="request-status-badge"
               [ngClass]="getRequestStatusClass(request.requestStatus)">
-
               {{ getRequestStatusLabel(request.requestStatus) }}
-
             </span>
 
           </div>
 
-          <!-- REQUEST OVERVIEW -->
           <div class="request-overview">
 
             <div class="request-overview-item">
@@ -651,7 +639,6 @@
 
           </div>
 
-          <!-- GROUPED ADDITIONAL REQUEST DETAILS -->
           <div
             class="request-detail-group"
             *ngFor="let group of getAdditionalDetailGroups(request.additionalDetails)">
@@ -676,134 +663,120 @@
 
       </ng-container>
 
+      <!-- QUOTATION HISTORY -->
+      <ng-container *ngIf="historyPopupType === 'quotations'">
 
-      <!-- =============================================
-           QUOTATION DETAILS
-      ============================================== -->
+        <div
+          *ngIf="sortedQuotationHistoryEntries.length === 0"
+          class="quotation-empty-state">
 
-      <!-- =============================================
-     PROFESSIONAL CLIENT QUOTATION HISTORY
-============================================== -->
-
-<ng-container *ngIf="historyPopupType === 'quotations'">
-
-  <!-- EMPTY STATE -->
-  <div
-    *ngIf="sortedQuotationHistoryEntries.length === 0"
-    class="quotation-empty-state">
-
-    <span class="placeholder-icon">📑</span>
-    <h3>No Quotations Found</h3>
-    <p>No quotations are available for this client.</p>
-  </div>
-
-  <!-- QUOTATION CARDS: NEWEST FIRST -->
-  <article
-    class="professional-quotation-card"
-    *ngFor="let entry of sortedQuotationHistoryEntries; trackBy: trackByQuotation">
-
-    <!-- CARD HEADER -->
-    <div class="quotation-card-header">
-
-      <div class="quotation-title-group">
-        <span class="quotation-eyebrow">QUOTATION NUMBER</span>
-        <h3>{{ entry.quotation.quotationNumber }}</h3>
-        <span class="quotation-id">
-          Quotation ID: {{ entry.quotation.quotationId }}
-        </span>
-      </div>
-
-      <span
-        class="quotation-status"
-        [ngClass]="getRequestStatusClass(entry.quotation.quotationStatus)">
-        {{ getRequestStatusLabel(entry.quotation.quotationStatus) }}
-      </span>
-
-    </div>
-
-    <!-- QUOTATION INFORMATION -->
-    <div class="quotation-information-grid">
-
-      <div class="quotation-information-item">
-        <span>Related Request</span>
-        <strong>#{{ entry.requestId }}</strong>
-      </div>
-
-      <div class="quotation-information-item">
-        <span>Policy Type</span>
-        <strong>{{ entry.policyType || 'Not available' }}</strong>
-      </div>
-
-      <div class="quotation-information-item">
-        <span>Quotation Version</span>
-        <strong>V{{ entry.quotation.versionNo }}</strong>
-      </div>
-
-    </div>
-
-    <!-- AMOUNT DETAILS -->
-    <div class="quotation-amount-section">
-
-      <h4>Quotation Amount Details</h4>
-
-      <div class="quotation-amount-row">
-        <span>Premium Amount</span>
-        <strong>
-          {{ entry.quotation.currency || 'INR' }}
-          {{ entry.quotation.premiumAmount | number:'1.2-2' }}
-        </strong>
-      </div>
-
-      <div class="quotation-amount-row">
-        <span>Tax Amount</span>
-        <strong>
-          {{ entry.quotation.currency || 'INR' }}
-          {{ entry.quotation.taxAmount | number:'1.2-2' }}
-        </strong>
-      </div>
-
-      <div class="quotation-total-row">
-        <span>Total Amount</span>
-        <strong>
-          {{ entry.quotation.currency || 'INR' }}
-          {{ entry.quotation.totalAmount | number:'1.2-2' }}
-        </strong>
-      </div>
-
-    </div>
-
-    <!-- DATE DETAILS -->
-    <div class="quotation-date-section">
-
-      <div class="quotation-date-item">
-        <span class="quotation-date-icon">◷</span>
-        <div>
-          <span>Created Date</span>
-          <strong>
-            {{ entry.quotation.createdAt
-              ? (entry.quotation.createdAt | date:'dd MMM yyyy, hh:mm a')
-              : 'Not available' }}
-          </strong>
+          <span class="placeholder-icon">📑</span>
+          <h3>No Quotations Found</h3>
+          <p>No quotations are available for this client.</p>
         </div>
-      </div>
 
-      <div class="quotation-date-item">
-        <span class="quotation-date-icon">✓</span>
-        <div>
-          <span>Sent Date</span>
-          <strong>
-            {{ entry.quotation.sentAt
-              ? (entry.quotation.sentAt | date:'dd MMM yyyy, hh:mm a')
-              : 'Not sent yet' }}
-          </strong>
-        </div>
-      </div>
+        <article
+          class="professional-quotation-card"
+          *ngFor="let entry of sortedQuotationHistoryEntries; trackBy: trackByQuotation">
 
-    </div>
+          <div class="quotation-card-header">
 
-  </article>
+            <div class="quotation-title-group">
+              <span class="quotation-eyebrow">QUOTATION NUMBER</span>
+              <h3>{{ entry.quotation.quotationNumber }}</h3>
+              <span class="quotation-id">
+                Quotation ID: {{ entry.quotation.quotationId }}
+              </span>
+            </div>
 
-</ng-container>
+            <span
+              class="quotation-status"
+              [ngClass]="getRequestStatusClass(entry.quotation.quotationStatus)">
+              {{ getRequestStatusLabel(entry.quotation.quotationStatus) }}
+            </span>
+
+          </div>
+
+          <div class="quotation-information-grid">
+
+            <div class="quotation-information-item">
+              <span>Related Request</span>
+              <strong>#{{ entry.requestId }}</strong>
+            </div>
+
+            <div class="quotation-information-item">
+              <span>Policy Type</span>
+              <strong>{{ entry.policyType || 'Not available' }}</strong>
+            </div>
+
+            <div class="quotation-information-item">
+              <span>Quotation Version</span>
+              <strong>V{{ entry.quotation.versionNo }}</strong>
+            </div>
+
+          </div>
+
+          <div class="quotation-amount-section">
+
+            <h4>Quotation Amount Details</h4>
+
+            <div class="quotation-amount-row">
+              <span>Premium Amount</span>
+              <strong>
+                {{ entry.quotation.currency || 'INR' }}
+                {{ entry.quotation.premiumAmount | number:'1.2-2' }}
+              </strong>
+            </div>
+
+            <div class="quotation-amount-row">
+              <span>Tax Amount</span>
+              <strong>
+                {{ entry.quotation.currency || 'INR' }}
+                {{ entry.quotation.taxAmount | number:'1.2-2' }}
+              </strong>
+            </div>
+
+            <div class="quotation-total-row">
+              <span>Total Amount</span>
+              <strong>
+                {{ entry.quotation.currency || 'INR' }}
+                {{ entry.quotation.totalAmount | number:'1.2-2' }}
+              </strong>
+            </div>
+
+          </div>
+
+          <div class="quotation-date-section">
+
+            <div class="quotation-date-item">
+              <span class="quotation-date-icon">◷</span>
+              <div>
+                <span>Created Date</span>
+                <strong>
+                  {{ entry.quotation.createdAt
+                    ? (entry.quotation.createdAt | date:'dd MMM yyyy, hh:mm a')
+                    : 'Not available' }}
+                </strong>
+              </div>
+            </div>
+
+            <div class="quotation-date-item">
+              <span class="quotation-date-icon">✓</span>
+              <div>
+                <span>Sent Date</span>
+                <strong>
+                  {{ entry.quotation.sentAt
+                    ? (entry.quotation.sentAt | date:'dd MMM yyyy, hh:mm a')
+                    : 'Not sent yet' }}
+                </strong>
+              </div>
+            </div>
+
+          </div>
+
+        </article>
+
+      </ng-container>
 
     </div>
 
@@ -863,7 +836,7 @@
     <!-- COMPARISON BODY -->
     <div class="version-popup-body">
 
-      <!-- FIRST VERSION: SHOW ALL AVAILABLE SNAPSHOT DETAILS -->
+      <!-- FIRST VERSION -->
       <div
         *ngIf="isFirstVersion"
         class="first-version-message">
@@ -880,7 +853,6 @@
 
         <div class="first-version-details">
 
-          <!-- PERSONAL DETAILS -->
           <div>
             <span>Client Name</span>
             <strong>{{ version.name || 'Not available' }}</strong>
@@ -920,7 +892,6 @@
             <strong>{{ version.countryOfResidence || 'Not available' }}</strong>
           </div>
 
-          <!-- IDENTITY DETAILS -->
           <div>
             <span>Identity Document Type</span>
             <strong>{{ version.identityType || 'Not available' }}</strong>
@@ -936,7 +907,6 @@
             <strong>{{ getIdentityNumber(version) }}</strong>
           </div>
 
-          <!-- VERSION METADATA -->
           <div>
             <span>Change Source</span>
             <strong>{{ version.changeSource || 'Not available' }}</strong>
@@ -986,10 +956,8 @@
       <!-- COMPARISON FOR V2 AND ABOVE -->
       <ng-container *ngIf="!isFirstVersion">
 
-        <!-- VERSION TIMELINE -->
         <div class="comparison-timeline">
 
-          <!-- PREVIOUS VERSION -->
           <div class="timeline-version">
 
             <div class="timeline-marker previous-marker"></div>
@@ -1016,7 +984,6 @@
 
           <div class="timeline-connector"></div>
 
-          <!-- SELECTED VERSION -->
           <div class="timeline-version">
 
             <div class="timeline-marker latest-marker"></div>
@@ -1043,7 +1010,6 @@
 
         </div>
 
-        <!-- CHANGE SUMMARY -->
         <div class="comparison-info">
           <span class="info-icon">ℹ</span>
 
@@ -1054,7 +1020,6 @@
           </span>
         </div>
 
-        <!-- COMPARISON TABLE -->
         <div
           class="comparison-table-wrapper"
           *ngIf="comparisonRows.length > 0">
@@ -1116,7 +1081,6 @@
           </table>
         </div>
 
-        <!-- NO COMPARISON DATA -->
         <div
           *ngIf="comparisonRows.length === 0"
           class="comparison-empty">
@@ -1125,7 +1089,6 @@
 
         </div>
 
-        <!-- UPDATE INFORMATION -->
         <div class="comparison-update-info">
 
           <span class="update-clock">◷</span>
