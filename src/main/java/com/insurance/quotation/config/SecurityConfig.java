@@ -66,6 +66,7 @@ public class SecurityConfig {
                                 "/**"
                         ).permitAll()
 
+                        // Public endpoints
                         .requestMatchers(
                                 "/",
                                 "/error",
@@ -74,18 +75,36 @@ public class SecurityConfig {
                                 "/api/public/**"
                         ).permitAll()
 
-                        // master data: everyone logged in can read, only ADMIN can change
-                        .requestMatchers(HttpMethod.POST, "/api/master/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/master/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/master/**").hasRole("ADMIN")
+                        // Public mobile-number search for the quotation form.
+                        // No other Client API is made public.
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/clients/search-by-mobile"
+                        ).permitAll()
 
+                        // Master data: only ADMIN can modify.
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/master/**"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/master/**"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/master/**"
+                        ).hasRole("ADMIN")
+
+                        // All remaining API endpoints require staff login.
                         .requestMatchers("/api/**")
                         .hasAnyRole("ADMIN", "OPERATIONS")
 
                         .requestMatchers("/actuator/**")
                         .hasAnyRole("ADMIN", "OPERATIONS")
 
-                        // Anything else is just the Angular app files.
                         .anyRequest().permitAll()
                 )
 

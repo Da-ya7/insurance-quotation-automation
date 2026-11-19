@@ -1,4 +1,3 @@
-
 <div class="cf-page">
 
   <!-- HEADER -->
@@ -163,13 +162,12 @@
             <span class="cf-section-kicker">APPLICATION PROCESS</span>
             <h2>Complete your application</h2>
           </div>
+
           <span class="cf-progress-label">
-            @if (unlocked() && !identityCheckRequired()) {
-              Step 3 of 3
-            } @else if (identityCheckRequired()) {
-              Step 2 of 3
+            @if (unlocked()) {
+              Step 2 of 2
             } @else {
-              Step 1 of 3
+              Step 1 of 2
             }
           </span>
         </div>
@@ -177,10 +175,10 @@
         <div class="cf-progress-steps">
 
           <div class="cf-progress-step"
-               [class.cf-progress-active]="!unlocked() && !identityCheckRequired()"
-               [class.cf-progress-done]="identityCheckRequired() || unlocked()">
+               [class.cf-progress-active]="!unlocked()"
+               [class.cf-progress-done]="unlocked()">
             <span class="cf-progress-number">
-              @if (identityCheckRequired() || unlocked()) {
+              @if (unlocked()) {
                 ✓
               } @else {
                 1
@@ -194,25 +192,8 @@
           </div>
 
           <div class="cf-progress-step"
-               [class.cf-progress-active]="identityCheckRequired()"
-               [class.cf-progress-done]="unlocked()">
-            <span class="cf-progress-number">
-              @if (unlocked()) {
-                ✓
-              } @else {
-                2
-              }
-            </span>
-            <span>Identity check</span>
-          </div>
-
-          <div class="cf-progress-line"
-               [class.cf-progress-line-done]="unlocked()">
-          </div>
-
-          <div class="cf-progress-step"
-               [class.cf-progress-active]="unlocked() && !identityCheckRequired()">
-            <span class="cf-progress-number">3</span>
+               [class.cf-progress-active]="unlocked()">
+            <span class="cf-progress-number">2</span>
             <span>Application details</span>
           </div>
 
@@ -221,7 +202,7 @@
     }
 
     <!-- STEP 1: PHONE VERIFICATION -->
-    @if (form() && !result() && !unlocked() && !identityCheckRequired()) {
+    @if (form() && !result() && !unlocked() && matchingClients().length === 0) {
       <section class="cf-card cf-verification-card">
 
         <div class="cf-card-heading">
@@ -266,6 +247,7 @@
                 [(ngModel)]="phoneCallingCode"
                 (ngModelChange)="onPhoneCallingCodeChange()"
                 name="otpPhoneCallingCode"
+                autocomplete="off"
                 [disabled]="busy() || otpSent()">
 
                 @for (c of countries(); track c.code) {
@@ -284,7 +266,7 @@
                 (ngModelChange)="onNewPhoneChange()"
                 name="otpPhone"
                 placeholder="Enter your mobile number"
-                autocomplete="tel-national"
+                autocomplete="off"
                 [disabled]="busy() || otpSent()"
                 required />
             </div>
@@ -357,111 +339,53 @@
       </section>
     }
 
-    <!-- STEP 2: ADDITIONAL IDENTITY VERIFICATION -->
-    @if (form() && !result() && identityCheckRequired()) {
+    <!-- STEP 2: SELECT EXISTING CUSTOMER -->
+    @if (form() && !result() && !unlocked() && matchingClients().length > 1) {
       <section class="cf-card cf-verification-card">
 
         <div class="cf-card-heading">
           <span class="cf-heading-icon">02</span>
           <div>
-            <span class="cf-section-kicker">STEP 2</span>
-            <h2>Additional identity verification</h2>
-            <p>Confirm your identity to access the correct customer record.</p>
-          </div>
-        </div>
-
-        <div class="cf-alert cf-alert-ok">
-          <strong>✓ Phone number verified successfully</strong>
-          <p>You can now continue with your identity verification.</p>
-        </div>
-
-        <p class="cf-hint">
-          This mobile number is already associated with one or more customer
-          records. Enter your own identity details so we can identify the
-          correct person.
-        </p>
-
-        <div class="cf-family-note">
-          <div class="cf-family-note-icon">👨‍👩‍👧‍👦</div>
-          <div>
-            <strong>Sharing a mobile number with family?</strong>
+            <span class="cf-section-kicker">SELECT CUSTOMER</span>
+            <h2>Select your name</h2>
             <p>
-              Family members can use the same mobile number. Each person must
-              enter their own identity document details. We will match the
-              identity number to the correct customer record.
+              Your mobile number is registered with multiple customers.
+              Please select your own name to continue.
             </p>
           </div>
         </div>
 
-        <div class="cf-identity-check">
-          <div class="cf-grid">
-
-            <label>
-              Identity issuing country
-              <select
-                class="cf-input"
-                [(ngModel)]="identityMatchCountry"
-                (ngModelChange)="onIdentityMatchCountry($event)"
-                name="identityMatchCountry"
-                [disabled]="busy()">
-
-                <option value="">Select country</option>
-                @for (c of countries(); track c.code) {
-                  <option [value]="c.code">{{ c.name }}</option>
-                }
-              </select>
-            </label>
-
-            <label>
-              Identity document type
-              <select
-                class="cf-input"
-                [(ngModel)]="identityMatchType"
-                name="identityMatchType"
-                [disabled]="busy() || !identityMatchCountry">
-
-                <option value="">Select identity type</option>
-                @for (t of identityMatchTypes(); track t.code) {
-                  <option [value]="t.code">{{ t.label }}</option>
-                }
-              </select>
-            </label>
-
-            <label class="cf-wide">
-              Identity number
-              <input
-                class="cf-input"
-                type="password"
-                [(ngModel)]="identityMatchNumber"
-                name="identityMatchNumber"
-                autocomplete="off"
-                placeholder="Enter your identity number"
-                [disabled]="busy()"
-                required />
-            </label>
-
-          </div>
-
-          <small class="cf-hint">
-            Your identity number is used to find the correct customer record.
-            It is not displayed in full.
-          </small>
+        <div class="cf-alert cf-alert-ok">
+          <strong>✓ Mobile number verified successfully</strong>
+          <p>Select the correct customer record below.</p>
         </div>
 
-        <button
-          type="button"
-          class="cf-btn cf-btn-primary cf-btn-full"
-          (click)="verifyIdentity()"
-          [disabled]="busy() ||
-            !identityMatchCountry ||
-            !identityMatchType ||
-            !identityMatchNumber.trim()">
-          {{ busy() ? 'Checking...' : 'Verify identity details →' }}
-        </button>
+        <div class="cf-types">
+          @for (client of matchingClients(); track client.clientCode) {
+            <button
+              type="button"
+              class="cf-type"
+              (click)="selectExistingClient(client)"
+              [disabled]="busy()">
 
-        @if (identityMatchMsg) {
-          <div class="cf-alert cf-alert-error">
-            {{ identityMatchMsg }}
+              <span class="cf-type-content">
+                <span class="cf-type-name">
+                  {{ client.name || 'Customer' }}
+                </span>
+
+                <span class="cf-type-description">
+                  Client ID: {{ client.clientCode }}
+                </span>
+              </span>
+
+              <span class="cf-type-go">→</span>
+            </button>
+          }
+        </div>
+
+        @if (busy()) {
+          <div class="cf-otp-msg">
+            Loading selected customer details...
           </div>
         }
 
@@ -471,33 +395,48 @@
 
         <div class="cf-security-note">
           <span>🔒</span>
-          Your identity information is used for customer matching.
+          Your selected customer details will be loaded securely.
         </div>
 
       </section>
     }
 
     <!-- STEP 3: APPLICATION FORM -->
-    @if (form() && !result() && unlocked() && !identityCheckRequired()) {
+    @if (form() && !result() && unlocked()) {
 
-      <form class="cf-form" (ngSubmit)="submit()">
+      <form (ngSubmit)="submit()" autocomplete="off">
+
+        <!-- AUTOFILL PREVENTION -->
+        <div class="cf-autofill-trap" aria-hidden="true">
+          <input
+            type="text"
+            name="username"
+            autocomplete="username"
+            tabindex="-1" />
+
+          <input
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            tabindex="-1" />
+        </div>
 
         <!-- APPLICATION INTRO -->
         <section class="cf-card cf-application-intro">
           <div class="cf-card-heading">
-            <span class="cf-heading-icon">03</span>
+            <span class="cf-heading-icon">02</span>
             <div>
-              <span class="cf-section-kicker">STEP 3</span>
+              <span class="cf-section-kicker">STEP 2</span>
               <h2>{{ form()!.label }}</h2>
               <p>Provide the details below to prepare your quotation.</p>
             </div>
           </div>
 
           <div class="cf-alert cf-alert-ok">
-            <strong>✓ Verification completed successfully</strong>
+            <strong>✓ Phone verification completed successfully</strong>
             <p>
-              Your phone number and any required identity verification
-              have been completed. You can now enter your application details.
+              Your mobile number has been verified.
+              You can now enter your application details.
             </p>
           </div>
 
@@ -537,6 +476,7 @@
                           class="cf-input cf-phone-code"
                           [(ngModel)]="phoneCallingCode"
                           [name]="'callingCode_' + f.fieldName"
+                          autocomplete="off"
                           [disabled]="true">
 
                           @for (c of countries(); track c.code) {
@@ -553,6 +493,7 @@
                           type="tel"
                           [ngModel]="a.phone"
                           [name]="f.fieldName"
+                          autocomplete="off"
                           [placeholder]="link()?.client?.phoneMasked || 'Verified phone number'"
                           readonly
                           [required]="f.isMandatory" />
@@ -567,6 +508,7 @@
                         [ngModel]="a.countryOfResidence"
                         (ngModelChange)="onConfiguredFieldChange(f.fieldName, $event)"
                         [name]="f.fieldName"
+                        autocomplete="off"
                         [required]="f.isMandatory">
 
                         <option value="">Select country</option>
@@ -583,6 +525,7 @@
                         [ngModel]="a.gender"
                         (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
                         [name]="f.fieldName"
+                        autocomplete="off"
                         [required]="f.isMandatory">
 
                         <option value="">Select gender</option>
@@ -600,6 +543,7 @@
                         [ngModel]="getConfiguredFieldValue(f.fieldName)"
                         (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
                         [name]="f.fieldName"
+                        autocomplete="off"
                         [required]="f.isMandatory"
                         [placeholder]="f.helpText || ''" />
                     }
@@ -647,6 +591,7 @@
                         [ngModel]="a.identityCountry"
                         (ngModelChange)="onConfiguredFieldChange(f.fieldName, $event)"
                         [name]="f.fieldName"
+                        autocomplete="off"
                         [required]="f.isMandatory">
 
                         <option value="">Select country</option>
@@ -663,6 +608,7 @@
                         [ngModel]="a.identityType"
                         (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
                         [name]="f.fieldName"
+                        autocomplete="off"
                         [required]="f.isMandatory"
                         [disabled]="!a.identityCountry">
 
@@ -681,7 +627,7 @@
                         [ngModel]="a.identityNumber"
                         (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
                         [name]="f.fieldName"
-                        autocomplete="off"
+                        autocomplete="new-password"
                         [required]="f.isMandatory"
                         [placeholder]="idExample()
                           ? 'e.g. ' + idExample()
@@ -696,6 +642,7 @@
                         [ngModel]="getConfiguredFieldValue(f.fieldName)"
                         (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
                         [name]="f.fieldName"
+                        autocomplete="off"
                         [required]="f.isMandatory"
                         [placeholder]="f.helpText || ''" />
                     }
@@ -739,6 +686,7 @@
                         [ngModel]="getConfiguredFieldValue(f.fieldName)"
                         (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
                         [name]="f.fieldName"
+                        autocomplete="off"
                         [required]="f.isMandatory">
 
                         <option value="">Select country</option>
@@ -756,6 +704,7 @@
                         [ngModel]="getConfiguredFieldValue(f.fieldName)"
                         (ngModelChange)="setConfiguredFieldValue(f.fieldName, $event)"
                         [name]="f.fieldName"
+                        autocomplete="off"
                         [required]="f.isMandatory"
                         [min]="f.fieldName === 'travellers' ? 1 : null"
                         [max]="f.fieldName === 'travellers' ? 20 : null"
@@ -782,7 +731,7 @@
 
         } @else {
 
-          <!-- NON-TRAVEL: EXISTING PERSONAL DETAILS LAYOUT -->
+          <!-- NON-TRAVEL: PERSONAL DETAILS -->
           <section class="cf-card">
             <div class="cf-section-title">
               <span class="cf-step">1</span>
@@ -798,8 +747,10 @@
                 Full name <i class="cf-req">*</i>
                 <input
                   class="cf-input"
+                  type="text"
                   [(ngModel)]="a.name"
                   name="name"
+                  autocomplete="off"
                   placeholder="Enter your full name"
                   required />
               </label>
@@ -810,7 +761,8 @@
                   class="cf-input"
                   type="email"
                   [(ngModel)]="a.email"
-                  name="email"
+                  name="applicantEmail"
+                  autocomplete="off"
                   placeholder="Enter your email address"
                   required />
               </label>
@@ -822,6 +774,7 @@
                     class="cf-input cf-phone-code"
                     [(ngModel)]="phoneCallingCode"
                     name="formPhoneCallingCode"
+                    autocomplete="off"
                     [disabled]="true">
                     @for (c of countries(); track c.code) {
                       @if (getCallingCode(c)) {
@@ -836,7 +789,8 @@
                     class="cf-input cf-phone-number"
                     type="tel"
                     [ngModel]="a.phone"
-                    name="phone"
+                    name="verifiedPhone"
+                    autocomplete="off"
                     [placeholder]="link()?.client?.phoneMasked || 'Verified phone number'"
                     readonly />
                 </div>
@@ -849,7 +803,8 @@
                   class="cf-input"
                   type="date"
                   [(ngModel)]="a.dateOfBirth"
-                  name="dob" />
+                  name="dob"
+                  autocomplete="off" />
               </label>
 
               <label>
@@ -857,7 +812,8 @@
                 <select
                   class="cf-input"
                   [(ngModel)]="a.gender"
-                  name="gender">
+                  name="gender"
+                  autocomplete="off">
                   <option [ngValue]="null">Select gender</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
@@ -869,8 +825,10 @@
                 Nationality
                 <input
                   class="cf-input"
+                  type="text"
                   [(ngModel)]="a.nationality"
-                  name="nat"
+                  name="nationality"
+                  autocomplete="off"
                   placeholder="Enter your nationality" />
               </label>
 
@@ -879,7 +837,8 @@
                 <select
                   class="cf-input"
                   [(ngModel)]="a.countryOfResidence"
-                  name="cor">
+                  name="countryOfResidence"
+                  autocomplete="off">
                   <option [ngValue]="null">Select country</option>
                   @for (c of countries(); track c.code) {
                     <option [value]="c.code">{{ c.name }}</option>
@@ -890,7 +849,7 @@
             </div>
           </section>
 
-          <!-- NON-TRAVEL: EXISTING GOVERNMENT ID LAYOUT -->
+          <!-- NON-TRAVEL: GOVERNMENT ID -->
           <section class="cf-card">
             <div class="cf-section-title">
               <span class="cf-step">2</span>
@@ -912,7 +871,8 @@
                   class="cf-input"
                   [ngModel]="a.identityCountry"
                   (ngModelChange)="onIdCountry($event)"
-                  name="idc">
+                  name="idc"
+                  autocomplete="off">
                   <option [ngValue]="null">Select country</option>
                   @for (c of countries(); track c.code) {
                     <option [value]="c.code">{{ c.name }}</option>
@@ -925,7 +885,8 @@
                 <select
                   class="cf-input"
                   [(ngModel)]="a.identityType"
-                  name="idt">
+                  name="idt"
+                  autocomplete="off">
                   <option [ngValue]="null">Select identity type</option>
                   @for (t of idTypes(); track t.code) {
                     <option [value]="t.code">{{ t.label }}</option>
@@ -937,8 +898,10 @@
                 ID number
                 <input
                   class="cf-input"
+                  type="text"
                   [(ngModel)]="a.identityNumber"
-                  name="idn"
+                  name="identityDocumentNumber"
+                  autocomplete="off"
                   [placeholder]="idExample()
                     ? 'e.g. ' + idExample()
                     : (link()?.client?.identityNumberMasked ?? '')" />
@@ -947,7 +910,7 @@
             </div>
           </section>
 
-          <!-- NON-TRAVEL: EXISTING DYNAMIC INSURANCE FIELDS -->
+          <!-- NON-TRAVEL: DYNAMIC INSURANCE FIELDS -->
           @if (otherFields().length) {
             <section class="cf-card">
               <div class="cf-section-title">
@@ -972,6 +935,7 @@
                       [type]="inputType(f.dataType)"
                       [(ngModel)]="values[f.fieldName]"
                       [name]="f.fieldName"
+                      autocomplete="off"
                       [required]="f.isMandatory"
                       [placeholder]="f.helpText || ''" />
                   </label>

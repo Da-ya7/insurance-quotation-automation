@@ -6,7 +6,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -25,12 +24,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.insurance.quotation.entity.Client;
 import com.insurance.quotation.entity.MissingField;
-import com.insurance.quotation.entity.QuotationRequestTraveller;
 import com.insurance.quotation.entity.RequestFieldValue;
 import com.insurance.quotation.entity.RequiredField;
 import com.insurance.quotation.repository.ClientRepository;
 import com.insurance.quotation.repository.MissingFieldRepository;
-import com.insurance.quotation.repository.QuotationRequestTravellerRepository;
 import com.insurance.quotation.repository.RequestFieldValueRepository;
 import com.insurance.quotation.repository.RequiredFieldRepository;
 import com.insurance.quotation.service.client.IdentityProtectionService;
@@ -57,8 +54,6 @@ public class PublicFormController {
     private final RequestFieldValueRepository fieldValueRepository;
     private final MissingFieldRepository missingFieldRepository;
     private final ClientRepository clientRepository;
-    private final QuotationRequestTravellerRepository travellerRepository;
-    private final IdentityProtectionService identityProtection;
 
     public PublicFormController(
             MasterDataService masterData,
@@ -68,9 +63,7 @@ public class PublicFormController {
             RequiredFieldRepository requiredFieldRepository,
             RequestFieldValueRepository fieldValueRepository,
             MissingFieldRepository missingFieldRepository,
-            ClientRepository clientRepository,
-            QuotationRequestTravellerRepository travellerRepository,
-            IdentityProtectionService identityProtection) {
+            ClientRepository clientRepository) {
 
         this.masterData = masterData;
         this.formLinks = formLinks;
@@ -80,11 +73,9 @@ public class PublicFormController {
         this.fieldValueRepository = fieldValueRepository;
         this.missingFieldRepository = missingFieldRepository;
         this.clientRepository = clientRepository;
-        this.travellerRepository = travellerRepository;
-        this.identityProtection = identityProtection;
     }
 
-    // ---------------- master data for dropdowns ----------------
+    // ---------------- request records ----------------
 
     public record TypeOption(String code, String label) {
     }
@@ -101,12 +92,34 @@ public class PublicFormController {
     public record NewCustomerOtpVerifyRequest(String challengeId, String code) {
     }
 
-    public record IdentityMatchRequest(
-            String verificationToken,
-            String identityCountry,
-            String identityType,
-            String identityNumber) {
+    /** Customer name and Client ID displayed after OTP verification. */
+    public record ClientChoice(String clientCode, String name) {
     }
+
+    /** Request sent when the customer selects their name. */
+    public record SelectExistingClientRequest(
+            String verificationToken,
+            String clientCode) {
+    }
+
+    public record FormField(
+            String fieldName,
+            String displayLabel,
+            String dataType,
+            String section,
+            boolean isMandatory,
+            String validationRegex,
+            String helpText,
+            int sortOrder) {
+    }
+
+    public record FormDefinition(
+            String insuranceType,
+            String label,
+            List<FormField> fields) {
+    }
+
+    // ---------------- master data for dropdowns ----------------
 
     @GetMapping("/master/insurance-types")
     public List<TypeOption> insuranceTypes() {
@@ -141,24 +154,6 @@ public class PublicFormController {
 
     // ---------------- dynamic form definition ----------------
 
-    public record FormField(
-        
-            String fieldName,
-            String displayLabel,
-            String dataType,
-            String section,
-            boolean isMandatory,
-            String validationRegex,
-            String helpText,
-            int sortOrder) {
-    }
-
-    public record FormDefinition(
-            String insuranceType,
-            String label,
-            List<FormField> fields) {
-    }
-
     @GetMapping("/forms/{type}")
     public FormDefinition form(@PathVariable String type) {
 
@@ -187,8 +182,6 @@ public class PublicFormController {
         /*
          * For TRAVEL, prefer the TRAVEL-specific field configuration
          * over a global configuration with the same field name.
-         *
-         * This prevents duplicate fields from appearing on the form.
          */
         if (isTravel) {
 
@@ -256,9 +249,7 @@ public class PublicFormController {
 
     /**
      * Lower priority number means a more specific configuration.
-     *
      * Exact TRAVEL configuration takes priority over broader scopes.
-     * Global configuration has the lowest priority.
      */
     private int travelScopePriority(String policyType) {
 
@@ -366,7 +357,7 @@ public class PublicFormController {
             }
 
             log.info(
-                    "[OTP DEBUG] Verified phone length: {}, last four digits: {}",
+                    "[OTP] Verified phone length: {}, last four digits: {}",
                     normalizedPhone.length(),
                     lastFour(normalizedPhone));
 
@@ -377,7 +368,7 @@ public class PublicFormController {
             response.put("verified", true);
             response.put("verificationToken", result.verificationToken());
 
-            // CASE 1: Exactly one Client Master record uses this phone.
+            // CASE 1: Exactly one customer uses this phone.
             if (matches.size() == 1) {
 
                 Client matchedClient = matches.get(0);
@@ -387,14 +378,11 @@ public class PublicFormController {
                 response.put("requiresIdentityCheck", false);
                 response.put("newCustomerAllowed", false);
                 response.put("client", buildClientDetails(matchedClient));
+                response.put("clients", List.of());
 
                 response.put(
                         "message",
                         "Phone verified. Your existing customer details have been loaded.");
-
-                log.info(
-                        "[OTP DEBUG] One existing client matched: {}",
-                        matchedClient.getClientCode());
 
                 return ResponseEntity.ok(response);
             }
@@ -402,35 +390,40 @@ public class PublicFormController {
             // CASE 2: Multiple customers share this phone.
             if (matches.size() >= 2) {
 
-                response.put("existingClient", false);
+                List<ClientChoice> choices = matches.stream()
+                        .map(client -> new ClientChoice(
+                                client.getClientCode(),
+                                client.getName()))
+                        .toList();
+
+                response.put("existingClient", true);
                 response.put("ambiguousPhone", true);
-                response.put("requiresIdentityCheck", true);
+
+                // No additional identity verification is required.
+                response.put("requiresIdentityCheck", false);
+
                 response.put("newCustomerAllowed", false);
                 response.put("client", null);
+                response.put("clients", choices);
 
                 response.put(
                         "message",
-                        "Phone verified. Multiple customers use this number. Please complete additional identity verification.");
-
-                log.info(
-                        "[OTP DEBUG] Multiple clients matched. Count: {}",
-                        matches.size());
+                        "Phone verified. Please select your name to continue.");
 
                 return ResponseEntity.ok(response);
             }
 
-            // CASE 3: No Client Master record uses this phone.
+            // CASE 3: No customer uses this phone.
             response.put("existingClient", false);
             response.put("ambiguousPhone", false);
             response.put("requiresIdentityCheck", false);
             response.put("newCustomerAllowed", true);
             response.put("client", null);
+            response.put("clients", List.of());
 
             response.put(
                     "message",
                     "Phone verified. You can continue as a new customer.");
-
-            log.info("[OTP DEBUG] No existing client matched.");
 
             return ResponseEntity.ok(response);
 
@@ -442,34 +435,30 @@ public class PublicFormController {
         }
     }
 
-    // ---------------- additional identity verification ----------------
+    // ---------------- select existing customer ----------------
 
     @Transactional(readOnly = true)
-    @PostMapping("/phone-otp/verify-identity")
-    public ResponseEntity<?> verifyIdentityForSharedPhone(
-            @RequestBody IdentityMatchRequest body) {
+    @PostMapping("/phone-otp/select-client")
+    public ResponseEntity<?> selectExistingClient(
+            @RequestBody SelectExistingClientRequest body) {
 
         if (body == null
                 || isBlank(body.verificationToken())
-                || isBlank(body.identityCountry())
-                || isBlank(body.identityType())
-                || isBlank(body.identityNumber())) {
+                || isBlank(body.clientCode())) {
 
             return ResponseEntity.badRequest().body(Map.of(
-                    "matched", false,
-                    "newCustomerAllowed", false,
-                    "message",
-                    "Phone verification, identity country, identity type and identity number are required."));
+                    "verified", false,
+                    "message", "Verification token and Client ID are required."));
         }
 
+        // Confirm that the OTP verification token is still valid.
         String verifiedPhone =
                 otp.verifiedPhoneForToken(body.verificationToken());
 
         if (isBlank(verifiedPhone)) {
 
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                    "matched", false,
-                    "newCustomerAllowed", false,
+                    "verified", false,
                     "message",
                     "Phone verification expired. Please verify your number again."));
         }
@@ -479,176 +468,70 @@ public class PublicFormController {
         if (normalizedPhone.isBlank()) {
 
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                    "matched", false,
-                    "newCustomerAllowed", false,
+                    "verified", false,
                     "message",
                     "Phone verification expired. Please verify your number again."));
         }
 
-        // Always find all Client Master records using the verified phone.
+        // Find only customers associated with the verified phone.
         List<Client> phoneMatches = findClientsByPhone(normalizedPhone);
 
-        if (phoneMatches.size() < 2) {
+        // Find the exact Client ID selected by the customer.
+        Optional<Client> selectedClient =
+                clientRepository.findByClientCode(body.clientCode().trim());
 
-            return ResponseEntity.badRequest().body(Map.of(
-                    "matched", false,
-                    "newCustomerAllowed", false,
+        if (selectedClient.isEmpty()
+                || !belongsToPhoneMatches(
+                        selectedClient.get(),
+                        phoneMatches)) {
+
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                    "verified", false,
                     "message",
-                    "Additional identity verification is only required when multiple customers share a phone number."));
+                    "The selected customer does not belong to the verified mobile number."));
         }
 
-        String normalizedCountry =
-                masterData.resolveCountryCode(
-                        body.identityCountry().trim());
-
-        String normalizedType =
-                MasterDataService.typeCode(
-                        body.identityType().trim());
-
-        if (isBlank(normalizedCountry) || isBlank(normalizedType)) {
-
-            return ResponseEntity.badRequest().body(Map.of(
-                    "matched", false,
-                    "newCustomerAllowed", false,
-                    "message",
-                    "Please select a valid identity country and identity type."));
-        }
-
-        String submittedIdentity = body.identityNumber().trim();
-
-        // First check the protected identity hash in Client Master.
-        String submittedHash = identityProtection.hash(
-                normalizedCountry,
-                normalizedType,
-                submittedIdentity);
-
-        Optional<Client> identityOwner =
-                clientRepository.findByIdentityNumberHash(submittedHash);
-
-        if (identityOwner.isPresent()) {
-
-            Client owner = identityOwner.get();
-
-            // Identity and verified phone must belong to the same Client.
-            if (!belongsToPhoneMatches(owner, phoneMatches)) {
-
-                return duplicateIdentityResponse();
-            }
-
-            return matchedClientResponse(
-                    owner,
-                    body.verificationToken());
-        }
-
-        /*
-         * Older records may have the passport stored in
-         * quotation_request_travellers instead of Client Master.
-         */
-        List<Client> travellerMatches =
-                findClientsByPreviousTravellerIdentity(submittedIdentity);
-
-        List<Client> validMatches = travellerMatches.stream()
-                .filter(client -> belongsToPhoneMatches(client, phoneMatches))
-                .toList();
-
-        if (validMatches.size() == 1) {
-
-            return matchedClientResponse(
-                    validMatches.get(0),
-                    body.verificationToken());
-        }
-
-        if (validMatches.size() > 1) {
-
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
-                    "matched", false,
-                    "newCustomerAllowed", false,
-                    "ambiguousPhone", true,
-                    "message",
-                    "More than one customer record matches this identity number. Please contact support."));
-        }
-
-        /*
-         * If the identity exists in previous traveller records but
-         * belongs to a different Client Master phone, block registration.
-         */
-        if (!travellerMatches.isEmpty()) {
-
-            return duplicateIdentityResponse();
-        }
-
-        // Identity was not found in Client Master or traveller history.
         Map<String, Object> response = new LinkedHashMap<>();
 
-        response.put("matched", false);
-        response.put("existingClient", false);
-        response.put("duplicateIdentity", false);
-        response.put("newCustomerAllowed", true);
-        response.put("ambiguousPhone", true);
-        response.put("verificationToken", body.verificationToken());
-        response.put("client", null);
-
+        response.put("verified", true);
+        response.put("client", buildClientDetails(selectedClient.get()));
         response.put(
                 "message",
-                "This identity number is not registered. You can continue as a new family member.");
+                "Customer details loaded successfully.");
 
         return ResponseEntity.ok(response);
     }
 
+    // ---------------- customer matching helpers ----------------
+
     /**
-     * Searches previous primary-traveller records for the submitted
-     * identity number and returns their associated Client Master records.
+     * Uses the normalized-phone repository query.
+     * The query should remove spaces, + signs, hyphens and other
+     * non-digit characters before comparing phone numbers.
      */
-    private List<Client> findClientsByPreviousTravellerIdentity(
-            String submittedIdentity) {
+    private List<Client> findClientsByPhone(String normalizedPhone) {
 
-        String normalizedIdentity =
-                normalizeIdentityNumber(submittedIdentity);
-
-        if (normalizedIdentity.isBlank()) {
+        if (isBlank(normalizedPhone)) {
             return List.of();
         }
 
-        List<QuotationRequestTraveller> previousTravellers =
-                travellerRepository
-                        .findByTravellerNumberOrderByCreatedAtDesc(1);
+        String phone = normalizePhone(normalizedPhone);
 
-        Map<Long, Client> uniqueClients = new LinkedHashMap<>();
-
-        for (QuotationRequestTraveller traveller : previousTravellers) {
-
-            if (traveller == null) {
-                continue;
-            }
-
-            String previousIdentity =
-                    normalizeIdentityNumber(traveller.getPassportNumber());
-
-            if (!normalizedIdentity.equals(previousIdentity)) {
-                continue;
-            }
-
-            if (traveller.getQuotationRequest() == null
-                    || traveller.getQuotationRequest().getClient() == null) {
-                continue;
-            }
-
-            Client client =
-                    traveller.getQuotationRequest().getClient();
-
-            if (client.getId() == null) {
-                continue;
-            }
-
-            uniqueClients.putIfAbsent(client.getId(), client);
+        if (phone.isBlank()) {
+            return List.of();
         }
 
-        return new ArrayList<>(uniqueClients.values());
+        List<Client> matches =
+                clientRepository.findAllByNormalizedPhone(phone);
+
+        log.info("[OTP] Matching customer records: {}", matches.size());
+
+        return matches;
     }
 
     /**
-     * Confirms that the matched Client Master record is one of
-     * the customers associated with the OTP-verified phone.
+     * Confirms that the selected Client Master record belongs
+     * to the phone number verified by OTP.
      */
     private boolean belongsToPhoneMatches(
             Client client,
@@ -661,91 +544,13 @@ public class PublicFormController {
         return phoneMatches.stream()
                 .anyMatch(candidate ->
                         candidate != null
-                                && Objects.equals(
-                                        candidate.getId(),
-                                        client.getId()));
-    }
-
-    private ResponseEntity<?> matchedClientResponse(
-            Client client,
-            String verificationToken) {
-
-        Map<String, Object> response = new LinkedHashMap<>();
-
-        response.put("matched", true);
-        response.put("existingClient", true);
-        response.put("duplicateIdentity", false);
-        response.put("newCustomerAllowed", false);
-        response.put("ambiguousPhone", true);
-        response.put("verificationToken", verificationToken);
-        response.put("client", buildClientDetails(client));
-
-        response.put(
-                "message",
-                "Identity verified. Your matching customer's details have been loaded.");
-
-        return ResponseEntity.ok(response);
-    }
-
-    private ResponseEntity<?> duplicateIdentityResponse() {
-
-        return ResponseEntity.ok(Map.of(
-                "matched", false,
-                "existingClient", false,
-                "duplicateIdentity", true,
-                "newCustomerAllowed", false,
-                "ambiguousPhone", true,
-                "message",
-                "This identity number is already registered to another customer. It cannot be used for this phone number."));
-    }
-
-    // ---------------- shared customer matching helpers ----------------
-
-    /**
-     * Uses the repository's native normalized-phone query.
-     *
-     * This avoids loading every Client Master record into Java.
-     * The repository query must compare phone values after removing
-     * spaces, + signs, hyphens and other non-digit characters.
-     */
-    private List<Client> findClientsByPhone(String normalizedPhone) {
-
-        if (isBlank(normalizedPhone)) {
-            log.warn("[OTP DEBUG] Phone lookup skipped because phone is blank.");
-            return List.of();
-        }
-
-        String phone = normalizePhone(normalizedPhone);
-
-        if (phone.isBlank()) {
-            log.warn("[OTP DEBUG] Phone lookup skipped because normalized phone is blank.");
-            return List.of();
-        }
-
-        log.info(
-                "[OTP DEBUG] Running normalized phone query. Length: {}, last four digits: {}",
-                phone.length(),
-                lastFour(phone));
-
-        List<Client> matches =
-                clientRepository.findAllByNormalizedPhone(phone);
-
-        log.info(
-                "[OTP DEBUG] Matching clients count: {}",
-                matches.size());
-
-        for (Client client : matches) {
-            log.info(
-                    "[OTP DEBUG] Matched Client ID: {}",
-                    client.getClientCode());
-        }
-
-        return matches;
+                                && candidate.getId() != null
+                                && candidate.getId().equals(client.getId()));
     }
 
     /**
-     * Builds the response from the exact matched Client Master record.
-     * Never returns the full identity number.
+     * Returns safe customer details.
+     * The complete identity number is never returned.
      */
     private Map<String, Object> buildClientDetails(Client client) {
 
@@ -777,20 +582,14 @@ public class PublicFormController {
         return clientDetails;
     }
 
-    private static String normalizeIdentityNumber(String value) {
-
-        if (value == null) {
-            return "";
-        }
-
-        return value.replaceAll("[^A-Za-z0-9]", "")
-                .toUpperCase(Locale.ROOT);
-    }
-
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
 
+    /**
+     * Normalizes Indian phone numbers by removing formatting characters
+     * and removing the leading 91 country code when present.
+     */
     private static String normalizePhone(String phone) {
 
         if (phone == null || phone.isBlank()) {
@@ -799,7 +598,6 @@ public class PublicFormController {
 
         String digits = phone.replaceAll("\\D", "");
 
-        // Normalize Indian numbers stored with country code 91.
         if (digits.startsWith("91") && digits.length() == 12) {
             return digits.substring(2);
         }

@@ -6,12 +6,14 @@ import { ActivatedRoute, Router } from '@angular/router';
 import {
   ApiService,
   ApplicantPayload,
+  ClientChoice,
   FormLink,
   FormLinkClient,
   PublicCountry,
   PublicForm,
   PublicIdentityType,
   PublicInsuranceType,
+  SelectExistingClientResult,
   SubmissionResult
 } from '../core/api.service';
 
@@ -24,10 +26,18 @@ const PERSONAL = [
   'dateOfBirth',
   'gender',
   'nationality',
-  'countryOfResidence',
+  'countryOfResidence'
+] as const;
+
+const IDENTITY_FIELDS = [
   'identityCountry',
   'identityType',
   'identityNumber'
+] as const;
+
+const APPLICANT_FIELDS = [
+  ...PERSONAL,
+  ...IDENTITY_FIELDS
 ] as const;
 
 type ConfiguredField = PublicForm['fields'][number] & {
@@ -53,30 +63,21 @@ export class ClientForm {
   types = signal<PublicInsuranceType[]>([]);
   countries = signal<PublicCountry[]>([]);
   idTypes = signal<PublicIdentityType[]>([]);
-  identityMatchTypes = signal<PublicIdentityType[]>([]);
+
+  matchingClients = signal<ClientChoice[]>([]);
 
   form = signal<PublicForm | null>(null);
   link = signal<FormLink | null>(null);
   type = signal<string | null>(null);
 
-  // Phone OTP
   otpSent = signal(false);
   otpMsg = signal('');
   otpCode = '';
 
-  // Application form remains locked until verification is complete.
   unlocked = signal(false);
 
   challengeId = signal<string | null>(null);
   verificationToken = signal<string | null>(null);
-
-  // Additional identity verification.
-  identityCheckRequired = signal(false);
-
-  identityMatchCountry = '';
-  identityMatchType = '';
-  identityMatchNumber = '';
-  identityMatchMsg = '';
 
   private loadedExistingClient = false;
 
@@ -102,17 +103,53 @@ export class ClientForm {
     !!this.link()?.existingClient && !this.unlocked()
   );
 
-  /**
-   * All configured fields returned by the public form API.
-   * The section property is supplied by the backend.
-   */
+  private normalizeGender(
+    value: string | null | undefined
+  ): string | null {
+    const gender = String(value ?? '').trim().toLowerCase();
+
+    if (!gender) {
+      return null;
+    }
+
+    switch (gender) {
+      case 'male':
+        return 'Male';
+      case 'female':
+        return 'Female';
+      case 'other':
+        return 'Other';
+      default:
+        return gender.charAt(0).toUpperCase() + gender.slice(1);
+    }
+  }
+
   private configuredFields(): ConfiguredField[] {
     return (this.form()?.fields ?? []) as ConfiguredField[];
   }
 
-  /**
-   * TRAVEL fields are grouped using the section selected in Master Data.
-   */
+  private isIdentityField(fieldName: string): boolean {
+    return (IDENTITY_FIELDS as readonly string[]).includes(fieldName);
+  }
+
+  private isPersonalDetailsField(fieldName: string): boolean {
+    if (this.isIdentityField(fieldName)) {
+      return false;
+    }
+
+    if ((PERSONAL as readonly string[]).includes(fieldName)) {
+      return true;
+    }
+
+    const configuredField = this.configuredFields().find(
+      field => field.fieldName === fieldName
+    );
+
+    return String(configuredField?.section ?? '')
+      .trim()
+      .toUpperCase() === 'APPLICANT_DETAILS';
+  }
+
   fieldsInSection(section: string): ConfiguredField[] {
     const expected = section.trim().toUpperCase();
 
@@ -135,14 +172,10 @@ export class ClientForm {
     this.fieldsInSection('TRAVEL_DETAILS')
   );
 
-  /**
-   * Keep the existing behaviour for non-TRAVEL insurance types.
-   * TRAVEL fields are rendered through their configured sections instead.
-   */
   otherFields = computed(() =>
     (this.form()?.fields ?? []).filter(
       field =>
-        !(PERSONAL as readonly string[]).includes(field.fieldName) &&
+        !(APPLICANT_FIELDS as readonly string[]).includes(field.fieldName) &&
         !(this.type()?.toUpperCase() === 'TRAVEL' &&
           field.fieldName === 'travellers')
     )
@@ -185,7 +218,6 @@ export class ClientForm {
       }
     });
 
-    // Existing email form link.
     if (this.token) {
       this.api.formLink(this.token).subscribe({
         next: link => {
@@ -301,8 +333,42 @@ export class ClientForm {
     }
   }
 
+  /**
+   * Completely reset the form for a new customer.
+   * Preserve only the mobile number that was verified.
+   */
+  private resetForNewCustomer() {
+    const verifiedPhone = this.a.phone;
+
+    this.a = {
+      name: null,
+      email: null,
+      phone: verifiedPhone,
+      dateOfBirth: null,
+      gender: null,
+      nationality: null,
+      countryOfResidence: null,
+      identityCountry: null,
+      identityType: null,
+      identityNumber: null
+    };
+
+    // Remove all previously entered quotation-specific values.
+    this.values = {};
+
+    // Retain the normal default for travel insurance.
+    if (this.type()?.toUpperCase() === 'TRAVEL') {
+      this.values['travellers'] = '1';
+    }
+
+    this.matchingClients.set([]);
+    this.loadedExistingClient = false;
+    this.idTypes.set([]);
+
+    this.syncCountrySelections();
+  }
+
   onNewPhoneChange() {
-    // Do not change the existing email form-link OTP flow.
     if (this.token) {
       return;
     }
@@ -315,11 +381,7 @@ export class ClientForm {
     this.verificationToken.set(null);
 
     this.unlocked.set(false);
-    this.resetIdentityCheck();
-
-    this.a.identityCountry = null;
-    this.a.identityType = null;
-    this.a.identityNumber = null;
+    this.matchingClients.set([]);
 
     if (this.loadedExistingClient) {
       this.a.name = null;
@@ -328,6 +390,15 @@ export class ClientForm {
       this.a.gender = null;
       this.a.nationality = null;
       this.a.countryOfResidence = null;
+
+      for (const field of this.configuredFields()) {
+        if (
+          this.isPersonalDetailsField(field.fieldName) &&
+          !(PERSONAL as readonly string[]).includes(field.fieldName)
+        ) {
+          delete this.values[field.fieldName];
+        }
+      }
 
       this.loadedExistingClient = false;
     }
@@ -347,8 +418,8 @@ export class ClientForm {
 
     this.challengeId.set(null);
     this.verificationToken.set(null);
+    this.matchingClients.set([]);
 
-    this.resetIdentityCheck();
     this.loadedExistingClient = false;
 
     this.a = {
@@ -396,6 +467,10 @@ export class ClientForm {
     });
   }
 
+  // ------------------------------------------------------------
+  // Form-link prefill
+  // ------------------------------------------------------------
+
   private applyPrefill(link: FormLink) {
     const client = link.client;
 
@@ -403,24 +478,49 @@ export class ClientForm {
       this.a.name = client.name ?? null;
       this.a.email = client.email ?? null;
       this.a.dateOfBirth = client.dateOfBirth ?? null;
-      this.a.gender = client.gender ?? null;
+      this.a.gender = this.normalizeGender(client.gender);
       this.a.nationality = client.nationality ?? null;
       this.a.countryOfResidence = client.countryOfResidence ?? null;
 
-      this.a.identityCountry = client.identityCountry ?? null;
-      this.a.identityType = client.identityType ?? null;
-
-      // Never put a masked phone number into the actual phone field.
+      // Identity information is never autofilled.
       this.a.phone = null;
     }
 
     for (const [key, value] of Object.entries(link.prefill ?? {})) {
-      if (link.existingClient && key === 'phone') {
+      if (link.existingClient) {
+        if (!this.isPersonalDetailsField(key)) {
+          continue;
+        }
+
+        if (key === 'phone') {
+          continue;
+        }
+
+        if (key in this.a) {
+          (this.a as unknown as Record<string, string | null>)[key] =
+            key === 'gender'
+              ? this.normalizeGender(value)
+              : value;
+        } else {
+          this.values[key] = value;
+        }
+
+        continue;
+      }
+
+      if (this.isIdentityField(key)) {
         continue;
       }
 
       if ((PERSONAL as readonly string[]).includes(key)) {
-        (this.a as unknown as Record<string, string | null>)[key] = value;
+        if (key === 'phone') {
+          continue;
+        }
+
+        (this.a as unknown as Record<string, string | null>)[key] =
+          key === 'gender'
+            ? this.normalizeGender(value)
+            : value;
       } else {
         this.values[key] = value;
       }
@@ -433,11 +533,6 @@ export class ClientForm {
   // Configured field value access
   // ------------------------------------------------------------
 
-  /**
-   * Applicant fields continue to use ApplicantPayload because the
-   * existing submission APIs expect those values in the applicant object.
-   * Insurance-specific fields are stored in values.
-   */
   getConfiguredFieldValue(fieldName: string): string | null {
     const applicantValue = (this.a as unknown as Record<
       string,
@@ -452,11 +547,13 @@ export class ClientForm {
   }
 
   setConfiguredFieldValue(fieldName: string, value: string | null) {
-    const applicantFields = PERSONAL as readonly string[];
-
-    if (applicantFields.includes(fieldName)) {
+    if (
+      (APPLICANT_FIELDS as readonly string[]).includes(fieldName)
+    ) {
       (this.a as unknown as Record<string, string | null>)[fieldName] =
-        value;
+        fieldName === 'gender'
+          ? this.normalizeGender(value)
+          : value;
       return;
     }
 
@@ -498,21 +595,6 @@ export class ClientForm {
     }
 
     this.setConfiguredFieldValue(fieldName, value);
-  }
-
-  // ------------------------------------------------------------
-  // Reset additional identity verification
-  // ------------------------------------------------------------
-
-  private resetIdentityCheck() {
-    this.identityCheckRequired.set(false);
-
-    this.identityMatchCountry = '';
-    this.identityMatchType = '';
-    this.identityMatchNumber = '';
-    this.identityMatchMsg = '';
-
-    this.identityMatchTypes.set([]);
   }
 
   // ------------------------------------------------------------
@@ -594,6 +676,7 @@ export class ClientForm {
     this.busy.set(true);
     this.otpMsg.set('');
 
+    // Existing email form-link verification remains unchanged.
     if (this.token) {
       this.api.verifyOtp(this.token, code).subscribe({
         next: response => {
@@ -641,49 +724,40 @@ export class ClientForm {
 
         this.verificationToken.set(response.verificationToken);
 
-        console.log('[OTP DEBUG] Verification result:', {
-          verified: response.verified,
-          existingClient: response.existingClient,
-          hasClient: !!response.client,
-          requiresIdentityCheck: response.requiresIdentityCheck,
-          newCustomerAllowed: response.newCustomerAllowed,
-          clientNameAvailable: !!response.client?.name
-        });
-
-        if (response.requiresIdentityCheck) {
+        // Multiple customers share the same verified phone.
+        if (
+          response.ambiguousPhone &&
+          response.clients &&
+          response.clients.length > 1
+        ) {
+          this.matchingClients.set(response.clients);
           this.unlocked.set(false);
-          this.identityCheckRequired.set(true);
-
-          this.identityMatchCountry = '';
-          this.identityMatchType = '';
-          this.identityMatchNumber = '';
-          this.identityMatchMsg = '';
-
-          this.identityMatchTypes.set([]);
 
           this.otpMsg.set(
-            'Phone verified. Multiple customers are registered with this number. Please complete the additional identity verification.'
+            'Phone verified successfully. Please select your name.'
           );
 
           return;
         }
 
+        // Exactly one existing customer matched.
         if (response.client) {
-          this.loadExistingClient(response.client);
+          this.matchingClients.set([]);
 
-          this.identityCheckRequired.set(false);
+          this.loadExistingClient(response.client);
           this.unlocked.set(true);
 
           this.otpMsg.set(
-            'Phone verified successfully. Your existing customer details have been loaded.'
+            'Phone verified successfully. Your personal details have been loaded.'
           );
 
           return;
         }
 
-        if (response.newCustomerAllowed) {
-          this.loadedExistingClient = false;
-          this.identityCheckRequired.set(false);
+        // No existing customer: reset everything except verified phone.
+        if (response.newCustomerAllowed && !response.client) {
+          this.resetForNewCustomer();
+
           this.unlocked.set(true);
 
           this.otpMsg.set(
@@ -708,167 +782,129 @@ export class ClientForm {
   }
 
   // ------------------------------------------------------------
-  // Identity types for additional identity verification
+  // Select an existing customer sharing the verified phone
   // ------------------------------------------------------------
 
-  onIdentityMatchCountry(code: string | null) {
-    this.identityMatchCountry = code ?? '';
-    this.identityMatchType = '';
-    this.identityMatchTypes.set([]);
-    this.identityMatchMsg = '';
-
-    if (!this.identityMatchCountry) {
-      return;
-    }
-
-    this.api.publicIdentityTypes(this.identityMatchCountry).subscribe({
-      next: types => this.identityMatchTypes.set(types),
-      error: () => {
-        this.identityMatchTypes.set([]);
-        this.identityMatchMsg =
-          'Unable to load identity types. Please try again.';
-      }
-    });
-  }
-
-  // ------------------------------------------------------------
-  // Additional identity verification
-  // ------------------------------------------------------------
-
-  verifyIdentity() {
-    const identityNumber = this.identityMatchNumber.trim();
-    const identityCountry = this.identityMatchCountry.trim();
-    const identityType = this.identityMatchType.trim();
+  selectExistingClient(client: ClientChoice) {
     const verificationToken = this.verificationToken();
 
-    this.identityMatchMsg = '';
-
     if (!verificationToken) {
-      this.identityMatchMsg =
-        'Your phone verification has expired. Please verify your phone again.';
+      this.otpMsg.set(
+        'Your phone verification has expired. Please verify your phone again.'
+      );
       return;
     }
 
-    if (!identityCountry) {
-      this.identityMatchMsg = 'Please select your identity country.';
-      return;
-    }
-
-    if (!identityType) {
-      this.identityMatchMsg = 'Please select your identity type.';
-      return;
-    }
-
-    if (!identityNumber) {
-      this.identityMatchMsg = 'Please enter your identity number.';
+    if (!client.clientCode) {
+      this.otpMsg.set('Invalid customer selection. Please try again.');
       return;
     }
 
     this.busy.set(true);
+    this.otpMsg.set('');
 
-    this.api.verifyNewCustomerIdentity(
+    this.api.selectExistingClient(
       verificationToken,
-      identityCountry,
-      identityType,
-      identityNumber
+      client.clientCode
     ).subscribe({
-      next: response => {
+      next: (response: SelectExistingClientResult) => {
         this.busy.set(false);
 
-        if (response.duplicateIdentity) {
+        if (!response.verified || !response.client) {
           this.unlocked.set(false);
 
-          this.identityMatchMsg =
+          this.otpMsg.set(
             response.message ||
-            'This identity number is already registered to another mobile number. Please contact support.';
-
-          return;
-        }
-
-        if (response.matched && response.client) {
-          this.loadExistingClient(response.client);
-
-          this.a.identityCountry = identityCountry;
-          this.a.identityType = identityType;
-          this.a.identityNumber = identityNumber;
-
-          this.identityCheckRequired.set(false);
-
-          this.identityMatchNumber = '';
-          this.identityMatchMsg = '';
-
-          this.unlocked.set(true);
-
-          this.otpMsg.set(
-            'Identity matched successfully. Your existing personal details have been loaded.'
+            'Unable to load the selected customer. Please try again.'
           );
-
           return;
         }
 
-        if (response.newCustomerAllowed) {
-          this.loadedExistingClient = false;
+        this.loadExistingClient(response.client);
 
-          this.a.identityCountry = identityCountry;
-          this.a.identityType = identityType;
-          this.a.identityNumber = identityNumber;
+        this.matchingClients.set([]);
+        this.unlocked.set(true);
 
-          this.syncCountrySelections();
-          this.refreshIdTypes();
-
-          this.identityCheckRequired.set(false);
-
-          this.identityMatchNumber = '';
-          this.identityMatchMsg = '';
-
-          this.unlocked.set(true);
-
-          this.otpMsg.set(
-            'Identity verification completed. You can continue as a new customer.'
-          );
-
-          return;
-        }
-
-        this.unlocked.set(false);
-
-        this.identityMatchMsg =
-          response.message ||
-          'The identity number could not be verified. Please check your details.';
+        this.otpMsg.set(
+          `Welcome back, ${response.client.name || 'customer'}. Your personal details have been loaded.`
+        );
       },
       error: e => {
         this.busy.set(false);
         this.unlocked.set(false);
-        this.identityMatchMsg = errorMessage(e);
+        this.otpMsg.set(errorMessage(e));
       }
     });
   }
 
   // ------------------------------------------------------------
-  // Load the exact matched customer's personal details
+  // Load ONLY the selected customer's personal details
   // ------------------------------------------------------------
 
   private loadExistingClient(client: FormLinkClient) {
     this.a.name = client.name ?? null;
     this.a.email = client.email ?? null;
-
-    // Keep the phone number entered and OTP-verified by the customer.
     this.a.dateOfBirth = client.dateOfBirth ?? null;
-    this.a.gender = client.gender ?? null;
+    this.a.gender = this.normalizeGender(client.gender);
     this.a.nationality = client.nationality ?? null;
     this.a.countryOfResidence = client.countryOfResidence ?? null;
 
-    this.a.identityCountry = client.identityCountry ?? null;
-    this.a.identityType = client.identityType ?? null;
+    // Keep the verified phone number entered by the customer.
 
-    // Never expose the stored full identity number.
+    // Identity details must be entered for this quotation.
+    this.a.identityCountry = null;
+    this.a.identityType = null;
     this.a.identityNumber = null;
+
+    for (const field of this.configuredFields()) {
+      const fieldName = field.fieldName;
+
+      if (
+        !this.isPersonalDetailsField(fieldName) ||
+        (PERSONAL as readonly string[]).includes(fieldName)
+      ) {
+        delete this.values[fieldName];
+      }
+    }
+
+    const clientData = client as unknown as Record<
+      string,
+      string | null | undefined
+    >;
+
+    for (const [key, value] of Object.entries(clientData)) {
+      if (
+        value === null ||
+        value === undefined ||
+        key === 'clientCode' ||
+        key === 'phoneMasked' ||
+        key === 'identityNumberMasked' ||
+        key === 'identityCountry' ||
+        key === 'identityType' ||
+        key === 'identityNumber' ||
+        key === 'phone'
+      ) {
+        continue;
+      }
+
+      if (!this.isPersonalDetailsField(key)) {
+        continue;
+      }
+
+      if (key in this.a) {
+        (this.a as unknown as Record<string, string | null>)[key] =
+          key === 'gender'
+            ? this.normalizeGender(value)
+            : value;
+      } else {
+        this.values[key] = String(value);
+      }
+    }
 
     this.syncCountrySelections();
 
     this.loadedExistingClient = true;
-
-    this.refreshIdTypes();
+    this.idTypes.set([]);
   }
 
   // ------------------------------------------------------------
@@ -908,7 +944,6 @@ export class ClientForm {
   // TRAVEL configured-field validation
   // ------------------------------------------------------------
 
-  
   private validateTravelConfiguredFields(): boolean {
     for (const field of this.configuredFields()) {
       const fieldName = field.fieldName;
@@ -920,7 +955,6 @@ export class ClientForm {
 
       const enteredValue = String(value ?? '').trim();
 
-      // 1. Check mandatory fields
       if (!enteredValue) {
         if (field.isMandatory) {
           this.error.set(
@@ -929,13 +963,11 @@ export class ClientForm {
           return false;
         }
 
-        // Optional empty fields do not need format validation
         continue;
       }
 
       const dataType = String(field.dataType ?? '').toUpperCase();
 
-      // 2. Email validation
       if (
         dataType.includes('EMAIL') &&
         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(enteredValue)
@@ -944,7 +976,6 @@ export class ClientForm {
         return false;
       }
 
-      // 3. Phone validation
       if (fieldName === 'phone' || dataType.includes('PHONE')) {
         const digits = enteredValue.replace(/\D/g, '');
 
@@ -954,7 +985,6 @@ export class ClientForm {
         }
       }
 
-      // 4. Number validation
       if (
         (dataType.includes('NUMBER') || dataType.includes('INTEGER')) &&
         !Number.isFinite(Number(enteredValue))
@@ -963,7 +993,6 @@ export class ClientForm {
         return false;
       }
 
-      // 5. Date validation
       if (dataType.includes('DATE')) {
         const dateParts = enteredValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 
@@ -987,7 +1016,6 @@ export class ClientForm {
         }
       }
 
-      // 6. Apply the validation regex configured in Master Data
       const regex = field.validationRegex?.trim();
 
       if (regex) {
@@ -1012,7 +1040,6 @@ export class ClientForm {
     return true;
   }
 
-
   // ------------------------------------------------------------
   // Submit quotation form
   // ------------------------------------------------------------
@@ -1031,13 +1058,6 @@ export class ClientForm {
       return;
     }
 
-    if (this.identityCheckRequired()) {
-      this.error.set(
-        'Please complete the additional identity verification before submitting.'
-      );
-      return;
-    }
-
     this.busy.set(true);
     this.error.set('');
 
@@ -1050,10 +1070,6 @@ export class ClientForm {
       this.busy.set(false);
       return;
     }
-
-    // ----------------------------------------------------------
-    // TRAVEL INSURANCE
-    // ----------------------------------------------------------
 
     if (code.toUpperCase() === 'TRAVEL') {
       if (!this.validateTravelConfiguredFields()) {
@@ -1142,10 +1158,6 @@ export class ClientForm {
 
       return;
     }
-
-    // ----------------------------------------------------------
-    // OTHER INSURANCE TYPES — existing behaviour retained
-    // ----------------------------------------------------------
 
     const applicant = {
       ...this.a,
