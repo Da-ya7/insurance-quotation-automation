@@ -12,22 +12,17 @@ import jakarta.validation.constraints.Size;
 public class TravellerForm {
 
     // Applicant personal details
-    // Name remains mandatory for the current client workflow.
     @NotBlank(message = "Full name is required.")
     @Size(max = 150, message = "Full name cannot exceed 150 characters.")
     private String name;
 
-    // Date of birth is controlled by Master Data.
-    // If supplied, it must be a date in the past.
+    // Optional date of birth
     @Past(message = "Date of birth must be in the past.")
     private LocalDate dateOfBirth;
 
-    @NotBlank(message = "Passport number is required")
-    @Size(max = 20, message = "Passport number is too long")
+    // Passport details are controlled by Master Data.
+    // They are not hardcoded as mandatory here.
     private String passportNumber;
-
-    @NotBlank(message = "Passport issuing country is required")
-    @Size(max = 100, message = "Passport issuing country is too long")
     private String passportCountry;
 
     // Optional PAN number
@@ -49,14 +44,7 @@ public class TravellerForm {
 
     // Controlled by Master Data.
     private String nationality;
-
-    // Controlled by Master Data.
     private String countryOfResidence;
-
-    // Passport details are controlled by Master Data.
-    private String passportNumber;
-
-    private String passportCountry;
 
     // Government identity document details.
     // Identity document capture remains optional at form submission.
@@ -65,13 +53,12 @@ public class TravellerForm {
     private String identityNumber;
 
     // Contact details.
-    // Email remains mandatory for the current submission workflow.
     @Email(message = "Please enter a valid email address.")
     @NotBlank(message = "Email is required.")
     @Size(max = 150)
     private String email;
 
-    // Phone remains mandatory because OTP verification depends on it.
+    // Phone is mandatory because OTP verification depends on it.
     @NotBlank(message = "Phone number is required.")
     @Pattern(
         regexp = "^[0-9+()\\-\\s]{7,20}$",
@@ -154,22 +141,6 @@ public class TravellerForm {
 
     public void setCountryOfResidence(String countryOfResidence) {
         this.countryOfResidence = countryOfResidence;
-    }
-
-    public String getPassportNumber() {
-        return passportNumber;
-    }
-
-    public void setPassportNumber(String passportNumber) {
-        this.passportNumber = passportNumber;
-    }
-
-    public String getPassportCountry() {
-        return passportCountry;
-    }
-
-    public void setPassportCountry(String passportCountry) {
-        this.passportCountry = passportCountry;
     }
 
     public String getIdentityCountry() {
