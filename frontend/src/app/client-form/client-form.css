@@ -229,6 +229,22 @@
   display: grid;
   gap: 18px;
 }
+/* =========================================================
+   BROWSER AUTOFILL PREVENTION
+========================================================= */
+
+.cf-autofill-trap {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
 
 .cf-card {
   min-width: 0;

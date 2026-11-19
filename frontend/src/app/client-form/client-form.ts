@@ -19,7 +19,6 @@ import {
 
 import { errorMessage } from '../core/http-error';
 
-// Only these fields are eligible for existing-customer autofill.
 const PERSONAL = [
   'name',
   'email',
@@ -30,14 +29,12 @@ const PERSONAL = [
   'countryOfResidence'
 ] as const;
 
-// These fields must always be entered for the new quotation.
 const IDENTITY_FIELDS = [
   'identityCountry',
   'identityType',
   'identityNumber'
 ] as const;
 
-// Used to prevent duplicate rendering in the configured form.
 const APPLICANT_FIELDS = [
   ...PERSONAL,
   ...IDENTITY_FIELDS
@@ -67,19 +64,16 @@ export class ClientForm {
   countries = signal<PublicCountry[]>([]);
   idTypes = signal<PublicIdentityType[]>([]);
 
-  // Customers sharing the verified phone number.
   matchingClients = signal<ClientChoice[]>([]);
 
   form = signal<PublicForm | null>(null);
   link = signal<FormLink | null>(null);
   type = signal<string | null>(null);
 
-  // Phone OTP
   otpSent = signal(false);
   otpMsg = signal('');
   otpCode = '';
 
-  // Application form remains locked until verification is complete.
   unlocked = signal(false);
 
   challengeId = signal<string | null>(null);
@@ -109,14 +103,6 @@ export class ClientForm {
     !!this.link()?.existingClient && !this.unlocked()
   );
 
-  /**
-   * Normalize gender values received from the backend.
-   *
-   * Examples:
-   * FEMALE -> Female
-   * MALE   -> Male
-   * OTHER  -> Other
-   */
   private normalizeGender(
     value: string | null | undefined
   ): string | null {
@@ -129,41 +115,23 @@ export class ClientForm {
     switch (gender) {
       case 'male':
         return 'Male';
-
       case 'female':
         return 'Female';
-
       case 'other':
         return 'Other';
-
       default:
         return gender.charAt(0).toUpperCase() + gender.slice(1);
     }
   }
 
-  /**
-   * All configured fields returned by the public form API.
-   */
   private configuredFields(): ConfiguredField[] {
     return (this.form()?.fields ?? []) as ConfiguredField[];
   }
 
-  /**
-   * Identify identity fields which must never be autofilled.
-   */
   private isIdentityField(fieldName: string): boolean {
     return (IDENTITY_FIELDS as readonly string[]).includes(fieldName);
   }
 
-  /**
-   * Identify fields belonging to Personal Details.
-   *
-   * Known personal fields are always treated as personal.
-   * Additional configured fields are personal only when their
-   * backend section is APPLICANT_DETAILS.
-   *
-   * Identity fields are explicitly excluded.
-   */
   private isPersonalDetailsField(fieldName: string): boolean {
     if (this.isIdentityField(fieldName)) {
       return false;
@@ -182,9 +150,6 @@ export class ClientForm {
       .toUpperCase() === 'APPLICANT_DETAILS';
   }
 
-  /**
-   * TRAVEL fields are grouped using the section selected in Master Data.
-   */
   fieldsInSection(section: string): ConfiguredField[] {
     const expected = section.trim().toUpperCase();
 
@@ -207,11 +172,6 @@ export class ClientForm {
     this.fieldsInSection('TRAVEL_DETAILS')
   );
 
-  /**
-   * Keep the existing behaviour for non-TRAVEL insurance types.
-   * Applicant and identity fields are rendered through their
-   * configured sections instead.
-   */
   otherFields = computed(() =>
     (this.form()?.fields ?? []).filter(
       field =>
@@ -258,7 +218,6 @@ export class ClientForm {
       }
     });
 
-    // Existing email form link.
     if (this.token) {
       this.api.formLink(this.token).subscribe({
         next: link => {
@@ -374,8 +333,42 @@ export class ClientForm {
     }
   }
 
+  /**
+   * Completely reset the form for a new customer.
+   * Preserve only the mobile number that was verified.
+   */
+  private resetForNewCustomer() {
+    const verifiedPhone = this.a.phone;
+
+    this.a = {
+      name: null,
+      email: null,
+      phone: verifiedPhone,
+      dateOfBirth: null,
+      gender: null,
+      nationality: null,
+      countryOfResidence: null,
+      identityCountry: null,
+      identityType: null,
+      identityNumber: null
+    };
+
+    // Remove all previously entered quotation-specific values.
+    this.values = {};
+
+    // Retain the normal default for travel insurance.
+    if (this.type()?.toUpperCase() === 'TRAVEL') {
+      this.values['travellers'] = '1';
+    }
+
+    this.matchingClients.set([]);
+    this.loadedExistingClient = false;
+    this.idTypes.set([]);
+
+    this.syncCountrySelections();
+  }
+
   onNewPhoneChange() {
-    // Do not change the existing email form-link OTP flow.
     if (this.token) {
       return;
     }
@@ -391,7 +384,6 @@ export class ClientForm {
     this.matchingClients.set([]);
 
     if (this.loadedExistingClient) {
-      // Clear previously autofilled personal details.
       this.a.name = null;
       this.a.email = null;
       this.a.dateOfBirth = null;
@@ -399,7 +391,6 @@ export class ClientForm {
       this.a.nationality = null;
       this.a.countryOfResidence = null;
 
-      // Also clear dynamic Personal Details fields.
       for (const field of this.configuredFields()) {
         if (
           this.isPersonalDetailsField(field.fieldName) &&
@@ -412,7 +403,6 @@ export class ClientForm {
       this.loadedExistingClient = false;
     }
 
-    // Identity fields remain customer-entered fields.
     this.refreshIdTypes();
   }
 
@@ -477,13 +467,10 @@ export class ClientForm {
     });
   }
 
-  /**
-   * Apply prefill data.
-   *
-   * For existing customers, ONLY Personal Details are accepted.
-   * Identity, insurance, travel, nominee and other quotation-specific
-   * fields are deliberately ignored.
-   */
+  // ------------------------------------------------------------
+  // Form-link prefill
+  // ------------------------------------------------------------
+
   private applyPrefill(link: FormLink) {
     const client = link.client;
 
@@ -491,26 +478,20 @@ export class ClientForm {
       this.a.name = client.name ?? null;
       this.a.email = client.email ?? null;
       this.a.dateOfBirth = client.dateOfBirth ?? null;
-
-      // Normalize backend gender before setting the dropdown value.
       this.a.gender = this.normalizeGender(client.gender);
-
       this.a.nationality = client.nationality ?? null;
       this.a.countryOfResidence = client.countryOfResidence ?? null;
 
-      // Do not autofill identity details.
-      // Keep phone entry separate from masked profile phone data.
+      // Identity information is never autofilled.
       this.a.phone = null;
     }
 
     for (const [key, value] of Object.entries(link.prefill ?? {})) {
       if (link.existingClient) {
-        // Existing customer: accept only Personal Details.
         if (!this.isPersonalDetailsField(key)) {
           continue;
         }
 
-        // Never replace the phone number entered by the customer.
         if (key === 'phone') {
           continue;
         }
@@ -527,8 +508,6 @@ export class ClientForm {
         continue;
       }
 
-      // Preserve the previous behaviour for non-existing-client links,
-      // but never prefill government identity details.
       if (this.isIdentityField(key)) {
         continue;
       }
@@ -745,7 +724,7 @@ export class ClientForm {
 
         this.verificationToken.set(response.verificationToken);
 
-        // Multiple customers share this verified phone number.
+        // Multiple customers share the same verified phone.
         if (
           response.ambiguousPhone &&
           response.clients &&
@@ -775,10 +754,10 @@ export class ClientForm {
           return;
         }
 
-        // No existing customer: continue as a new customer.
-        if (response.newCustomerAllowed) {
-          this.matchingClients.set([]);
-          this.loadedExistingClient = false;
+        // No existing customer: reset everything except verified phone.
+        if (response.newCustomerAllowed && !response.client) {
+          this.resetForNewCustomer();
+
           this.unlocked.set(true);
 
           this.otpMsg.set(
@@ -863,28 +842,20 @@ export class ClientForm {
   // ------------------------------------------------------------
 
   private loadExistingClient(client: FormLinkClient) {
-    // Personal Details only.
     this.a.name = client.name ?? null;
     this.a.email = client.email ?? null;
     this.a.dateOfBirth = client.dateOfBirth ?? null;
-
-    // Normalize FEMALE / MALE / OTHER to dropdown values.
     this.a.gender = this.normalizeGender(client.gender);
-
     this.a.nationality = client.nationality ?? null;
     this.a.countryOfResidence = client.countryOfResidence ?? null;
 
-    // Keep the phone number entered and OTP-verified by the customer.
-    // Do not copy masked phone information from the profile.
+    // Keep the verified phone number entered by the customer.
 
-    // Government / Identity Details must be entered for this quotation.
+    // Identity details must be entered for this quotation.
     this.a.identityCountry = null;
     this.a.identityType = null;
     this.a.identityNumber = null;
 
-    // Clear any previous quotation-specific values.
-    // Preserve only configured Personal Details values returned
-    // by the backend, if such fields are available.
     for (const field of this.configuredFields()) {
       const fieldName = field.fieldName;
 
@@ -896,7 +867,6 @@ export class ClientForm {
       }
     }
 
-    // Additional saved Personal Details fields, if the API returns them.
     const clientData = client as unknown as Record<
       string,
       string | null | undefined
@@ -934,9 +904,6 @@ export class ClientForm {
     this.syncCountrySelections();
 
     this.loadedExistingClient = true;
-
-    // Do not load identity types for an existing customer's profile.
-    // The customer can choose the identity country and type manually.
     this.idTypes.set([]);
   }
 
@@ -988,7 +955,6 @@ export class ClientForm {
 
       const enteredValue = String(value ?? '').trim();
 
-      // 1. Check mandatory fields
       if (!enteredValue) {
         if (field.isMandatory) {
           this.error.set(
@@ -997,13 +963,11 @@ export class ClientForm {
           return false;
         }
 
-        // Optional empty fields do not need format validation.
         continue;
       }
 
       const dataType = String(field.dataType ?? '').toUpperCase();
 
-      // 2. Email validation
       if (
         dataType.includes('EMAIL') &&
         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(enteredValue)
@@ -1012,7 +976,6 @@ export class ClientForm {
         return false;
       }
 
-      // 3. Phone validation
       if (fieldName === 'phone' || dataType.includes('PHONE')) {
         const digits = enteredValue.replace(/\D/g, '');
 
@@ -1022,7 +985,6 @@ export class ClientForm {
         }
       }
 
-      // 4. Number validation
       if (
         (dataType.includes('NUMBER') || dataType.includes('INTEGER')) &&
         !Number.isFinite(Number(enteredValue))
@@ -1031,7 +993,6 @@ export class ClientForm {
         return false;
       }
 
-      // 5. Date validation
       if (dataType.includes('DATE')) {
         const dateParts = enteredValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 
@@ -1055,7 +1016,6 @@ export class ClientForm {
         }
       }
 
-      // 6. Apply the validation regex configured in Master Data
       const regex = field.validationRegex?.trim();
 
       if (regex) {
@@ -1110,10 +1070,6 @@ export class ClientForm {
       this.busy.set(false);
       return;
     }
-
-    // ----------------------------------------------------------
-    // TRAVEL INSURANCE
-    // ----------------------------------------------------------
 
     if (code.toUpperCase() === 'TRAVEL') {
       if (!this.validateTravelConfiguredFields()) {
@@ -1176,7 +1132,6 @@ export class ClientForm {
         destinationCountry: this.values['destinationCountry'],
         travelStartDate: this.values['travelStartDate'],
         travelEndDate: this.values['travelEndDate'],
-
         purposeOfTravel: this.values['purposeOfTravel'],
 
         ...(!this.token
@@ -1203,10 +1158,6 @@ export class ClientForm {
 
       return;
     }
-
-    // ----------------------------------------------------------
-    // OTHER INSURANCE TYPES — existing behaviour retained
-    // ----------------------------------------------------------
 
     const applicant = {
       ...this.a,
