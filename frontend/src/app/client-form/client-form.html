@@ -156,356 +156,278 @@
     }
 
     <!-- PROGRESS INDICATOR -->
-    @if (form() && !result()) {
-      <section class="cf-progress-card">
-        <div class="cf-progress-heading">
-          <div>
-            <span class="cf-section-kicker">APPLICATION PROCESS</span>
-            <h2>Complete your application</h2>
-          </div>
-          <span class="cf-progress-label">
-            @if (unlocked() && !identityCheckRequired()) {
-              Step 3 of 3
-            } @else if (identityCheckRequired()) {
-              Step 2 of 3
-            } @else {
-              Step 1 of 3
-            }
-          </span>
-        </div>
+    <!-- PROGRESS INDICATOR -->
+@if (form() && !result()) {
+  <section class="cf-progress-card">
+    <div class="cf-progress-heading">
+      <div>
+        <span class="cf-section-kicker">APPLICATION PROCESS</span>
+        <h2>Complete your application</h2>
+      </div>
 
-        <div class="cf-progress-steps">
-
-          <div class="cf-progress-step"
-               [class.cf-progress-active]="!unlocked() && !identityCheckRequired()"
-               [class.cf-progress-done]="identityCheckRequired() || unlocked()">
-            <span class="cf-progress-number">
-              @if (identityCheckRequired() || unlocked()) {
-                ✓
-              } @else {
-                1
-              }
-            </span>
-            <span>Phone verification</span>
-          </div>
-
-          <div class="cf-progress-line"
-               [class.cf-progress-line-done]="unlocked()">
-          </div>
-
-          <div class="cf-progress-step"
-               [class.cf-progress-active]="identityCheckRequired()"
-               [class.cf-progress-done]="unlocked()">
-            <span class="cf-progress-number">
-              @if (unlocked()) {
-                ✓
-              } @else {
-                2
-              }
-            </span>
-            <span>Identity check</span>
-          </div>
-
-          <div class="cf-progress-line"
-               [class.cf-progress-line-done]="unlocked()">
-          </div>
-
-          <div class="cf-progress-step"
-               [class.cf-progress-active]="unlocked() && !identityCheckRequired()">
-            <span class="cf-progress-number">3</span>
-            <span>Application details</span>
-          </div>
-
-        </div>
-      </section>
-    }
-
-    <!-- STEP 1: PHONE VERIFICATION -->
-    @if (form() && !result() && !unlocked() && !identityCheckRequired()) {
-      <section class="cf-card cf-verification-card">
-
-        <div class="cf-card-heading">
-          <span class="cf-heading-icon">01</span>
-          <div>
-            <span class="cf-section-kicker">STEP 1</span>
-            <h2>Verify your phone number</h2>
-            <p>Confirm your mobile number to securely continue.</p>
-          </div>
-        </div>
-
-        @if (link()?.existingClient) {
-          <div class="cf-alert cf-alert-info">
-            <strong>Welcome back{{ link()!.client?.name
-              ? ', ' + link()!.client!.name
-              : '' }}.</strong>
-
-            <p>
-              Your verification code will be sent to your registered
-              mobile number.
-            </p>
-
-            <b>{{ link()!.client?.phoneMasked }}</b>
-
-            @if (link()!.missingFields.length) {
-              <div class="cf-need">
-                <strong>Still needed:</strong>
-                @for (m of link()!.missingFields; track m) {
-                  <span class="cf-chip">{{ m }}</span>
-                }
-              </div>
-            }
-          </div>
-        } @else if (!token) {
-          <label class="cf-phone-label">
-            Mobile number
-            <span class="cf-required-label">Required</span>
-
-            <div class="cf-phone-group">
-              <select
-                class="cf-input cf-phone-code"
-                [(ngModel)]="phoneCallingCode"
-                (ngModelChange)="onPhoneCallingCodeChange()"
-                name="otpPhoneCallingCode"
-                [disabled]="busy() || otpSent()">
-
-                @for (c of countries(); track c.code) {
-                  @if (getCallingCode(c)) {
-                    <option [value]="getCallingCode(c)">
-                      {{ getCallingCode(c) }} ({{ c.code }})
-                    </option>
-                  }
-                }
-              </select>
-
-              <input
-                class="cf-input cf-phone-number"
-                type="tel"
-                [(ngModel)]="a.phone"
-                (ngModelChange)="onNewPhoneChange()"
-                name="otpPhone"
-                placeholder="Enter your mobile number"
-                autocomplete="tel-national"
-                [disabled]="busy() || otpSent()"
-                required />
-            </div>
-          </label>
+      <span class="cf-progress-label">
+        @if (unlocked()) {
+          Step 2 of 2
         } @else {
-          <div class="cf-alert cf-alert-info">
-            Verify your phone number to continue with this application.
-          </div>
+          Step 1 of 2
         }
+      </span>
+    </div>
 
-        @if (!otpSent()) {
-          <button
-            type="button"
-            class="cf-btn cf-btn-primary cf-btn-full"
-            (click)="sendOtp()"
-            [disabled]="busy() || (!token && !a.phone?.trim())">
-            {{ busy() ? 'Sending...' : 'Send verification code →' }}
-          </button>
-        }
+    <div class="cf-progress-steps">
 
-        @if (otpSent()) {
-          <div class="cf-otp-panel">
-            <div class="cf-otp-panel-heading">
-              <strong>Enter your verification code</strong>
-              <small>Enter the 6-digit code sent to your mobile.</small>
-            </div>
+      <div class="cf-progress-step"
+           [class.cf-progress-active]="!unlocked()"
+           [class.cf-progress-done]="unlocked()">
+        <span class="cf-progress-number">
+          @if (unlocked()) {
+            ✓
+          } @else {
+            1
+          }
+        </span>
+        <span>Phone verification</span>
+      </div>
 
-            <label>
-              6-digit OTP
-              <input
-                class="cf-input cf-otp-input"
-                type="text"
-                inputmode="numeric"
-                autocomplete="one-time-code"
-                [(ngModel)]="otpCode"
-                name="otpCode"
-                maxlength="6"
-                placeholder="• • • • • •"
-                [disabled]="busy()" />
-            </label>
+      <div class="cf-progress-line"
+           [class.cf-progress-line-done]="unlocked()">
+      </div>
 
-            <button
-              type="button"
-              class="cf-btn cf-btn-primary cf-btn-full"
-              (click)="verifyOtp()"
-              [disabled]="busy() || otpCode.length !== 6">
-              {{ busy() ? 'Verifying...' : 'Verify OTP →' }}
-            </button>
-          </div>
-        }
+      <div class="cf-progress-step"
+           [class.cf-progress-active]="unlocked()">
+        <span class="cf-progress-number">2</span>
+        <span>Application details</span>
+      </div>
 
-        @if (otpMsg()) {
-          <div class="cf-otp-msg">{{ otpMsg() }}</div>
-        }
+    </div>
+  </section>
+}
+    <!-- STEP 1: PHONE VERIFICATION -->
+    <!-- STEP 1: PHONE VERIFICATION -->
+@if (form() && !result() && !unlocked() && matchingClients().length === 0) {
+  <section class="cf-card cf-verification-card">
 
-        @if (!token && otpSent()) {
-          <button
-            type="button"
-            class="cf-btn cf-btn-outline"
-            (click)="onNewPhoneChange()">
-            Change mobile number
-          </button>
-        }
+    <div class="cf-card-heading">
+      <span class="cf-heading-icon">01</span>
+      <div>
+        <span class="cf-section-kicker">STEP 1</span>
+        <h2>Verify your phone number</h2>
+        <p>Confirm your mobile number to securely continue.</p>
+      </div>
+    </div>
 
-        <div class="cf-security-note">
-          <span>🔒</span>
-          Your mobile number is used for verification and customer identification.
-        </div>
+    @if (link()?.existingClient) {
+      <div class="cf-alert cf-alert-info">
+        <strong>Welcome back{{ link()!.client?.name
+          ? ', ' + link()!.client!.name
+          : '' }}.</strong>
 
-      </section>
-    }
-
-    <!-- STEP 2: ADDITIONAL IDENTITY VERIFICATION -->
-    @if (form() && !result() && identityCheckRequired()) {
-      <section class="cf-card cf-verification-card">
-
-        <div class="cf-card-heading">
-          <span class="cf-heading-icon">02</span>
-          <div>
-            <span class="cf-section-kicker">STEP 2</span>
-            <h2>Additional identity verification</h2>
-            <p>Confirm your identity to access the correct customer record.</p>
-          </div>
-        </div>
-
-        <div class="cf-alert cf-alert-ok">
-          <strong>✓ Phone number verified successfully</strong>
-          <p>You can now continue with your identity verification.</p>
-        </div>
-
-        <p class="cf-hint">
-          This mobile number is already associated with one or more customer
-          records. Enter your own identity details so we can identify the
-          correct person.
+        <p>
+          Your verification code will be sent to your registered
+          mobile number.
         </p>
 
-        <div class="cf-family-note">
-          <div class="cf-family-note-icon">👨‍👩‍👧‍👦</div>
-          <div>
-            <strong>Sharing a mobile number with family?</strong>
-            <p>
-              Family members can use the same mobile number. Each person must
-              enter their own identity document details. We will match the
-              identity number to the correct customer record.
-            </p>
+        <b>{{ link()!.client?.phoneMasked }}</b>
+
+        @if (link()!.missingFields.length) {
+          <div class="cf-need">
+            <strong>Still needed:</strong>
+            @for (m of link()!.missingFields; track m) {
+              <span class="cf-chip">{{ m }}</span>
+            }
           </div>
+        }
+      </div>
+    } @else if (!token) {
+      <label class="cf-phone-label">
+        Mobile number
+        <span class="cf-required-label">Required</span>
+
+        <div class="cf-phone-group">
+          <select
+            class="cf-input cf-phone-code"
+            [(ngModel)]="phoneCallingCode"
+            (ngModelChange)="onPhoneCallingCodeChange()"
+            name="otpPhoneCallingCode"
+            [disabled]="busy() || otpSent()">
+
+            @for (c of countries(); track c.code) {
+              @if (getCallingCode(c)) {
+                <option [value]="getCallingCode(c)">
+                  {{ getCallingCode(c) }} ({{ c.code }})
+                </option>
+              }
+            }
+          </select>
+
+          <input
+            class="cf-input cf-phone-number"
+            type="tel"
+            [(ngModel)]="a.phone"
+            (ngModelChange)="onNewPhoneChange()"
+            name="otpPhone"
+            placeholder="Enter your mobile number"
+            autocomplete="tel-national"
+            [disabled]="busy() || otpSent()"
+            required />
+        </div>
+      </label>
+    } @else {
+      <div class="cf-alert cf-alert-info">
+        Verify your phone number to continue with this application.
+      </div>
+    }
+
+    @if (!otpSent()) {
+      <button
+        type="button"
+        class="cf-btn cf-btn-primary cf-btn-full"
+        (click)="sendOtp()"
+        [disabled]="busy() || (!token && !a.phone?.trim())">
+        {{ busy() ? 'Sending...' : 'Send verification code →' }}
+      </button>
+    }
+
+    @if (otpSent()) {
+      <div class="cf-otp-panel">
+        <div class="cf-otp-panel-heading">
+          <strong>Enter your verification code</strong>
+          <small>Enter the 6-digit code sent to your mobile.</small>
         </div>
 
-        <div class="cf-identity-check">
-          <div class="cf-grid">
-
-            <label>
-              Identity issuing country
-              <select
-                class="cf-input"
-                [(ngModel)]="identityMatchCountry"
-                (ngModelChange)="onIdentityMatchCountry($event)"
-                name="identityMatchCountry"
-                [disabled]="busy()">
-
-                <option value="">Select country</option>
-                @for (c of countries(); track c.code) {
-                  <option [value]="c.code">{{ c.name }}</option>
-                }
-              </select>
-            </label>
-
-            <label>
-              Identity document type
-              <select
-                class="cf-input"
-                [(ngModel)]="identityMatchType"
-                name="identityMatchType"
-                [disabled]="busy() || !identityMatchCountry">
-
-                <option value="">Select identity type</option>
-                @for (t of identityMatchTypes(); track t.code) {
-                  <option [value]="t.code">{{ t.label }}</option>
-                }
-              </select>
-            </label>
-
-            <label class="cf-wide">
-              Identity number
-              <input
-                class="cf-input"
-                type="password"
-                [(ngModel)]="identityMatchNumber"
-                name="identityMatchNumber"
-                autocomplete="off"
-                placeholder="Enter your identity number"
-                [disabled]="busy()"
-                required />
-            </label>
-
-          </div>
-
-          <small class="cf-hint">
-            Your identity number is used to find the correct customer record.
-            It is not displayed in full.
-          </small>
-        </div>
+        <label>
+          6-digit OTP
+          <input
+            class="cf-input cf-otp-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            [(ngModel)]="otpCode"
+            name="otpCode"
+            maxlength="6"
+            placeholder="• • • • • •"
+            [disabled]="busy()" />
+        </label>
 
         <button
           type="button"
           class="cf-btn cf-btn-primary cf-btn-full"
-          (click)="verifyIdentity()"
-          [disabled]="busy() ||
-            !identityMatchCountry ||
-            !identityMatchType ||
-            !identityMatchNumber.trim()">
-          {{ busy() ? 'Checking...' : 'Verify identity details →' }}
+          (click)="verifyOtp()"
+          [disabled]="busy() || otpCode.length !== 6">
+          {{ busy() ? 'Verifying...' : 'Verify OTP →' }}
         </button>
-
-        @if (identityMatchMsg) {
-          <div class="cf-alert cf-alert-error">
-            {{ identityMatchMsg }}
-          </div>
-        }
-
-        @if (otpMsg()) {
-          <div class="cf-otp-msg">{{ otpMsg() }}</div>
-        }
-
-        <div class="cf-security-note">
-          <span>🔒</span>
-          Your identity information is used for customer matching.
-        </div>
-
-      </section>
+      </div>
     }
 
+    @if (otpMsg()) {
+      <div class="cf-otp-msg">{{ otpMsg() }}</div>
+    }
+
+    @if (!token && otpSent()) {
+      <button
+        type="button"
+        class="cf-btn cf-btn-outline"
+        (click)="onNewPhoneChange()">
+        Change mobile number
+      </button>
+    }
+
+    <div class="cf-security-note">
+      <span>🔒</span>
+      Your mobile number is used for verification and customer identification.
+    </div>
+
+  </section>
+}
+    <!-- STEP 2: ADDITIONAL IDENTITY VERIFICATION -->
+    <!-- STEP 2: SELECT EXISTING CUSTOMER -->
+@if (form() && !result() && !unlocked() && matchingClients().length > 1) {
+  <section class="cf-card cf-verification-card">
+
+    <div class="cf-card-heading">
+      <span class="cf-heading-icon">02</span>
+      <div>
+        <span class="cf-section-kicker">SELECT CUSTOMER</span>
+        <h2>Select your name</h2>
+        <p>
+          Your mobile number is registered with multiple customers.
+          Please select your own name to continue.
+        </p>
+      </div>
+    </div>
+
+    <div class="cf-alert cf-alert-ok">
+      <strong>✓ Mobile number verified successfully</strong>
+      <p>Select the correct customer record below.</p>
+    </div>
+
+    <div class="cf-types">
+      @for (client of matchingClients(); track client.clientCode) {
+        <button
+          type="button"
+          class="cf-type"
+          (click)="selectExistingClient(client)"
+          [disabled]="busy()">
+
+          <span class="cf-type-content">
+            <span class="cf-type-name">
+              {{ client.name || 'Customer' }}
+            </span>
+
+            <span class="cf-type-description">
+              Client ID: {{ client.clientCode }}
+            </span>
+          </span>
+
+          <span class="cf-type-go">→</span>
+        </button>
+      }
+    </div>
+
+    @if (busy()) {
+      <div class="cf-otp-msg">
+        Loading selected customer details...
+      </div>
+    }
+
+    @if (otpMsg()) {
+      <div class="cf-otp-msg">{{ otpMsg() }}</div>
+    }
+
+    <div class="cf-security-note">
+      <span>🔒</span>
+      Your selected customer details will be loaded securely.
+    </div>
+
+  </section>
+}
+
     <!-- STEP 3: APPLICATION FORM -->
-    @if (form() && !result() && unlocked() && !identityCheckRequired()) {
+    @if (form() && !result() && unlocked()) {
+<form (ngSubmit)="submit()">
+      <!-- APPLICATION INTRO -->
+<section class="cf-card cf-application-intro">
+  <div class="cf-card-heading">
+    <span class="cf-heading-icon">02</span>
+    <div>
+      <span class="cf-section-kicker">STEP 2</span>
+      <h2>{{ form()!.label }}</h2>
+      <p>Provide the details below to prepare your quotation.</p>
+    </div>
+  </div>
 
-      <form class="cf-form" (ngSubmit)="submit()">
+  <div class="cf-alert cf-alert-ok">
+    <strong>✓ Phone verification completed successfully</strong>
+    <p>
+      Your mobile number has been verified.
+      You can now enter your application details.
+    </p>
+  </div>
 
-        <!-- APPLICATION INTRO -->
-        <section class="cf-card cf-application-intro">
-          <div class="cf-card-heading">
-            <span class="cf-heading-icon">03</span>
-            <div>
-              <span class="cf-section-kicker">STEP 3</span>
-              <h2>{{ form()!.label }}</h2>
-              <p>Provide the details below to prepare your quotation.</p>
-            </div>
-          </div>
-
-          <div class="cf-alert cf-alert-ok">
-            <strong>✓ Verification completed successfully</strong>
-            <p>
-              Your phone number and any required identity verification
-              have been completed. You can now enter your application details.
-            </p>
-          </div>
-
-          @if (otpMsg()) {
-            <div class="cf-otp-msg">{{ otpMsg() }}</div>
-          }
-        </section>
-
+  @if (otpMsg()) {
+    <div class="cf-otp-msg">{{ otpMsg() }}</div>
+  }
+</section>
         <!-- TRAVEL: DYNAMIC APPLICANT DETAILS -->
         @if (type()?.toUpperCase() === 'TRAVEL') {
 

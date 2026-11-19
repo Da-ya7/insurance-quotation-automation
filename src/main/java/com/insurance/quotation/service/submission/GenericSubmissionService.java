@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.service.submission;
 
 import java.time.LocalDate;
@@ -52,18 +53,18 @@ public class GenericSubmissionService {
     }
 
     public record Submission(
-                String insuranceType,
-                Applicant applicant,
-                Map<String, String> fields,
-                String verificationToken,
-                String profileEditVerificationToken
-        ) {
+            String insuranceType,
+            Applicant applicant,
+            Map<String, String> fields,
+            String verificationToken,
+            String profileEditVerificationToken
+    ) {
         public Submission(
                 String insuranceType,
                 Applicant applicant,
                 Map<String, String> fields
         ) {
-                this(insuranceType, applicant, fields, null, null);
+            this(insuranceType, applicant, fields, null, null);
         }
 
         public Submission(
@@ -72,7 +73,7 @@ public class GenericSubmissionService {
                 Map<String, String> fields,
                 String verificationToken
         ) {
-                this(insuranceType, applicant, fields, verificationToken, null);
+            this(insuranceType, applicant, fields, verificationToken, null);
         }
     }
 
@@ -87,9 +88,18 @@ public class GenericSubmissionService {
     }
 
     public static final List<String> APPLICANT_FIELDS = List.of(
-            "name", "email", "phone", "policyType", "dateOfBirth",
-            "identityType", "identityNumber", "identityCountry",
-            "gender", "nationality", "countryOfResidence");
+            "name",
+            "email",
+            "phone",
+            "policyType",
+            "dateOfBirth",
+            "identityType",
+            "identityNumber",
+            "identityCountry",
+            "gender",
+            "nationality",
+            "countryOfResidence"
+    );
 
     private final FormLinkService formLinks;
     private final OtpService otp;
@@ -129,12 +139,14 @@ public class GenericSubmissionService {
     public Result submit(String token, String pathType, Submission body) {
 
         if (body == null || body.applicant() == null) {
-            throw new IllegalArgumentException("Applicant details are required.");
+            throw new IllegalArgumentException(
+                    "Applicant details are required.");
         }
 
         FormLinkService.FormLink link = null;
 
         if (token != null && !token.isBlank()) {
+
             link = formLinks.find(token)
                     .orElseThrow(() -> new IllegalArgumentException(
                             "This link is not valid."));
@@ -147,51 +159,52 @@ public class GenericSubmissionService {
 
         Applicant a = body.applicant();
 
-        if (link != null) {
-            if (!otp.isVerified(link.token())) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Please verify your phone number before submitting.");
-            }
-        } else {
-            String originalVerifiedPhone =
-                    otp.getVerifiedPhone(body.verificationToken());
-
-            if (originalVerifiedPhone == null
-                    || !otp.isPhoneVerified(
-                            body.verificationToken(),
-                            originalVerifiedPhone)) {
-                throw new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "Your phone verification has expired. Please verify again.");
-            }
-        }
-
+        /*
+         * Existing customer:
+         * Preserve saved PERSONAL details when the submitted fields are blank.
+         *
+         * Identity document details are deliberately NOT copied here.
+         * They must remain separate from personal-details autofill.
+         */
         if (link != null && link.clientId() != null) {
+
             Client known = clientRepository.findById(link.clientId())
                     .orElse(null);
 
             if (known != null) {
+
                 a = new Applicant(
                         firstNonBlank(a.name(), known.getName()),
                         firstNonBlank(a.email(), known.getEmail()),
                         firstNonBlank(a.phone(), known.getPhone()),
-                        a.dateOfBirth(),
-                        a.gender(),
-                        a.nationality(),
-                        a.countryOfResidence(),
+
+                        a.dateOfBirth() != null
+                                ? a.dateOfBirth()
+                                : known.getDateOfBirth(),
+
+                        firstNonBlank(a.gender(), known.getGender()),
+                        firstNonBlank(a.nationality(), known.getNationality()),
+
+                        firstNonBlank(
+                                a.countryOfResidence(),
+                                known.getCountryOfResidence()),
+
+                        // Do not autofill identity details.
                         a.identityCountry(),
                         a.identityType(),
-                        a.identityNumber());
+                        a.identityNumber()
+                );
             }
         }
 
         if (isBlank(a.name()) || isBlank(a.email())) {
-            throw new IllegalArgumentException("Name and email are required.");
+            throw new IllegalArgumentException(
+                    "Name and email are required.");
         }
 
         if (isBlank(a.phone())) {
-            throw new IllegalArgumentException("Phone number is required.");
+            throw new IllegalArgumentException(
+                    "Phone number is required.");
         }
 
         String type = firstNonBlank(
@@ -213,11 +226,35 @@ public class GenericSubmissionService {
                 ? otp.getVerifiedPhone(body.verificationToken())
                 : null;
 
+        if (link != null) {
+
+            if (!otp.isVerified(link.token())) {
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Please verify your phone number before submitting.");
+            }
+
+        } else {
+
+            if (originalVerifiedPhone == null
+                    || !otp.isPhoneVerified(
+                            body.verificationToken(),
+                            originalVerifiedPhone)) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Your phone verification has expired. Please verify again.");
+            }
+        }
+
         boolean profileEditOtpOk;
 
         if (link != null) {
+
             profileEditOtpOk = otp.isVerified(link.token());
+
         } else {
+
             profileEditOtpOk =
                     originalVerifiedPhone != null
                     && otp.isPhoneVerified(
@@ -236,7 +273,8 @@ public class GenericSubmissionService {
                         a.countryOfResidence(),
                         a.identityCountry(),
                         a.identityType(),
-                        a.identityNumber());
+                        a.identityNumber()
+                );
 
         ClientMasterService.ApplyResult applied;
 
@@ -251,7 +289,8 @@ public class GenericSubmissionService {
                     details,
                     "FORM",
                     "CUSTOMER_FORM",
-                    profileEditOtpOk);
+                    profileEditOtpOk
+            );
 
         } else if (link == null) {
 
@@ -259,40 +298,46 @@ public class GenericSubmissionService {
                     findClientsByPhone(originalVerifiedPhone);
 
             if (phoneMatches.size() > 1) {
+
                 throw new ResponseStatusException(
                         HttpStatus.CONFLICT,
                         "Multiple customer records use this verified phone number. Please contact our team.");
             }
 
             if (phoneMatches.size() == 1) {
-                // Keep the same Client ID even if email or phone was edited.
+
                 applied = clientMaster.apply(
                         phoneMatches.get(0),
                         details,
                         "FORM",
                         "CUSTOMER_FORM",
-                        profileEditOtpOk);
+                        profileEditOtpOk
+                );
+
             } else {
-                // A genuinely new customer. Initial OTP is enough to create
-                // the first profile; it is not permission to edit a saved one.
+
                 applied = clientMaster.findOrCreateAndApply(
                         details,
                         "FORM",
                         "CUSTOMER_FORM",
-                        false);
+                        false
+                );
             }
 
         } else {
+
             applied = clientMaster.findOrCreateAndApply(
                     details,
                     "FORM",
                     "CUSTOMER_FORM",
-                    profileEditOtpOk);
+                    profileEditOtpOk
+            );
         }
 
         Client client = applied.client();
 
         if (applied.hasBlockedChanges()) {
+
             return new Result(
                     null,
                     "OTP_REQUIRED",
@@ -300,7 +345,8 @@ public class GenericSubmissionService {
                     null,
                     "Some saved customer details have changed. Please verify the OTP sent to your registered phone number to authorize these changes.",
                     List.of(),
-                    applied.blocked());
+                    applied.blocked()
+            );
         }
 
         // Consume the separate edit token only after the changes are accepted.
@@ -310,7 +356,8 @@ public class GenericSubmissionService {
 
             otp.consumePhoneVerification(
                     body.profileEditVerificationToken(),
-                    originalVerifiedPhone);
+                    originalVerifiedPhone
+            );
         }
 
         QuotationRequest request =
@@ -319,6 +366,7 @@ public class GenericSubmissionService {
                         : null;
 
         if (request == null) {
+
             request = new QuotationRequest();
             request.setClient(client);
             request.setCreatedAt(LocalDateTime.now());
@@ -350,9 +398,11 @@ public class GenericSubmissionService {
                 fieldValueRepository.findByQuotationRequestId(request.getId())) {
 
             if (v.getRequiredField() != null) {
+
                 saved.put(
                         v.getRequiredField().getFieldName(),
-                        v.getFieldValue());
+                        v.getFieldValue()
+                );
             }
         }
 
@@ -362,44 +412,67 @@ public class GenericSubmissionService {
         List<ExtractedFieldData> fields = new ArrayList<>();
 
         for (RequiredField rf : forType) {
+
             String n = rf.getFieldName();
 
             String value = switch (n) {
+
                 case "name" -> client.getName();
                 case "email" -> client.getEmail();
                 case "phone" -> client.getPhone();
+
                 case "dateOfBirth" ->
                         client.getDateOfBirth() == null
                                 ? null
                                 : client.getDateOfBirth().toString();
+
+                case "gender" -> client.getGender();
+                case "nationality" -> client.getNationality();
+                case "countryOfResidence" ->
+                        client.getCountryOfResidence();
+
                 case "policyType" -> def.code();
-                case "identityType", "identityNumber", "identityCountry" -> null;
-                default -> firstNonBlank(given.get(n), saved.get(n));
+
+                // Identity details are not copied into quotation fields.
+                case "identityType",
+                     "identityNumber",
+                     "identityCountry" -> null;
+
+                default -> firstNonBlank(
+                        given.get(n),
+                        saved.get(n)
+                );
             };
 
             fields.add(new ExtractedFieldData(
                     n,
                     value == null
                             ? null
-                            : ValueNormalizer.normalize(value, rf.getDataType()),
+                            : ValueNormalizer.normalize(
+                                    value,
+                                    rf.getDataType()),
                     rf.getDataType(),
                     FieldSource.MANUAL_ENTRY,
                     1.0,
-                    isBlank(value)));
+                    isBlank(value)
+            ));
         }
 
         QuotationWorkflowService.Outcome outcome =
                 workflow.process(request, client, fields, hadQuotation);
 
         if (link == null) {
+
             otp.consumePhoneVerification(
                     body.verificationToken(),
-                    originalVerifiedPhone);
+                    originalVerifiedPhone
+            );
         }
 
         if (link != null
                 && outcome.result()
                 == QuotationWorkflowService.Result.QUOTATION_SENT) {
+
             formLinks.markUsed(link.id());
         }
 
@@ -419,10 +492,14 @@ public class GenericSubmissionService {
                                     + " has been emailed to "
                                     + client.getEmail() + ".",
                             List.of(),
-                            List.of());
+                            List.of()
+                    );
 
             case MISSING_INFORMATION -> {
-                List<String> all = new ArrayList<>(outcome.missingFields());
+
+                List<String> all =
+                        new ArrayList<>(outcome.missingFields());
+
                 all.addAll(outcome.invalidFields());
 
                 yield new Result(
@@ -433,7 +510,8 @@ public class GenericSubmissionService {
                         "We still need a few details: "
                                 + String.join(", ", all) + ".",
                         all,
-                        List.of());
+                        List.of()
+                );
             }
 
             case EMAIL_SEND_FAILED ->
@@ -446,7 +524,8 @@ public class GenericSubmissionService {
                                     : outcome.quotation().getQuotationNumber(),
                             "Your quotation was created but the email could not be sent. Our team will send it to you.",
                             List.of(),
-                            List.of());
+                            List.of()
+                    );
 
             case QUOTATION_GENERATION_FAILED ->
                     new Result(
@@ -456,41 +535,54 @@ public class GenericSubmissionService {
                             null,
                             "We received your request but could not create the quotation yet. Our team will contact you.",
                             List.of(),
-                            List.of());
+                            List.of()
+                    );
         };
     }
 
     private List<Client> findClientsByPhone(String verifiedPhone) {
+
         if (verifiedPhone == null || verifiedPhone.isBlank()) {
             return List.of();
         }
 
+        String normalizedVerifiedPhone = digits(verifiedPhone);
+
         return clientRepository.findAll().stream()
                 .filter(c -> c.getPhone() != null)
-                .filter(c -> digits(c.getPhone()).equals(verifiedPhone))
+                .filter(c ->
+                        digits(c.getPhone()).equals(normalizedVerifiedPhone))
                 .toList();
     }
 
     public Optional<Client> clientOf(FormLinkService.FormLink link) {
+
         return link.clientId() == null
                 ? Optional.empty()
                 : clientRepository.findById(link.clientId());
     }
 
     private static String digits(String value) {
-        return value == null ? "" : value.replaceAll("\\D", "");
+
+        return value == null
+                ? ""
+                : value.replaceAll("\\D", "");
     }
 
     private static boolean isBlank(String value) {
+
         return value == null || value.isBlank();
     }
 
     private static String firstNonBlank(String... values) {
+
         for (String value : values) {
+
             if (!isBlank(value)) {
                 return value.trim();
             }
         }
+
         return null;
     }
 }

@@ -7,8 +7,18 @@ import com.insurance.quotation.entity.Client;
 import com.insurance.quotation.service.client.IdentityProtectionService;
 
 /**
- * What the staff screens see of a client. The identity number is never
- * returned: only its type, issuing country and a masked tail (XXXX1234).
+ * Client response DTO.
+ *
+ * Used by:
+ * - Client Master screens.
+ * - Mobile number search.
+ * - Existing client selection.
+ * - Autofilling personal details in the quotation form.
+ *
+ * Security:
+ * - The complete identity number is never returned.
+ * - Only the masked identity number is provided.
+ * - The identity number remains encrypted in the database.
  */
 public record ClientResponse(
         Long id,
@@ -29,7 +39,12 @@ public record ClientResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 
+    /**
+     * Creates a client response without exposing the complete
+     * identity document number.
+     */
     public static ClientResponse from(Client c, long requestCount) {
+
         return new ClientResponse(
                 c.getId(),
                 c.getClientCode(),
@@ -43,10 +58,12 @@ public record ClientResponse(
                 c.getCountryOfResidence(),
                 c.getIdentityCountry(),
                 c.getIdentityType(),
-                IdentityProtectionService.mask(c.getIdentityNumberLast4()),
+                IdentityProtectionService.mask(
+                        c.getIdentityNumberLast4()),
                 c.getVersionNo(),
                 requestCount,
                 c.getCreatedAt(),
-                c.getUpdatedAt());
+                c.getUpdatedAt()
+        );
     }
 }

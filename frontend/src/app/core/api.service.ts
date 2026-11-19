@@ -398,6 +398,19 @@ export interface FormLinkClient {
   identityNumberMasked: string | null;
 }
 
+// A customer choice displayed when multiple customers share one phone.
+export interface ClientChoice {
+  clientCode: string;
+  name: string | null;
+}
+
+// Response after selecting one of the matching customers.
+export interface SelectExistingClientResult {
+  verified: boolean;
+  client?: FormLinkClient | null;
+  message?: string;
+}
+
 export interface FormLink {
   valid: boolean;
   insuranceType: string;
@@ -433,12 +446,14 @@ export interface NewCustomerOtpSendResult {
  * POST /api/public/phone-otp/verify
  *
  * New phone:
- * requiresIdentityCheck = false
  * newCustomerAllowed = true
  *
- * Existing phone:
- * requiresIdentityCheck = true
- * newCustomerAllowed = false
+ * One existing customer:
+ * client is returned directly.
+ *
+ * Multiple existing customers:
+ * ambiguousPhone = true
+ * clients contains the matching customer choices.
  */
 export interface NewCustomerOtpVerifyResult {
   verified: boolean;
@@ -452,25 +467,8 @@ export interface NewCustomerOtpVerifyResult {
   requiresIdentityCheck?: boolean;
   newCustomerAllowed?: boolean;
 
+  clients?: ClientChoice[];
   client?: FormLinkClient | null;
-}
-
-/**
- * Response from:
- * POST /api/public/phone-otp/verify-identity
- */
-export interface NewCustomerIdentityVerifyResult {
-  matched: boolean;
-  verificationToken?: string;
-
-  existingClient?: boolean;
-  ambiguousPhone?: boolean;
-
-  duplicateIdentity?: boolean;
-  newCustomerAllowed?: boolean;
-
-  client?: FormLinkClient | null;
-  message?: string;
 }
 
 export interface ApplicantPayload {
@@ -763,21 +761,17 @@ export class ApiService {
     );
   }
 
-  // ---- public: additional identity verification
+  // ---- public: select existing customer after phone OTP
 
-  verifyNewCustomerIdentity(
+  selectExistingClient(
     verificationToken: string,
-    identityCountry: string,
-    identityType: string,
-    identityNumber: string
-  ): Observable<NewCustomerIdentityVerifyResult> {
-    return this.http.post<NewCustomerIdentityVerifyResult>(
-      '/api/public/phone-otp/verify-identity',
+    clientCode: string
+  ): Observable<SelectExistingClientResult> {
+    return this.http.post<SelectExistingClientResult>(
+      '/api/public/phone-otp/select-client',
       {
         verificationToken,
-        identityCountry,
-        identityType,
-        identityNumber
+        clientCode
       }
     );
   }
