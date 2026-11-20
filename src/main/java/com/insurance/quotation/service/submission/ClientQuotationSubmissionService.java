@@ -26,9 +26,9 @@ import com.insurance.quotation.entity.enums.FieldDataType;
 import com.insurance.quotation.entity.enums.FieldSource;
 import com.insurance.quotation.entity.enums.RequestStatus;
 import com.insurance.quotation.repository.AuditLogRepository;
-import com.insurance.quotation.service.client.ClientMasterService;
 import com.insurance.quotation.repository.QuotationRequestRepository;
 import com.insurance.quotation.repository.QuotationRequestTravellerRepository;
+import com.insurance.quotation.service.client.ClientMasterService;
 import com.insurance.quotation.service.extraction.ExtractedFieldData;
 import com.insurance.quotation.service.quotation.QuotationEmailService;
 import com.insurance.quotation.service.quotation.QuotationGenerationService;
@@ -127,7 +127,8 @@ public class ClientQuotationSubmissionService {
             traveller.setName(person.name().trim());
             traveller.setDateOfBirth(person.dateOfBirth());
             traveller.setAgeAtSubmission(
-                    Period.between(person.dateOfBirth(),
+                    Period.between(
+                            person.dateOfBirth(),
                             LocalDate.now()).getYears());
             traveller.setPassportNumber(
                     person.passportNumber().trim());
@@ -220,8 +221,12 @@ public class ClientQuotationSubmissionService {
 
         if (!receipt.valid()) {
             try {
+                // Send the secure direct Travel form link.
+                // Existing-client OTP verification remains unchanged.
                 quotationEmailService.sendMissingInformationEmail(
-                        receipt.clientEmail(),
+                        request.getClient(),
+                        request.getId(),
+                        request.getPolicyType(),
                         receipt.missingFields(),
                         receipt.invalidFields());
 
