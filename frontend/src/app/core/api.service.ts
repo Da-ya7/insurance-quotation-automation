@@ -270,6 +270,12 @@ export interface DashboardStats {
   quotationsTotal: number;
   quotationsSent: number;
   quotationsNotSent: number;
+
+  // New dashboard fields
+  pendingAcceptance: number;
+  quotationsAccepted: number;
+  quotationsRejected: number;
+
   openMissingFields: number;
   dailyRequests: { date: string; requests: number; quotations: number }[];
   requestsByGroup: { group: string; label: string; count: number }[];
@@ -778,7 +784,7 @@ export class ApiService {
 
   publicIdentityTypes(country: string): Observable<PublicIdentityType[]> {
     return this.http.get<PublicIdentityType[]>(
-      '/api/public/master/identity-types',
+      `/api/public/master/identity-types`,
       { params: params({ country }) }
     );
   }

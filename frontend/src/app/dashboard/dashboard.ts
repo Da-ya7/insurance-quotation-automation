@@ -1,3 +1,4 @@
+
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -119,7 +120,7 @@ export class Dashboard {
   private apply(s: DashboardStats): void {
     this.stats = s;
 
-    // Only four dashboard cards
+    // Seven dashboard cards
     this.cards = [
       {
         title: 'Incoming Emails',
@@ -151,6 +152,27 @@ export class Dashboard {
         note: `${s.quotationsNotSent} not sent yet`,
         link: '/quotations',
         query: { status: 'SENT' }
+      },
+      {
+        title: 'Pending Acceptance',
+        icon: '⏳',
+        value: s.pendingAcceptance,
+        note: 'Waiting for client response',
+        link: '/quotations'
+      },
+      {
+        title: 'Accepted',
+        icon: '✅',
+        value: s.quotationsAccepted,
+        note: 'Accepted quotations',
+        link: '/quotations'
+      },
+      {
+        title: 'Rejected',
+        icon: '❌',
+        value: s.quotationsRejected,
+        note: 'Rejected quotations',
+        link: '/quotations'
       }
     ];
 
@@ -256,3 +278,4 @@ export class Dashboard {
     }
   }
 }
+

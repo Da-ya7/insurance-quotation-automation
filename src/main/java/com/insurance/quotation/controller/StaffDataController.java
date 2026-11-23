@@ -59,7 +59,7 @@ public class StaffDataController {
     private final QuotationRequestRepository requestRepository;
     private final ClientRepository clientRepository;
     private final MasterDataService masterData;
-
+    
     public StaffDataController(
             IncomingEmailRepository emailRepository,
             MissingFieldRepository missingFieldRepository,
@@ -76,9 +76,9 @@ public class StaffDataController {
         this.clientRepository = clientRepository;
         this.masterData = masterData;
     }
-
+    
     // ================= incoming emails =================
-
+    
     @GetMapping("/emails")
     @Transactional(readOnly = true)
     public List<Map<String, Object>> emails(
@@ -90,7 +90,7 @@ public class StaffDataController {
                 .filter(e -> blank(status) || status.equalsIgnoreCase(e.getProcessingStatus()))
                 .map(this::email).toList();
     }
-
+    
     @GetMapping("/emails/summary")
     @Transactional(readOnly = true)
     public Map<String, Object> emailSummary() {
@@ -106,7 +106,7 @@ public class StaffDataController {
         m.put("quotations", emailRepository.countEmailsWithQuotation());
         return m;
     }
-
+    
     // ================= missing information =================
 
     @GetMapping("/missing-information")
@@ -140,7 +140,7 @@ public class StaffDataController {
                 .filter(q -> blank(status) || status.equalsIgnoreCase(q.getStatus()))
                 .map(this::quotation).toList();
     }
-
+    
     @GetMapping("/quotations/summary")
     @Transactional(readOnly = true)
     public Map<String, Object> quotationSummary() {
@@ -151,7 +151,7 @@ public class StaffDataController {
         m.put("superseded", quotationRepository.countByStatus("SUPERSEDED"));
         return m;
     }
-
+    
     @GetMapping("/quotations/{id}")
     @Transactional(readOnly = true)
     public ResponseEntity<Map<String, Object>> quotation(@PathVariable Long id) {
@@ -167,7 +167,7 @@ public class StaffDataController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
-
+    
     /** Every version of the quotation for the same request, newest first. */
     @GetMapping("/quotations/{id}/history")
     @Transactional(readOnly = true)
@@ -192,7 +192,7 @@ public class StaffDataController {
         }
         return ResponseEntity.ok(out);
     }
-
+    
     @GetMapping("/quotations/{id}/pdf")
     public ResponseEntity<?> pdf(@PathVariable Long id) throws IOException {
         Quotation q = quotationRepository.findById(id).orElse(null);
@@ -339,7 +339,7 @@ public class StaffDataController {
                         .map(Quotation::getQuotationNumber).orElse(null));
         return m;
     }
-
+    
     private Map<String, Object> missing(MissingField f) {
         QuotationRequest r = f.getQuotationRequest();
         Client c = r.getClient();
