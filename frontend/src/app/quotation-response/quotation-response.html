@@ -1,0 +1,120 @@
+<div class="response-page">
+
+  <div class="response-card">
+
+    <div class="brand">
+      <div class="brand-icon">✦</div>
+      <span>INSURANCE QUOTATION</span>
+    </div>
+
+    <!-- ERROR -->
+    @if (error) {
+
+      <div class="error-icon">
+        !
+      </div>
+
+      <h1>Response Already Recorded</h1>
+
+      <p class="description error-message">
+        {{ error }}
+      </p>
+
+      <p class="footer-message">
+        If you believe this is an error, please contact our team.
+      </p>
+
+    }
+
+    <!-- LOADING -->
+    @else if (loading) {
+
+      <div class="loading-icon">
+        ↻
+      </div>
+
+      <h1>Processing Your Response</h1>
+
+      <p class="description">
+        Please wait while we record your quotation response.
+      </p>
+
+    }
+
+    <!-- SUCCESS -->
+    @else if (completed) {
+
+      <div
+        class="success-icon"
+        [class.reject-success]="isReject">
+
+        {{ isAccept ? '✓' : '×' }}
+
+      </div>
+
+      <h1>
+        {{ isAccept ? 'Quotation Accepted!' : 'Quotation Rejected' }}
+      </h1>
+
+      <p class="description">
+        {{ resultMessage }}
+      </p>
+
+      <div class="status-box">
+
+        <span class="status-label">
+          Your response
+        </span>
+
+        <span
+          class="status-value"
+          [class.accepted]="isAccept"
+          [class.rejected]="isReject">
+
+          {{ isAccept ? 'Quotation Accepted' : 'Quotation Rejected' }}
+
+        </span>
+
+      </div>
+
+      <p class="footer-message">
+
+        @if (isAccept) {
+          Our team will contact you regarding the next steps.
+        }
+
+        @if (isReject) {
+          This quotation is now closed.
+        }
+
+      </p>
+
+      <p class="small-note">
+        You may safely close this page.
+      </p>
+
+    }
+
+    <!-- INVALID STATE -->
+    @else {
+
+      <div class="error-icon">
+        !
+      </div>
+
+      <h1>Unable to Process Response</h1>
+
+      <p class="description">
+        We could not process this quotation response.
+        Please contact our team.
+      </p>
+
+    }
+
+  </div>
+
+  <div class="page-footer">
+    Secure quotation response
+  </div>
+
+</div>

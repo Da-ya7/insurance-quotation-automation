@@ -39,7 +39,6 @@ export class Quotationrequest {
   readonly money = money;
   readonly shortDate = shortDate;
 
-  // Pagination: show 5 requests on each page.
   readonly pageSize = 5;
   currentPage = 0;
 
@@ -53,13 +52,17 @@ export class Quotationrequest {
 
   requests: RequestDto[] = [];
   summary: RequestSummary | null = null;
+
   statusOptions = new Map<string, string>();
+
   detail: RequestDetailDto | null = null;
   detailError = '';
 
   searchText = '';
   group = '';
   status = '';
+  responseFilter = '';
+
   selectedId: number | null = null;
 
   loading = true;
@@ -71,17 +74,25 @@ export class Quotationrequest {
       list: this.api.requests(this.status, this.group),
       summary: this.api.requestSummary(),
       detail: this.selectedId !== null
-        ? this.api.request(this.selectedId).pipe(catchError(err => {
-            this.detailError = errorMessage(err, 'Could not load request details.');
-            return of(null);
-          }))
+        ? this.api.request(this.selectedId).pipe(
+            catchError(err => {
+              this.detailError = errorMessage(
+                err,
+                'Could not load request details.'
+              );
+              return of(null);
+            })
+          )
         : of(null)
     }),
+
     ({ list, summary, detail }) => {
       this.requests = list;
       this.summary = summary;
 
-      list.forEach(r => this.statusOptions.set(r.status, r.statusLabel));
+      list.forEach(r => {
+        this.statusOptions.set(r.status, r.statusLabel);
+      });
 
       if (detail) {
         this.detail = detail;
@@ -92,8 +103,10 @@ export class Quotationrequest {
       this.loading = false;
       this.errorMessage = '';
       this.lastUpdated = new Date();
+
       this.cdr.markForCheck();
     },
+
     message => {
       this.errorMessage = message;
       this.loading = false;
@@ -102,38 +115,116 @@ export class Quotationrequest {
   );
 
   constructor() {
-    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => {
-      const g = params.get('group') ?? '';
-      const s = params.get('status') ?? '';
-      const idParam = params.get('id');
-      const id = idParam && /^\d+$/.test(idParam) ? Number(idParam) : null;
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed())
+      .subscribe(params => {
 
-      const changed = g !== this.group || s !== this.status || id !== this.selectedId;
+        const g = params.get('group') ?? '';
+        const s = params.get('status') ?? '';
+        const response = params.get('response') ?? '';
 
-      if (g !== this.group || s !== this.status) {
-        this.currentPage = 0;
-      }
+        const idParam = params.get('id');
 
-      if (id !== this.selectedId) {
-        this.detail = null;
-        this.detailError = '';
-      }
+        const id =
+          idParam && /^\d+$/.test(idParam)
+            ? Number(idParam)
+            : null;
 
-      this.group = g;
-      this.status = s;
-      this.selectedId = id;
+        const changed =
+          g !== this.group ||
+          s !== this.status ||
+          response !== this.responseFilter ||
+          id !== this.selectedId;
 
-      if (changed) {
-        this.poller.refresh();
-
-        if (id !== null) {
-          setTimeout(() => {
-            document.getElementById('request-detail')
-              ?.scrollIntoView({ behavior: 'smooth' });
-          }, 300);
+        if (
+          g !== this.group ||
+          s !== this.status ||
+          response !== this.responseFilter
+        ) {
+          this.currentPage = 0;
         }
-      }
-    });
+
+        if (id !== this.selectedId) {
+          this.detail = null;
+          this.detailError = '';
+        }
+
+        this.group = g;
+        this.status = s;
+        this.responseFilter = response;
+        this.selectedId = id;
+
+        if (changed) {
+          this.poller.refresh();
+
+          if (id !== null) {
+            setTimeout(() => {
+              document.getElementById('request-detail')
+                ?.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
+          }
+        }
+      });
+  }
+
+  /*
+   * CLIENT RESPONSE
+   *
+   * This reads responseStatus from the RequestDto.
+   * The backend must include this field in the request-list API.
+   */
+
+  getResponseStatus(request: RequestDto): string {
+    const responseStatus =
+      (request as RequestDto & {
+        responseStatus?: string;
+      }).responseStatus;
+
+    if (
+      responseStatus === 'ACCEPTED' ||
+      responseStatus === 'REJECTED'
+    ) {
+      return responseStatus;
+    }
+
+    return 'PENDING';
+  }
+
+  get acceptedCount(): number {
+    return this.requests.filter(
+      r => this.getResponseStatus(r) === 'ACCEPTED'
+    ).length;
+  }
+
+  get rejectedCount(): number {
+    return this.requests.filter(
+      r => this.getResponseStatus(r) === 'REJECTED'
+    ).length;
+  }
+
+  get pendingCount(): number {
+    return this.requests.filter(
+      r =>
+        r.quotationNumber &&
+        this.getResponseStatus(r) === 'PENDING'
+    ).length;
+  }
+
+  get totalRequestCount(): number {
+    return this.summary?.total ?? this.requests.length;
+  }
+
+  get responseLabel(): string {
+    switch (this.responseFilter) {
+      case 'ACCEPTED':
+        return 'Accepted';
+      case 'REJECTED':
+        return 'Rejected';
+      case 'PENDING':
+        return 'Pending';
+      default:
+        return 'All responses';
+    }
   }
 
   get statusList(): { value: string; label: string }[] {
@@ -144,24 +235,38 @@ export class Quotationrequest {
   get filteredRequests(): RequestDto[] {
     const search = this.searchText.trim().toLowerCase();
 
-    return this.requests.filter(r =>
-      !search ||
-      r.reference.toLowerCase().includes(search) ||
-      (r.clientName ?? '').toLowerCase().includes(search) ||
-      (r.clientCode ?? '').toLowerCase().includes(search) ||
-      (r.destination ?? '').toLowerCase().includes(search) ||
-      (r.insuranceType ?? '').toLowerCase().includes(search) ||
-      (r.clientEmail ?? '').toLowerCase().includes(search)
-    );
+    return this.requests.filter(r => {
+
+      const matchesSearch =
+        !search ||
+        r.reference.toLowerCase().includes(search) ||
+        (r.clientName ?? '').toLowerCase().includes(search) ||
+        (r.clientCode ?? '').toLowerCase().includes(search) ||
+        (r.destination ?? '').toLowerCase().includes(search) ||
+        (r.insuranceType ?? '').toLowerCase().includes(search) ||
+        (r.clientEmail ?? '').toLowerCase().includes(search);
+
+      const matchesResponse =
+        !this.responseFilter ||
+        this.getResponseStatus(r) === this.responseFilter;
+
+      return matchesSearch && matchesResponse;
+    });
   }
 
   get paginatedRequests(): RequestDto[] {
     const start = this.currentPage * this.pageSize;
-    return this.filteredRequests.slice(start, start + this.pageSize);
+
+    return this.filteredRequests.slice(
+      start,
+      start + this.pageSize
+    );
   }
 
   get totalPages(): number {
-    return Math.ceil(this.filteredRequests.length / this.pageSize);
+    return Math.ceil(
+      this.filteredRequests.length / this.pageSize
+    );
   }
 
   get showingFrom(): number {
@@ -208,7 +313,9 @@ export class Quotationrequest {
     }
   }
 
-  navigateQuery(params: Record<string, string | null>): void {
+  navigateQuery(
+    params: Record<string, string | null>
+  ): void {
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: params,
@@ -218,6 +325,7 @@ export class Quotationrequest {
 
   applyFilters(): void {
     this.currentPage = 0;
+
     this.navigateQuery({
       group: this.group || null,
       status: this.status || null
@@ -227,15 +335,42 @@ export class Quotationrequest {
   filterGroup(group: string): void {
     this.group = group;
     this.status = '';
-    this.applyFilters();
+    this.responseFilter = '';
+
+    this.currentPage = 0;
+
+    this.navigateQuery({
+      group: group || null,
+      status: null,
+      response: null
+    });
+  }
+
+  filterResponse(response: string): void {
+    this.responseFilter = response;
+
+    this.group = '';
+    this.status = '';
+
+    this.currentPage = 0;
+
+    this.navigateQuery({
+      group: null,
+      status: null,
+      response: response || null
+    });
   }
 
   select(r: RequestDto): void {
-    this.navigateQuery({ id: String(r.id) });
+    this.navigateQuery({
+      id: String(r.id)
+    });
   }
 
   closeDetail(): void {
-    this.navigateQuery({ id: null });
+    this.navigateQuery({
+      id: null
+    });
   }
 
   refresh(): void {
@@ -246,7 +381,12 @@ export class Quotationrequest {
   clearFilters(): void {
     this.searchText = '';
     this.currentPage = 0;
-    this.navigateQuery({ group: null, status: null });
+
+    this.navigateQuery({
+      group: null,
+      status: null,
+      response: null
+    });
   }
 
   goBack(): void {

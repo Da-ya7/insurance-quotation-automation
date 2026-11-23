@@ -20,6 +20,8 @@ import { MasterData } from './master-data/master-data';
 import { ClientMaster } from './master-data/client-master/client-master';
  
 import { authGuard } from './core/auth.guard';
+
+import { QuotationResponse } from './quotation-response/quotation-response';
  
 export const routes: Routes = [
  
@@ -50,7 +52,12 @@ export const routes: Routes = [
     path: 'form/:type',
     component: ClientForm
   },
- 
+
+  {
+    path: 'quotation-response/:token',
+    component: QuotationResponse
+  },
+  
   // Main Layout
   {
     path: '',

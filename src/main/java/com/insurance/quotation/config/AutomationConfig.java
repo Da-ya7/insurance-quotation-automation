@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.config;
 
 import java.nio.file.Files;
@@ -21,16 +22,18 @@ import com.insurance.quotation.service.ingestion.EmailIngestionService;
 /**
  * Chooses the email provider from the system configuration.
  *
- *   mailbox.mode=auto   (default)
- *       gmail  if credentials/credentials.json exists
- *       imap   else if mail.imap.host is set
- *       demo   otherwise (nothing real is read or sent)
- *   mailbox.mode=gmail | imap | demo   forces one provider.
+ * mailbox.mode=auto (default)
+ *     gmail if credentials/credentials.json exists
+ *     imap if mail.imap.host is set
+ *     demo otherwise
+ *
+ * mailbox.mode=gmail | imap | demo forces one provider.
  */
 @Configuration
 public class AutomationConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(AutomationConfig.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(AutomationConfig.class);
 
     /** Resolved provider name: gmail, imap or demo. */
     @Bean
@@ -38,24 +41,41 @@ public class AutomationConfig {
             @Value("${mailbox.mode:auto}") String mode,
             @Value("${mail.imap.host:}") String imapHost) {
 
-        String chosen = mode == null ? "auto" : mode.trim().toLowerCase();
+        String chosen =
+                mode == null ? "auto" : mode.trim().toLowerCase();
 
         if ("auto".equals(chosen)) {
-            if (Files.isRegularFile(Path.of("credentials", "credentials.json"))) {
+
+            if (Files.isRegularFile(
+                    Path.of("credentials", "credentials.json"))) {
+
                 chosen = "gmail";
+
             } else if (imapHost != null && !imapHost.isBlank()) {
+
                 chosen = "imap";
+
             } else {
+
                 chosen = "demo";
             }
-            log.info("mailbox.mode=auto -> using the '{}' provider", chosen);
+
+            log.info(
+                    "mailbox.mode=auto -> using the '{}' provider",
+                    chosen);
+
         } else {
-            log.info("mailbox.mode={} (forced)", chosen);
+
+            log.info(
+                    "mailbox.mode={} (forced)",
+                    chosen);
         }
+
         return new MailProvider(chosen);
     }
 
     public record MailProvider(String name) {
+
         public boolean isDemo() {
             return "demo".equals(name);
         }
@@ -65,35 +85,108 @@ public class AutomationConfig {
     private GmailMailboxClient gmailClient;
 
     private synchronized GmailMailboxClient gmail() {
+
         if (gmailClient == null) {
             gmailClient = new GmailMailboxClient();
         }
+
         return gmailClient;
     }
 
-    // The Gmail client can both read and send. Each bean exposes only ONE role
-    // so Spring never sees two candidates for the same type.
-    private record MailboxOnly(MailboxClient delegate) implements MailboxClient {
+    // The Gmail client can both read and send.
+    // Each bean exposes only ONE role so Spring never sees
+    // two candidates for the same type.
+    private record MailboxOnly(
+            MailboxClient delegate)
+            implements MailboxClient {
+
         @Override
-        public java.util.List<com.insurance.quotation.mailbox.EmailMessage> fetchUnreadEmails() {
+        public java.util.List<com.insurance.quotation.mailbox.EmailMessage>
+                fetchUnreadEmails() {
+
             return delegate.fetchUnreadEmails();
         }
 
         @Override
         public void markAsProcessed(String messageId) {
+
             delegate.markAsProcessed(messageId);
         }
     }
 
-    private record OutboundOnly(OutboundMailer delegate) implements OutboundMailer {
+    private record OutboundOnly(
+            OutboundMailer delegate)
+            implements OutboundMailer {
+
         @Override
-        public void sendPlain(String to, String subject, String body) {
-            delegate.sendPlain(to, subject, body);
+        public void sendPlain(
+                String to,
+                String subject,
+                String body) {
+
+            delegate.sendPlain(
+                    to,
+                    subject,
+                    body);
         }
 
         @Override
-        public void sendWithAttachment(String to, String subject, String body, String pdfPath) {
-            delegate.sendWithAttachment(to, subject, body, pdfPath);
+        public void sendWithAttachment(
+                String to,
+                String subject,
+                String body,
+                String pdfPath) {
+
+            delegate.sendWithAttachment(
+                    to,
+                    subject,
+                    body,
+                    pdfPath);
+        }
+
+        @Override
+        public void sendHtmlWithAttachment(
+                String to,
+                String subject,
+                String htmlBody,
+                String pdfPath) {
+
+            delegate.sendHtmlWithAttachment(
+                    to,
+                    subject,
+                    htmlBody,
+                    pdfPath);
+        }
+
+        @Override
+        public SendResult sendHtmlWithAttachmentAndThreadDetails(
+                String to,
+                String subject,
+                String htmlBody,
+                String pdfPath) {
+
+            return delegate.sendHtmlWithAttachmentAndThreadDetails(
+                    to,
+                    subject,
+                    htmlBody,
+                    pdfPath);
+        }
+
+        // Send a reply inside the original Gmail conversation.
+        @Override
+        public void sendReplyInThread(
+                String to,
+                String subject,
+                String body,
+                String threadId,
+                String originalMessageId) {
+
+            delegate.sendReplyInThread(
+                    to,
+                    subject,
+                    body,
+                    threadId,
+                    originalMessageId);
         }
     }
 
@@ -107,9 +200,20 @@ public class AutomationConfig {
             @Value("${mail.imap.ssl:true}") boolean ssl) {
 
         return switch (provider.name()) {
-            case "gmail" -> new MailboxOnly(gmail());
-            case "imap" -> new ImapMailboxClient(host, port, username, password, ssl);
-            default -> new DemoMailboxClient();
+
+            case "gmail" ->
+                    new MailboxOnly(gmail());
+
+            case "imap" ->
+                    new ImapMailboxClient(
+                            host,
+                            port,
+                            username,
+                            password,
+                            ssl);
+
+            default ->
+                    new DemoMailboxClient();
         };
     }
 
@@ -118,20 +222,36 @@ public class AutomationConfig {
             MailProvider provider,
             @Value("${mail.smtp.host:}") String host,
             @Value("${mail.smtp.port:587}") int port,
-            @Value("${mail.smtp.username:${mail.imap.username:}}") String username,
-            @Value("${mail.smtp.password:${mail.imap.password:}}") String password,
+            @Value("${mail.smtp.username:${mail.imap.username:}}")
+                    String username,
+            @Value("${mail.smtp.password:${mail.imap.password:}}")
+                    String password,
             @Value("${mail.from:}") String from,
             @Value("${mail.smtp.starttls:true}") boolean startTls) {
 
         return switch (provider.name()) {
-            case "gmail" -> new OutboundOnly(gmail());
-            case "imap" -> new SmtpOutboundMailer(host, port, username, password, from, startTls);
-            default -> new DemoOutboundMailer();
+
+            case "gmail" ->
+                    new OutboundOnly(gmail());
+
+            case "imap" ->
+                    new SmtpOutboundMailer(
+                            host,
+                            port,
+                            username,
+                            password,
+                            from,
+                            startTls);
+
+            default ->
+                    new DemoOutboundMailer();
         };
     }
 
     @Bean
-    public EmailIngestionService emailIngestionService(MailboxClient mailboxClient) {
+    public EmailIngestionService emailIngestionService(
+            MailboxClient mailboxClient) {
+
         return new EmailIngestionService(mailboxClient);
     }
 }

@@ -17,9 +17,11 @@ import com.google.api.services.gmail.model.Message;
 import com.google.api.services.gmail.model.MessagePart;
 import com.google.api.services.gmail.model.MessagePartHeader;
 import com.google.api.services.gmail.model.ModifyMessageRequest;
+
 import com.insurance.quotation.mailbox.EmailMessage;
 import com.insurance.quotation.mailbox.MailboxClient;
 import com.insurance.quotation.mailbox.MailboxException;
+import com.insurance.quotation.mailbox.OutboundMailer;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -36,7 +38,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class GmailMailboxClient implements MailboxClient, com.insurance.quotation.mailbox.OutboundMailer {
+public class GmailMailboxClient
+        implements MailboxClient, OutboundMailer {
 
     private static final GsonFactory JSON_FACTORY =
             GsonFactory.getDefaultInstance();
@@ -44,9 +47,8 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
     private static final String APPLICATION_NAME =
             "Insurance Quotation Automation";
 
-
     private static final String GMAIL_QUERY =
-        "in:inbox is:unread -in:spam -in:trash";
+            "in:inbox is:unread -in:spam -in:trash";
 
     private static final int MAX_EMAILS_PER_CHECK = 20;
 
@@ -58,9 +60,16 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
 
     private Gmail gmailService;
 
+
+    // ==========================================
+    // FETCH UNREAD EMAILS
+    // ==========================================
+
     @Override
     public List<EmailMessage> fetchUnreadEmails() {
+
         try {
+
             Gmail gmail = getGmailService();
 
             ListMessagesResponse response = gmail.users()
@@ -71,15 +80,19 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
                     .execute();
 
             List<Message> messages = response.getMessages();
+
             List<EmailMessage> emails = new ArrayList<>();
 
             if (messages == null || messages.isEmpty()) {
+
                 System.out.println(
                         "Gmail: no matching unread emails found.");
+
                 return emails;
             }
 
             for (Message reference : messages) {
+
                 Message message = gmail.users()
                         .messages()
                         .get("me", reference.getId())
@@ -93,8 +106,11 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
                 }
 
                 String sender = getHeader(payload, "From");
+
                 String subject = getHeader(payload, "Subject");
-                String inReplyTo = getHeader(payload, "In-Reply-To");
+
+                String inReplyTo =
+                        getHeader(payload, "In-Reply-To");
 
                 String body = extractPlainText(payload);
 
@@ -121,45 +137,65 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
             }
 
             System.out.println(
-                    "Gmail: fetched " + emails.size()
+                    "Gmail: fetched "
+                            + emails.size()
                             + " matching unread email(s).");
 
             return emails;
 
         } catch (Exception e) {
+
             throw new MailboxException(
                     "Failed to fetch emails from Gmail.", e);
         }
     }
 
+
+    // ==========================================
+    // MARK EMAIL AS PROCESSED
+    // ==========================================
+
     @Override
     public void markAsProcessed(String messageId) {
+
         try {
+
             if (messageId == null || messageId.isBlank()) {
+
                 throw new IllegalArgumentException(
                         "Gmail message ID cannot be empty.");
             }
 
-            getGmailService().users()
+            getGmailService()
+                    .users()
                     .messages()
                     .modify(
                             "me",
                             messageId,
                             new ModifyMessageRequest()
                                     .setRemoveLabelIds(
-                                            Collections.singletonList("UNREAD"))
+                                            Collections.singletonList(
+                                                    "UNREAD"))
                     )
                     .execute();
 
             System.out.println(
-                    "Gmail: marked message as read: " + messageId);
+                    "Gmail: marked message as read: "
+                            + messageId);
 
         } catch (Exception e) {
+
             throw new MailboxException(
                     "Failed to mark Gmail email as processed: "
-                            + messageId, e);
+                            + messageId,
+                    e);
         }
     }
+
+
+    // ==========================================
+    // SEND QUOTATION EMAIL
+    // ==========================================
 
     /**
      * Sends a quotation PDF to the client.
@@ -171,9 +207,11 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
             String pdfPath) {
 
         try {
+
             if (recipient == null
                     || !recipient.matches(
                     "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+
                 throw new IllegalArgumentException(
                         "Invalid recipient email address.");
             }
@@ -182,6 +220,7 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
                     || quotationNumber.isBlank()
                     || quotationNumber.contains("\r")
                     || quotationNumber.contains("\n")) {
+
                 throw new IllegalArgumentException(
                         "Invalid quotation number.");
             }
@@ -189,6 +228,7 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
             Path file = Path.of(pdfPath);
 
             if (!Files.isRegularFile(file)) {
+
                 throw new IllegalArgumentException(
                         "Quotation PDF not found: " + pdfPath);
             }
@@ -196,15 +236,19 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
             byte[] pdfBytes = Files.readAllBytes(file);
 
             String boundary =
-                    "QuotationBoundary" + System.currentTimeMillis();
+                    "QuotationBoundary"
+                            + System.currentTimeMillis();
 
             String subject =
-                    "Your Insurance Quotation - " + quotationNumber;
+                    "Your Insurance Quotation - "
+                            + quotationNumber;
 
-            String encodedSubject = "=?UTF-8?B?"
-                    + Base64.getEncoder().encodeToString(
-                            subject.getBytes(StandardCharsets.UTF_8))
-                    + "?=";
+            String encodedSubject =
+                    "=?UTF-8?B?"
+                            + Base64.getEncoder().encodeToString(
+                                    subject.getBytes(
+                                            StandardCharsets.UTF_8))
+                            + "?=";
 
             String fileName = file.getFileName()
                     .toString()
@@ -214,14 +258,17 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
 
             String attachment = Base64.getMimeEncoder(
                     76,
-                    "\r\n".getBytes(StandardCharsets.US_ASCII)
+                    "\r\n".getBytes(
+                            StandardCharsets.US_ASCII)
             ).encodeToString(pdfBytes);
 
             String body =
                     "Dear Client,\r\n\r\n"
                     + "Thank you for your interest in our insurance services.\r\n"
                     + "Please find your quotation attached to this email.\r\n\r\n"
-                    + "Quotation Number: " + quotationNumber + "\r\n\r\n"
+                    + "Quotation Number: "
+                    + quotationNumber
+                    + "\r\n\r\n"
                     + "Please review the attached quotation. "
                     + "If you have any questions, reply to this email.\r\n\r\n"
                     + "Regards,\r\n"
@@ -251,9 +298,11 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
             String raw = Base64.getUrlEncoder()
                     .withoutPadding()
                     .encodeToString(
-                            mime.getBytes(StandardCharsets.UTF_8));
+                            mime.getBytes(
+                                    StandardCharsets.UTF_8));
 
             Message outgoing = new Message();
+
             outgoing.setRaw(raw);
 
             Message sent = getGmailService()
@@ -267,11 +316,20 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
                             + sent.getId());
 
         } catch (Exception e) {
+
             throw new MailboxException(
                     "Failed to send quotation "
-                            + quotationNumber + " to " + recipient, e);
+                            + quotationNumber
+                            + " to "
+                            + recipient,
+                    e);
         }
     }
+
+
+    // ==========================================
+    // SEND MISSING INFORMATION EMAIL
+    // ==========================================
 
     public void sendMissingInformationEmail(
             String recipient,
@@ -279,9 +337,11 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
             List<String> invalidFields) {
 
         try {
+
             if (recipient == null
                     || !recipient.matches(
                     "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+
                 throw new IllegalArgumentException(
                         "Invalid recipient email address.");
             }
@@ -292,14 +352,22 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
             StringBuilder body = new StringBuilder();
 
             body.append("Dear Client,\r\n\r\n");
-            body.append("Thank you for your insurance quotation request.\r\n");
-            body.append("We need a few more details before we can prepare ");
+
+            body.append(
+                    "Thank you for your insurance quotation request.\r\n");
+
+            body.append(
+                    "We need a few more details before we can prepare ");
+
             body.append("your quotation.\r\n\r\n");
 
-            if (missingFields != null && !missingFields.isEmpty()) {
+            if (missingFields != null
+                    && !missingFields.isEmpty()) {
+
                 body.append("Missing information:\r\n");
 
                 for (String field : missingFields) {
+
                     body.append("- ")
                             .append(field)
                             .append("\r\n");
@@ -308,10 +376,14 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
                 body.append("\r\n");
             }
 
-            if (invalidFields != null && !invalidFields.isEmpty()) {
-                body.append("Please correct the following information:\r\n");
+            if (invalidFields != null
+                    && !invalidFields.isEmpty()) {
+
+                body.append(
+                        "Please correct the following information:\r\n");
 
                 for (String field : invalidFields) {
+
                     body.append("- ")
                             .append(field)
                             .append("\r\n");
@@ -320,16 +392,23 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
                 body.append("\r\n");
             }
 
-            body.append("Please reply to this email with the requested ");
+            body.append(
+                    "Please reply to this email with the requested ");
+
             body.append("information. Use the format Field Name: Value ");
+
             body.append("where possible.\r\n\r\n");
+
             body.append("Regards,\r\n");
+
             body.append("Insurance Quotation Team");
 
-            String encodedSubject = "=?UTF-8?B?"
-                    + Base64.getEncoder().encodeToString(
-                            subject.getBytes(StandardCharsets.UTF_8))
-                    + "?=";
+            String encodedSubject =
+                    "=?UTF-8?B?"
+                            + Base64.getEncoder().encodeToString(
+                                    subject.getBytes(
+                                            StandardCharsets.UTF_8))
+                            + "?=";
 
             String mime =
                     "To: " + recipient + "\r\n"
@@ -342,9 +421,11 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
             String raw = Base64.getUrlEncoder()
                     .withoutPadding()
                     .encodeToString(
-                            mime.getBytes(StandardCharsets.UTF_8));
+                            mime.getBytes(
+                                    StandardCharsets.UTF_8));
 
             Message outgoing = new Message();
+
             outgoing.setRaw(raw);
 
             Message sent = getGmailService()
@@ -354,43 +435,60 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
                     .execute();
 
             System.out.println(
-                    "Missing-information email accepted by Gmail. Message ID: "
+                    "Missing-information email accepted by Gmail. "
+                            + "Message ID: "
                             + sent.getId());
 
         } catch (Exception e) {
+
             throw new MailboxException(
                     "Failed to send missing-information email to "
-                            + recipient, e);
+                            + recipient,
+                    e);
         }
     }
 
-    public void sendFormLinkEmail(String recipient, String formUrl) {
+
+    // ==========================================
+    // SEND FORM LINK EMAIL
+    // ==========================================
+
+    public void sendFormLinkEmail(
+            String recipient,
+            String formUrl) {
 
         try {
+
             if (recipient == null
                     || !recipient.matches(
                     "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+
                 throw new IllegalArgumentException(
                         "Invalid recipient email address.");
             }
 
-            String subject = "How to request your insurance quotation";
+            String subject =
+                    "How to request your insurance quotation";
 
-            String body = "Dear Client,\r\n\r\n"
+            String body =
+                    "Dear Client,\r\n\r\n"
                     + "Thank you for contacting us. To prepare your travel "
                     + "insurance quotation we need a few details about you "
                     + "and your trip.\r\n\r\n"
                     + "Please fill in our quotation form:\r\n"
-                    + formUrl + "\r\n\r\n"
+                    + formUrl
+                    + "\r\n\r\n"
                     + "Your quotation will be emailed to you as soon as the "
                     + "form is submitted.\r\n\r\n"
                     + "Regards,\r\n"
                     + "Insurance Quotation Team";
 
-            String encodedSubject = "=?UTF-8?B?"
-                    + Base64.getEncoder().encodeToString(
-                            subject.getBytes(StandardCharsets.UTF_8))
-                    + "?=";
+            String encodedSubject =
+                    "=?UTF-8?B?"
+                            + Base64.getEncoder().encodeToString(
+                                    subject.getBytes(
+                                            StandardCharsets.UTF_8))
+                            + "?=";
 
             String mime =
                     "To: " + recipient + "\r\n"
@@ -403,9 +501,11 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
             String raw = Base64.getUrlEncoder()
                     .withoutPadding()
                     .encodeToString(
-                            mime.getBytes(StandardCharsets.UTF_8));
+                            mime.getBytes(
+                                    StandardCharsets.UTF_8));
 
             Message outgoing = new Message();
+
             outgoing.setRaw(raw);
 
             Message sent = getGmailService()
@@ -415,21 +515,33 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
                     .execute();
 
             System.out.println(
-                    "Form-link email accepted by Gmail. Message ID: "
+                    "Form-link email accepted by Gmail. "
+                            + "Message ID: "
                             + sent.getId());
 
         } catch (Exception e) {
+
             throw new MailboxException(
-                    "Failed to send form-link email to " + recipient, e);
+                    "Failed to send form-link email to "
+                            + recipient,
+                    e);
         }
     }
 
-    private synchronized Gmail getGmailService() throws Exception {
+
+    // ==========================================
+    // GMAIL AUTHENTICATION
+    // ==========================================
+
+    private synchronized Gmail getGmailService()
+            throws Exception {
+
         if (gmailService != null) {
             return gmailService;
         }
 
         if (!Files.exists(CREDENTIALS_PATH)) {
+
             throw new IllegalStateException(
                     "OAuth credentials not found at "
                             + CREDENTIALS_PATH.toAbsolutePath());
@@ -442,12 +554,14 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
 
         GoogleClientSecrets clientSecrets;
 
-        try (InputStreamReader reader = new InputStreamReader(
-                Files.newInputStream(CREDENTIALS_PATH),
-                StandardCharsets.UTF_8)) {
+        try (InputStreamReader reader =
+                     new InputStreamReader(
+                             Files.newInputStream(CREDENTIALS_PATH),
+                             StandardCharsets.UTF_8)) {
 
             clientSecrets = GoogleClientSecrets.load(
-                    JSON_FACTORY, reader);
+                    JSON_FACTORY,
+                    reader);
         }
 
         GoogleAuthorizationCodeFlow flow =
@@ -472,11 +586,15 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
                         .build();
 
         Credential credential =
-                new AuthorizationCodeInstalledApp(flow, receiver)
+                new AuthorizationCodeInstalledApp(
+                        flow,
+                        receiver)
                         .authorize("user");
 
         gmailService = new Gmail.Builder(
-                transport, JSON_FACTORY, credential)
+                transport,
+                JSON_FACTORY,
+                credential)
                 .setApplicationName(APPLICATION_NAME)
                 .build();
 
@@ -486,28 +604,44 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
         return gmailService;
     }
 
-    private String getHeader(
-            MessagePart payload, String headerName) {
 
-        if (payload.getHeaders() == null) {
+    // ==========================================
+    // EMAIL HEADER HELPERS
+    // ==========================================
+
+    private String getHeader(
+            MessagePart payload,
+            String headerName) {
+
+        if (payload == null
+                || payload.getHeaders() == null) {
+
             return "";
         }
 
         return payload.getHeaders()
                 .stream()
-                .filter(h -> headerName.equalsIgnoreCase(h.getName()))
+                .filter(h ->
+                        headerName.equalsIgnoreCase(
+                                h.getName()))
                 .map(MessagePartHeader::getValue)
                 .findFirst()
                 .orElse("");
     }
 
-    private String extractEmailAddress(String fromHeader) {
-        if (fromHeader == null || fromHeader.isBlank()) {
+
+    private String extractEmailAddress(
+            String fromHeader) {
+
+        if (fromHeader == null
+                || fromHeader.isBlank()) {
+
             return "";
         }
 
-        Matcher matcher = Pattern.compile("<([^<>]+)>")
-                .matcher(fromHeader);
+        Matcher matcher =
+                Pattern.compile("<([^<>]+)>")
+                        .matcher(fromHeader);
 
         if (matcher.find()) {
             return matcher.group(1).trim();
@@ -516,12 +650,21 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
         return fromHeader.trim();
     }
 
-    private String extractPlainText(MessagePart part) {
+
+    // ==========================================
+    // EMAIL BODY EXTRACTION
+    // ==========================================
+
+    private String extractPlainText(
+            MessagePart part) {
+
         if (part == null) {
             return "";
         }
 
-        if ("text/plain".equalsIgnoreCase(part.getMimeType())) {
+        if ("text/plain".equalsIgnoreCase(
+                part.getMimeType())) {
+
             String text = decodePart(part);
 
             if (!text.isBlank()) {
@@ -530,7 +673,9 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
         }
 
         if (part.getParts() != null) {
+
             for (MessagePart child : part.getParts()) {
+
                 String text = extractPlainText(child);
 
                 if (!text.isBlank()) {
@@ -542,16 +687,27 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
         return "";
     }
 
-    private String extractHtmlText(MessagePart part) {
+
+    private String extractHtmlText(
+            MessagePart part) {
+
         if (part == null) {
             return "";
         }
 
-        if ("text/html".equalsIgnoreCase(part.getMimeType())) {
+        if ("text/html".equalsIgnoreCase(
+                part.getMimeType())) {
+
             return decodePart(part)
-                    .replaceAll("(?i)<br\\s*/?>", "\n")
-                    .replaceAll("(?i)</p\\s*>", "\n")
-                    .replaceAll("<[^>]*>", " ")
+                    .replaceAll(
+                            "(?i)<br\\s*/?>",
+                            "\n")
+                    .replaceAll(
+                            "(?i)</p\\s*>",
+                            "\n")
+                    .replaceAll(
+                            "<[^>]*>",
+                            " ")
                     .replace("&nbsp;", " ")
                     .replace("&amp;", "&")
                     .replace("&lt;", "<")
@@ -559,7 +715,9 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
         }
 
         if (part.getParts() != null) {
+
             for (MessagePart child : part.getParts()) {
+
                 String text = extractHtmlText(child);
 
                 if (!text.isBlank()) {
@@ -571,83 +729,448 @@ public class GmailMailboxClient implements MailboxClient, com.insurance.quotatio
         return "";
     }
 
-    private String decodePart(MessagePart part) {
+
+    private String decodePart(
+            MessagePart part) {
+
         if (part.getBody() == null
                 || part.getBody().getData() == null) {
+
             return "";
         }
 
         byte[] decoded = Base64.getUrlDecoder()
                 .decode(part.getBody().getData());
 
-        return new String(decoded, StandardCharsets.UTF_8);
+        return new String(
+                decoded,
+                StandardCharsets.UTF_8);
     }
 
-    // ---------- generic sending used by OutboundMailer ----------
+
+    // ==========================================
+    // OUTBOUND MAILER METHODS
+    // ==========================================
 
     @Override
-    public void sendPlain(String to, String subject, String body) {
-        sendRaw(to, subject, body, null);
+    public void sendPlain(
+            String to,
+            String subject,
+            String body) {
+
+        sendRaw(
+                to,
+                subject,
+                body,
+                null,
+                false);
     }
+
 
     @Override
-    public void sendWithAttachment(String to, String subject, String body, String pdfPath) {
-        sendRaw(to, subject, body, pdfPath);
+    public void sendWithAttachment(
+            String to,
+            String subject,
+            String body,
+            String pdfPath) {
+
+        sendRaw(
+                to,
+                subject,
+                body,
+                pdfPath,
+                false);
     }
 
-    private void sendRaw(String to, String subject, String body, String pdfPath) {
+
+    @Override
+    public void sendHtmlWithAttachment(
+            String to,
+            String subject,
+            String htmlBody,
+            String pdfPath) {
+
+        sendRaw(
+                to,
+                subject,
+                htmlBody,
+                pdfPath,
+                true);
+    }
+
+
+    /**
+     * Sends the quotation email and returns Gmail thread details.
+     */
+    @Override
+    public OutboundMailer.SendResult
+    sendHtmlWithAttachmentAndThreadDetails(
+            String to,
+            String subject,
+            String htmlBody,
+            String pdfPath) {
+
+        return sendRaw(
+                to,
+                subject,
+                htmlBody,
+                pdfPath,
+                true);
+    }
+
+
+    // ==========================================
+    // SEND REPLY IN ORIGINAL GMAIL THREAD
+    // ==========================================
+
+    /**
+     * Sends an email reply inside the original quotation conversation.
+     *
+     * Uses:
+     * - Gmail thread ID
+     * - Original RFC Message-ID
+     * - In-Reply-To header
+     * - References header
+     *
+     * This prevents acceptance/rejection confirmations from being
+     * sent as separate email conversations.
+     */
+    @Override
+    public void sendReplyInThread(
+            String to,
+            String subject,
+            String body,
+            String threadId,
+            String originalMessageId) {
+
         try {
-            if (to == null || !to.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
-                throw new IllegalArgumentException("Invalid recipient email address.");
+
+            // Validate recipient
+
+            if (to == null
+                    || !to.matches(
+                    "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+
+                throw new IllegalArgumentException(
+                        "Invalid recipient email address.");
             }
-            if (subject.contains("\r") || subject.contains("\n")) {
-                throw new IllegalArgumentException("Invalid subject.");
+
+
+            // Validate Gmail thread ID
+
+            if (threadId == null
+                    || threadId.isBlank()) {
+
+                throw new IllegalArgumentException(
+                        "Original Gmail thread ID is missing.");
             }
-            String encodedSubject = "=?UTF-8?B?"
-                    + Base64.getEncoder().encodeToString(subject.getBytes(StandardCharsets.UTF_8))
-                    + "?=";
-            String crlfBody = body.replace("\r\n", "\n").replace("\n", "\r\n");
+
+
+            // Validate original RFC Message-ID
+
+            if (originalMessageId == null
+                    || originalMessageId.isBlank()) {
+
+                throw new IllegalArgumentException(
+                        "Original email Message-ID is missing.");
+            }
+
+
+            // Validate subject
+
+            if (subject == null
+                    || subject.isBlank()
+                    || subject.contains("\r")
+                    || subject.contains("\n")) {
+
+                throw new IllegalArgumentException(
+                        "Invalid email subject.");
+            }
+
+
+            // Validate body
+
+            if (body == null) {
+                body = "";
+            }
+
+
+            // Encode subject for UTF-8
+
+            String encodedSubject =
+                    "=?UTF-8?B?"
+                            + Base64.getEncoder().encodeToString(
+                                    subject.getBytes(
+                                            StandardCharsets.UTF_8))
+                            + "?=";
+
+
+            // Build reply MIME message
+
+            String mime =
+                    "To: " + to + "\r\n"
+                    + "Subject: " + encodedSubject + "\r\n"
+                    + "In-Reply-To: " + originalMessageId + "\r\n"
+                    + "References: " + originalMessageId + "\r\n"
+                    + "MIME-Version: 1.0\r\n"
+                    + "Content-Type: text/plain; charset=UTF-8\r\n"
+                    + "Content-Transfer-Encoding: 8bit\r\n\r\n"
+                    + body.replace("\r\n", "\n")
+                         .replace("\n", "\r\n");
+
+
+            // Encode MIME message for Gmail API
+
+            String raw = Base64.getUrlEncoder()
+                    .withoutPadding()
+                    .encodeToString(
+                            mime.getBytes(
+                                    StandardCharsets.UTF_8));
+
+
+            // Create Gmail message
+
+            Message outgoing = new Message();
+
+            outgoing.setRaw(raw);
+
+
+            // IMPORTANT:
+            // Associate the reply with the original Gmail thread.
+
+            outgoing.setThreadId(threadId);
+
+
+            // Send reply through Gmail
+
+            Message sent = getGmailService()
+                    .users()
+                    .messages()
+                    .send("me", outgoing)
+                    .execute();
+
+
+            // Log successful send
+
+            System.out.println(
+                    "Gmail threaded reply sent successfully."
+                            + " Message ID: "
+                            + sent.getId()
+                            + " Thread ID: "
+                            + sent.getThreadId());
+
+        } catch (Exception e) {
+
+            throw new MailboxException(
+                    "Failed to send threaded reply to "
+                            + to
+                            + ": "
+                            + e.getMessage(),
+                    e);
+        }
+    }
+
+
+    // ==========================================
+    // GENERIC EMAIL SENDING
+    // ==========================================
+
+    private OutboundMailer.SendResult sendRaw(
+            String to,
+            String subject,
+            String body,
+            String pdfPath,
+            boolean html) {
+
+        try {
+
+            if (to == null
+                    || !to.matches(
+                    "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+
+                throw new IllegalArgumentException(
+                        "Invalid recipient email address.");
+            }
+
+            if (subject == null
+                    || subject.contains("\r")
+                    || subject.contains("\n")) {
+
+                throw new IllegalArgumentException(
+                        "Invalid subject.");
+            }
+
+            if (body == null) {
+                body = "";
+            }
+
+            String encodedSubject =
+                    "=?UTF-8?B?"
+                            + Base64.getEncoder().encodeToString(
+                                    subject.getBytes(
+                                            StandardCharsets.UTF_8))
+                            + "?=";
+
+            String contentType =
+                    html
+                            ? "text/html; charset=UTF-8"
+                            : "text/plain; charset=UTF-8";
+
+            String emailBody = html
+                    ? body
+                    : body.replace("\r\n", "\n")
+                          .replace("\n", "\r\n");
 
             String mime;
-            if (pdfPath == null) {
-                mime = "To: " + to + "\r\n"
+
+            // ==========================================
+            // EMAIL WITHOUT ATTACHMENT
+            // ==========================================
+
+            if (pdfPath == null
+                    || pdfPath.isBlank()) {
+
+                mime =
+                        "To: " + to + "\r\n"
                         + "Subject: " + encodedSubject + "\r\n"
                         + "MIME-Version: 1.0\r\n"
-                        + "Content-Type: text/plain; charset=UTF-8\r\n"
+                        + "Content-Type: " + contentType + "\r\n"
                         + "Content-Transfer-Encoding: 8bit\r\n\r\n"
-                        + crlfBody;
+                        + emailBody;
+
             } else {
+
+                // ==========================================
+                // EMAIL WITH PDF ATTACHMENT
+                // ==========================================
+
                 Path file = Path.of(pdfPath);
+
                 if (!Files.isRegularFile(file)) {
-                    throw new IllegalArgumentException("Quotation PDF not found: " + pdfPath);
+
+                    throw new IllegalArgumentException(
+                            "Quotation PDF not found: "
+                                    + pdfPath);
                 }
-                String boundary = "IqasBoundary" + System.currentTimeMillis();
-                String fileName = file.getFileName().toString()
-                        .replace("\"", "_").replace("\r", "_").replace("\n", "_");
-                String attachment = Base64.getMimeEncoder(76, "\r\n".getBytes(StandardCharsets.US_ASCII))
-                        .encodeToString(Files.readAllBytes(file));
-                mime = "To: " + to + "\r\n"
+
+                String boundary =
+                        "IqasBoundary"
+                                + System.currentTimeMillis();
+
+                String fileName =
+                        file.getFileName()
+                                .toString()
+                                .replace("\"", "_")
+                                .replace("\r", "_")
+                                .replace("\n", "_");
+
+                String attachment =
+                        Base64.getMimeEncoder(
+                                76,
+                                "\r\n".getBytes(
+                                        StandardCharsets.US_ASCII))
+                                .encodeToString(
+                                        Files.readAllBytes(file));
+
+                mime =
+                        "To: " + to + "\r\n"
                         + "Subject: " + encodedSubject + "\r\n"
                         + "MIME-Version: 1.0\r\n"
-                        + "Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n\r\n"
+                        + "Content-Type: multipart/mixed; boundary=\""
+                        + boundary + "\"\r\n\r\n"
+
+                        // Email body
                         + "--" + boundary + "\r\n"
-                        + "Content-Type: text/plain; charset=UTF-8\r\n"
+                        + "Content-Type: " + contentType + "\r\n"
                         + "Content-Transfer-Encoding: 8bit\r\n\r\n"
-                        + crlfBody + "\r\n\r\n"
+                        + emailBody + "\r\n\r\n"
+
+                        // PDF attachment
                         + "--" + boundary + "\r\n"
-                        + "Content-Type: application/pdf; name=\"" + fileName + "\"\r\n"
-                        + "Content-Disposition: attachment; filename=\"" + fileName + "\"\r\n"
+                        + "Content-Type: application/pdf; name=\""
+                        + fileName + "\"\r\n"
+                        + "Content-Disposition: attachment; filename=\""
+                        + fileName + "\"\r\n"
                         + "Content-Transfer-Encoding: base64\r\n\r\n"
                         + attachment + "\r\n"
+
+                        // End MIME message
                         + "--" + boundary + "--";
             }
 
+
+            // ==========================================
+            // SEND THROUGH GMAIL API
+            // ==========================================
+
             Message outgoing = new Message();
-            outgoing.setRaw(Base64.getUrlEncoder().withoutPadding()
-                    .encodeToString(mime.getBytes(StandardCharsets.UTF_8)));
-            getGmailService().users().messages().send("me", outgoing).execute();
+
+            outgoing.setRaw(
+                    Base64.getUrlEncoder()
+                            .withoutPadding()
+                            .encodeToString(
+                                    mime.getBytes(
+                                            StandardCharsets.UTF_8)));
+
+            Message sent = getGmailService()
+                    .users()
+                    .messages()
+                    .send("me", outgoing)
+                    .execute();
+
+
+            // ==========================================
+            // GET ORIGINAL RFC MESSAGE-ID
+            // ==========================================
+
+            Message sentDetails = getGmailService()
+                    .users()
+                    .messages()
+                    .get("me", sent.getId())
+                    .setFormat("metadata")
+                    .setMetadataHeaders(
+                            Collections.singletonList(
+                                    "Message-ID"))
+                    .execute();
+
+            String originalMessageId =
+                    getHeader(
+                            sentDetails.getPayload(),
+                            "Message-ID");
+
+            String threadId = sent.getThreadId();
+
+
+            // ==========================================
+            // LOG EMAIL DETAILS
+            // ==========================================
+
+            System.out.println(
+                    "Gmail email sent successfully."
+                            + " Gmail Message ID: "
+                            + sent.getId()
+                            + " Thread ID: "
+                            + threadId
+                            + " RFC Message-ID: "
+                            + originalMessageId);
+
+
+            // ==========================================
+            // RETURN THREAD INFORMATION
+            // ==========================================
+
+            return new OutboundMailer.SendResult(
+                    threadId,
+                    originalMessageId);
+
         } catch (Exception e) {
-            throw new MailboxException("Failed to send email to " + to + ": " + e.getMessage(), e);
+
+            throw new MailboxException(
+                    "Failed to send email to "
+                            + to
+                            + ": "
+                            + e.getMessage(),
+                    e);
         }
     }
 }

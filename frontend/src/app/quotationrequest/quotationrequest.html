@@ -1,9 +1,10 @@
-
 <div class="quotation-request-page">
 
   <!-- TOP HEADER -->
   <div class="page-header">
+
     <div class="header-left">
+
       <button
         type="button"
         class="back-arrow-btn"
@@ -14,225 +15,504 @@
       </button>
 
       <div class="header-content">
+
         <h1>Quotation Requests</h1>
+
         <p>
           Manage incoming insurance quotation requests
-          <span *ngIf="lastUpdated"> · updated {{ lastUpdated | date:'mediumTime' }}</span>
+
+          <span *ngIf="lastUpdated">
+            · updated {{ lastUpdated | date:'mediumTime' }}
+          </span>
         </p>
+
       </div>
+
     </div>
+
   </div>
 
-  <p class="x-banner x-error" *ngIf="errorMessage">{{ errorMessage }}</p>
+  <p class="x-banner x-error" *ngIf="errorMessage">
+    {{ errorMessage }}
+  </p>
 
-  <!-- SUMMARY CARDS: FOUR ONLY -->
+
+  <!-- SUMMARY CARDS -->
+
   <div class="summary-cards" *ngIf="summary">
 
-    <div class="summary-card clickable" (click)="filterGroup('')">
-      <div class="card-icon total-icon">▣</div>
+    <!-- TOTAL REQUESTS -->
+
+    <div
+      class="summary-card clickable"
+      [class.active]="responseFilter === ''"
+      (click)="filterResponse('')">
+
+      <div class="card-icon total-icon">
+        ▣
+      </div>
+
       <div class="card-info">
+
         <span>Total Requests</span>
-        <strong>{{ summary.total }}</strong>
-        <small>All quotation requests</small>
+
+        <strong>
+          {{ totalRequestCount }}
+        </strong>
+
+        <small>
+          All quotation requests
+        </small>
+
       </div>
+
     </div>
 
-    <div class="summary-card clickable" (click)="filterGroup('PROCESSING')">
-      <div class="card-icon processing-icon">◷</div>
-      <div class="card-info">
-        <span>Processing</span>
-        <strong>{{ summary.processing }}</strong>
-        <small>Currently processing</small>
+
+    <!-- ACCEPTED -->
+
+    <div
+      class="summary-card clickable"
+      [class.active]="responseFilter === 'ACCEPTED'"
+      (click)="filterResponse('ACCEPTED')">
+
+      <div class="card-icon accepted-icon">
+        ✓
       </div>
+
+      <div class="card-info">
+
+        <span>Accepted</span>
+
+        <strong>
+          {{ acceptedCount }}
+        </strong>
+
+        <small>
+          Accepted by clients
+        </small>
+
+      </div>
+
     </div>
 
-    <div class="summary-card clickable" (click)="filterGroup('MISSING_DETAILS')">
-      <div class="card-icon missing-icon">!</div>
-      <div class="card-info">
-        <span>Missing Details</span>
-        <strong>{{ summary.missingDetails }}</strong>
-        <small>Awaiting client information</small>
+
+    <!-- REJECTED -->
+
+    <div
+      class="summary-card clickable"
+      [class.active]="responseFilter === 'REJECTED'"
+      (click)="filterResponse('REJECTED')">
+
+      <div class="card-icon rejected-icon">
+        ×
       </div>
+
+      <div class="card-info">
+
+        <span>Rejected</span>
+
+        <strong>
+          {{ rejectedCount }}
+        </strong>
+
+        <small>
+          Rejected by clients
+        </small>
+
+      </div>
+
     </div>
 
-    <div class="summary-card clickable" (click)="filterGroup('COMPLETED')">
-      <div class="card-icon generated-icon">✓</div>
-      <div class="card-info">
-        <span>Quotation Sent</span>
-        <strong>{{ summary.sent }}</strong>
-        <small>Quotations completed</small>
+
+    <!-- PENDING -->
+
+    <div
+      class="summary-card clickable"
+      [class.active]="responseFilter === 'PENDING'"
+      (click)="filterResponse('PENDING')">
+
+      <div class="card-icon pending-icon">
+        ◷
       </div>
+
+      <div class="card-info">
+
+        <span>Pending</span>
+
+        <strong>
+          {{ pendingCount }}
+        </strong>
+
+        <small>
+          Awaiting client response
+        </small>
+
+      </div>
+
     </div>
 
   </div>
 
+
   <!-- MAIN REQUEST SECTION -->
+
   <div class="request-container">
 
     <div class="section-header">
+
       <div>
+
         <h2>Quotation Request List</h2>
-        <p>Track and manage insurance quotation requests</p>
+
+        <p>
+          Track and manage insurance quotation requests
+
+          <span *ngIf="responseFilter">
+            · {{ responseLabel }}
+          </span>
+
+        </p>
+
       </div>
 
-      <button type="button" class="refresh-btn" (click)="refresh()">
+      <button
+        type="button"
+        class="refresh-btn"
+        (click)="refresh()">
+
         ↻ Refresh
+
       </button>
+
     </div>
 
+
     <!-- SEARCH AND FILTERS -->
+
     <div class="toolbar">
 
       <div class="search-box">
+
         <span>⌕</span>
+
         <input
           type="text"
           placeholder="Search by request, client, insurance type or destination..."
           [(ngModel)]="searchText"
           (ngModelChange)="onSearchChange()"
           [ngModelOptions]="{standalone: true}" />
+
       </div>
 
+
       <div class="filter-box">
+
         <select
           [(ngModel)]="group"
           (ngModelChange)="applyFilters()"
           [ngModelOptions]="{standalone: true}"
           aria-label="Filter by group">
 
-          <option *ngFor="let g of groups" [value]="g.value">
+          <option
+            *ngFor="let g of groups"
+            [value]="g.value">
+
             {{ g.label }}
+
           </option>
+
         </select>
+
       </div>
 
+
       <div class="filter-box">
+
         <select
           [(ngModel)]="status"
           (ngModelChange)="applyFilters()"
           [ngModelOptions]="{standalone: true}"
           aria-label="Filter by status">
 
-          <option value="">All statuses</option>
-          <option *ngFor="let s of statusList" [value]="s.value">
-            {{ s.label }}
+          <option value="">
+            All statuses
           </option>
+
+          <option
+            *ngFor="let s of statusList"
+            [value]="s.value">
+
+            {{ s.label }}
+
+          </option>
+
         </select>
+
       </div>
 
-      <button type="button" class="x-btn" (click)="clearFilters()">
+
+      <button
+        type="button"
+        class="x-btn"
+        (click)="clearFilters()">
+
         Clear
+
       </button>
 
     </div>
 
+
     <!-- REQUEST TABLE -->
+
     <div class="table-wrapper">
 
       <table>
+
         <thead>
+
           <tr>
+
             <th>REQUEST ID</th>
+
             <th>CLIENT</th>
+
             <th>INSURANCE TYPE</th>
+
             <th>STATUS</th>
+
+            <th>CLIENT RESPONSE</th>
+
             <th>ACTION</th>
+
           </tr>
+
         </thead>
+
 
         <tbody>
 
-          <!-- SHOW ONLY FIVE REQUESTS -->
+
+          <!-- REQUEST ROWS -->
+
           <tr
             *ngFor="let request of paginatedRequests"
             [class.x-row-selected]="request.id === selectedId">
 
-            <td>
-              <span class="request-id">{{ request.reference }}</span>
-              <small class="sub" *ngIf="request.quotationNumber">
-                {{ request.quotationNumber }}
-              </small>
-            </td>
+
+            <!-- REQUEST ID -->
 
             <td>
+
+              <span class="request-id">
+                {{ request.reference }}
+              </span>
+
+              <small
+                class="sub"
+                *ngIf="request.quotationNumber">
+
+                {{ request.quotationNumber }}
+
+              </small>
+
+            </td>
+
+
+            <!-- CLIENT -->
+
+            <td>
+
               <div class="client-cell">
+
                 <div
                   class="client-avatar"
                   [ngClass]="avatarColor(request.clientId)">
+
                   {{ initials(request.clientName, request.clientEmail) }}
+
                 </div>
+
 
                 <div class="client-details">
+
                   <strong>
-                    {{ request.clientCode }} · {{ request.clientName || 'Name not provided' }}
+
+                    {{ request.clientCode }}
+                    ·
+                    {{ request.clientName || 'Name not provided' }}
+
                   </strong>
-                  <span>{{ request.clientEmail }}</span>
+
+                  <span>
+                    {{ request.clientEmail }}
+                  </span>
+
                 </div>
+
               </div>
+
             </td>
 
+
+            <!-- INSURANCE TYPE -->
+
             <td>
+
               {{ request.insuranceType || '-' }}
-              <small class="sub" *ngIf="request.destination">
+
+              <small
+                class="sub"
+                *ngIf="request.destination">
+
                 {{ request.destination }}
+
               </small>
+
             </td>
 
+
+            <!-- REQUEST STATUS -->
+
             <td>
-              <span class="x-badge" [ngClass]="groupClass(request.statusGroup)">
+
+              <span
+                class="x-badge"
+                [ngClass]="groupClass(request.statusGroup)">
+
                 {{ request.statusLabel || groupLabel(request.statusGroup) }}
+
               </span>
 
+
               <div
-                *ngIf="request.statusGroup === 'MISSING_DETAILS' && request.missingFields?.length"
+                *ngIf="
+                  request.statusGroup === 'MISSING_DETAILS'
+                  && request.missingFields?.length
+                "
                 class="missing-list">
 
-                <span class="x-chip" *ngFor="let f of request.missingFields">
+                <span
+                  class="x-chip"
+                  *ngFor="let f of request.missingFields">
+
                   {{ f }}
+
                 </span>
+
               </div>
+
             </td>
 
+
+            <!-- CLIENT RESPONSE -->
+
             <td>
+
+              <span
+                class="response-badge"
+                [ngClass]="getResponseStatus(request)">
+
+                <span class="response-dot"></span>
+
+                {{
+                  getResponseStatus(request) === 'ACCEPTED'
+                    ? 'Accepted'
+                    : getResponseStatus(request) === 'REJECTED'
+                      ? 'Rejected'
+                      : request.quotationNumber
+                        ? 'Pending'
+                        : 'Not sent'
+                }}
+
+              </span>
+
+            </td>
+
+
+            <!-- ACTION -->
+
+            <td>
+
               <button
                 type="button"
                 class="view-btn"
                 (click)="select(request)">
+
                 View
+
               </button>
+
             </td>
 
           </tr>
+
+
+          <!-- LOADING -->
 
           <tr *ngIf="loading && requests.length === 0">
-            <td colspan="5" class="empty-state">
+
+            <td colspan="6" class="empty-state">
+
               Loading requests...
+
             </td>
+
           </tr>
 
+
+          <!-- EMPTY -->
+
           <tr *ngIf="!loading && filteredRequests.length === 0">
-            <td colspan="5" class="empty-state">
-              <span class="empty-icon">⌕</span>
-              <strong>No quotation requests found</strong>
-              <p>Try another search term or filter.</p>
+
+            <td colspan="6" class="empty-state">
+
+              <span class="empty-icon">
+                ⌕
+              </span>
+
+              <strong>
+                No quotation requests found
+              </strong>
+
+              <p>
+                Try another search term or filter.
+              </p>
+
             </td>
+
           </tr>
 
         </tbody>
+
       </table>
 
     </div>
 
+
     <!-- PAGINATION -->
+
     <div class="table-footer">
 
       <span>
+
         Showing
-        <strong>{{ showingFrom }}–{{ showingTo }}</strong>
+
+        <strong>
+          {{ showingFrom }}–{{ showingTo }}
+        </strong>
+
         of
-        <strong>{{ filteredRequests.length }}</strong>
+
+        <strong>
+          {{ filteredRequests.length }}
+        </strong>
+
         requests
+
       </span>
+
 
       <div class="pagination">
 
@@ -240,14 +520,19 @@
           type="button"
           (click)="previousPage()"
           [disabled]="currentPage === 0">
+
           Previous
+
         </button>
+
 
         <button
           type="button"
           (click)="nextPage()"
           [disabled]="currentPage + 1 >= totalPages">
+
           Next
+
         </button>
 
       </div>
@@ -256,218 +541,633 @@
 
   </div>
 
+
   <!-- REQUEST DETAILS PANEL -->
+
   <div
     class="x-panel detail-panel"
     id="request-detail"
     *ngIf="selectedId !== null">
 
+
+    <!-- DETAIL HEADER -->
+
     <div class="detail-head">
-      <h3>Request details {{ detail?.reference }}</h3>
-      <button type="button" class="x-btn x-sm" (click)="closeDetail()">
+
+      <h3>
+        Request details {{ detail?.reference }}
+      </h3>
+
+      <button
+        type="button"
+        class="x-btn x-sm"
+        (click)="closeDetail()">
+
         Close
+
       </button>
+
     </div>
 
+
     <p class="x-banner x-error" *ngIf="detailError">
+
       {{ detailError }}
+
     </p>
 
-    <p class="x-muted" *ngIf="!detail && !detailError">
+
+    <p
+      class="x-muted"
+      *ngIf="!detail && !detailError">
+
       Loading details...
+
     </p>
+
 
     <ng-container *ngIf="detail as d">
 
-      <span class="x-badge" [ngClass]="groupClass(d.statusGroup)">
+
+      <!-- REQUEST STATUS -->
+
+      <span
+        class="x-badge"
+        [ngClass]="groupClass(d.statusGroup)">
+
         {{ d.statusLabel }}
+
       </span>
 
+
+      <!-- CLIENT -->
+
       <h4>Client</h4>
+
       <dl class="x-kv">
+
         <dt>Client</dt>
-        <dd>{{ d.clientCode }} · {{ d.clientName || 'Name not provided' }}</dd>
+
+        <dd>
+          {{ d.clientCode }}
+          ·
+          {{ d.clientName || 'Name not provided' }}
+        </dd>
+
 
         <dt>Email</dt>
-        <dd>{{ d.clientEmail }}</dd>
+
+        <dd>
+          {{ d.clientEmail }}
+        </dd>
+
 
         <dt>Phone</dt>
-        <dd>{{ d.clientPhone || '-' }}</dd>
+
+        <dd>
+          {{ d.clientPhone || '-' }}
+        </dd>
+
       </dl>
+
+
+      <!-- REQUEST -->
 
       <h4>Request</h4>
+
       <dl class="x-kv">
+
+
         <dt>Insurance type</dt>
-        <dd>{{ d.insuranceType || '-' }}</dd>
+
+        <dd>
+          {{ d.insuranceType || '-' }}
+        </dd>
+
 
         <dt>Policy type</dt>
-        <dd>{{ d.policyType || '-' }}</dd>
+
+        <dd>
+          {{ d.policyType || '-' }}
+        </dd>
+
 
         <ng-container *ngIf="d.destination || d.origin">
+
+
           <dt>Route</dt>
-          <dd>{{ d.origin || '-' }} → {{ d.destination || '-' }}</dd>
+
+          <dd>
+            {{ d.origin || '-' }}
+            →
+            {{ d.destination || '-' }}
+          </dd>
+
 
           <dt>Travel dates</dt>
-          <dd>{{ d.travelStartDate || '-' }} to {{ d.travelEndDate || '-' }}</dd>
+
+          <dd>
+            {{ d.travelStartDate || '-' }}
+            to
+            {{ d.travelEndDate || '-' }}
+          </dd>
+
 
           <dt>Purpose</dt>
-          <dd>{{ d.purposeOfTravel || '-' }}</dd>
+
+          <dd>
+            {{ d.purposeOfTravel || '-' }}
+          </dd>
+
 
           <dt>Travellers</dt>
-          <dd>{{ d.travellers ?? '-' }}</dd>
+
+          <dd>
+            {{ d.travellers ?? '-' }}
+          </dd>
+
         </ng-container>
 
+
         <dt>Created</dt>
-        <dd>{{ shortDate(d.createdAt) }}</dd>
+
+        <dd>
+          {{ shortDate(d.createdAt) }}
+        </dd>
+
 
         <dt>Quotation</dt>
+
         <dd>
+
           {{ d.quotationNumber || '-' }}
+
           <ng-container *ngIf="d.totalAmount !== null">
+
             · {{ money(d.totalAmount) }}
+
           </ng-container>
+
         </dd>
+
       </dl>
 
+
+      <!-- SUBMITTED FIELDS -->
+
       <ng-container *ngIf="fieldEntries.length">
+
         <h4>Submitted fields</h4>
+
         <dl class="x-kv">
+
           <ng-container *ngFor="let f of fieldEntries">
-            <dt>{{ f.key }}</dt>
-            <dd>{{ f.value }}</dd>
+
+            <dt>
+              {{ f.key }}
+            </dt>
+
+            <dd>
+              {{ f.value }}
+            </dd>
+
           </ng-container>
+
         </dl>
+
       </ng-container>
 
+
+      <!-- TRAVELLERS -->
+
       <ng-container *ngIf="d.travellerDetails?.length">
+
         <h4>Travellers</h4>
 
         <div class="scroll-x">
+
           <table class="x-table">
+
             <thead>
+
               <tr>
+
                 <th>#</th>
+
                 <th>Name</th>
+
                 <th>DOB / Age</th>
+
                 <th>Passport</th>
+
                 <th>Gender</th>
+
                 <th>Nationality</th>
+
                 <th>Medical</th>
+
               </tr>
+
             </thead>
 
+
             <tbody>
+
               <tr *ngFor="let t of d.travellerDetails">
-                <td>{{ t.number }}</td>
+
                 <td>
+                  {{ t.number }}
+                </td>
+
+
+                <td>
+
                   {{ t.name }}
-                  <div class="x-muted">{{ t.email }} {{ t.phone }}</div>
+
+                  <div class="x-muted">
+
+                    {{ t.email }}
+                    {{ t.phone }}
+
+                  </div>
+
                 </td>
+
+
                 <td>
+
                   {{ t.dateOfBirth }}
-                  <span *ngIf="t.age !== null">({{ t.age }})</span>
+
+                  <span *ngIf="t.age !== null">
+
+                    ({{ t.age }})
+
+                  </span>
+
                 </td>
-                <td>{{ t.passportNumber }}</td>
-                <td>{{ t.gender }}</td>
+
+
                 <td>
-                  {{ t.nationality }}
-                  <div class="x-muted">{{ t.countryOfResidence }}</div>
+                  {{ t.passportNumber }}
                 </td>
-                <td>{{ t.preExistingMedicalConditions || '-' }}</td>
+
+
+                <td>
+                  {{ t.gender }}
+                </td>
+
+
+                <td>
+
+                  {{ t.nationality }}
+
+                  <div class="x-muted">
+
+                    {{ t.countryOfResidence }}
+
+                  </div>
+
+                </td>
+
+
+                <td>
+
+                  {{ t.preExistingMedicalConditions || '-' }}
+
+                </td>
+
               </tr>
+
             </tbody>
+
           </table>
+
         </div>
+
       </ng-container>
+
+
+      <!-- MISSING INFORMATION -->
 
       <h4>Missing information</h4>
 
-      <p class="x-muted" *ngIf="!d.missing?.length">
+
+      <p
+        class="x-muted"
+        *ngIf="!d.missing?.length">
+
         Nothing missing.
+
       </p>
 
+
       <div *ngIf="d.missing?.length">
+
         <span
           class="x-badge"
           *ngFor="let m of d.missing"
           [ngClass]="statusClass(m.status)"
           style="margin:2px 6px 2px 0">
 
-          {{ m.field }} · {{ statusLabel(m.status) }}
+          {{ m.field }}
+          ·
+          {{ statusLabel(m.status) }}
+
         </span>
+
       </div>
+
+
+      <!-- EMAILS -->
 
       <h4>Emails</h4>
 
-      <p class="x-muted" *ngIf="!d.emails?.length">
+
+      <p
+        class="x-muted"
+        *ngIf="!d.emails?.length">
+
         No linked emails.
+
       </p>
 
+
       <table class="x-table" *ngIf="d.emails?.length">
+
         <tbody>
+
           <tr *ngFor="let e of d.emails">
-            <td>{{ e.subject }}</td>
+
             <td>
-              <span class="x-badge" [ngClass]="kindClass(e.kind)">
+              {{ e.subject }}
+            </td>
+
+
+            <td>
+
+              <span
+                class="x-badge"
+                [ngClass]="kindClass(e.kind)">
+
                 {{ e.kindLabel || kindLabel(e.kind) }}
+
               </span>
+
             </td>
-            <td>{{ shortDate(e.receivedAt) }}</td>
+
+
             <td>
-              <span class="x-badge" [ngClass]="statusClass(e.status)">
-                {{ statusLabel(e.status) }}
-              </span>
+              {{ shortDate(e.receivedAt) }}
             </td>
+
+
+            <td>
+
+              <span
+                class="x-badge"
+                [ngClass]="statusClass(e.status)">
+
+                {{ statusLabel(e.status) }}
+
+              </span>
+
+            </td>
+
           </tr>
+
         </tbody>
+
       </table>
+
+
+      <!-- QUOTATION VERSIONS AND CLIENT RESPONSE TRACKING -->
 
       <h4>Quotation versions</h4>
 
-      <p class="x-muted" *ngIf="!d.quotations?.length">
+
+      <p
+        class="x-muted"
+        *ngIf="!d.quotations?.length">
+
         No quotation generated yet.
+
       </p>
 
-      <table class="x-table" *ngIf="d.quotations?.length">
-        <thead>
-          <tr>
-            <th>Number</th>
-            <th>Version</th>
-            <th>Status</th>
-            <th>Total</th>
-            <th>Created</th>
-            <th>Sent</th>
-          </tr>
-        </thead>
 
-        <tbody>
-          <tr
-            *ngFor="let q of d.quotations"
-            [class.x-faded]="q.status === 'SUPERSEDED'">
+      <div
+        class="scroll-x"
+        *ngIf="d.quotations?.length">
 
-            <td>
-              <a
-                class="x-link"
-                routerLink="/quotations"
-                [queryParams]="{ id: q.id }">
-                {{ q.quotationNumber }}
-              </a>
-            </td>
 
-            <td>V{{ q.versionNo }}</td>
+        <table class="x-table">
 
-            <td>
-              <span class="x-badge" [ngClass]="statusClass(q.status)">
-                {{ statusLabel(q.status) }}
-              </span>
-            </td>
+          <thead>
 
-            <td>{{ money(q.total) }}</td>
-            <td>{{ shortDate(q.createdAt) }}</td>
-            <td>{{ q.sentAt ? shortDate(q.sentAt) : '-' }}</td>
-          </tr>
-        </tbody>
-      </table>
+            <tr>
+
+              <th>Number</th>
+
+              <th>Version</th>
+
+              <th>Status</th>
+
+              <th>Total</th>
+
+              <th>Created</th>
+
+              <th>Sent</th>
+
+              <th>Client Response</th>
+
+              <th>Responded At</th>
+
+              <th>Reminder</th>
+
+              <th>Closed</th>
+
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            <tr
+              *ngFor="let q of d.quotations"
+              [class.x-faded]="q.status === 'SUPERSEDED'">
+
+
+              <!-- QUOTATION NUMBER -->
+
+              <td>
+
+                <a
+                  class="x-link"
+                  routerLink="/quotations"
+                  [queryParams]="{ id: q.id }">
+
+                  {{ q.quotationNumber }}
+
+                </a>
+
+              </td>
+
+
+              <!-- VERSION -->
+
+              <td>
+                V{{ q.versionNo }}
+              </td>
+
+
+              <!-- QUOTATION STATUS -->
+
+              <td>
+
+                <span
+                  class="x-badge"
+                  [ngClass]="statusClass(q.status)">
+
+                  {{ statusLabel(q.status) }}
+
+                </span>
+
+              </td>
+
+
+              <!-- TOTAL -->
+
+              <td>
+                {{ money(q.total) }}
+              </td>
+
+
+              <!-- CREATED -->
+
+              <td>
+                {{ shortDate(q.createdAt) }}
+              </td>
+
+
+              <!-- SENT -->
+
+              <td>
+                {{ q.sentAt ? shortDate(q.sentAt) : '-' }}
+              </td>
+
+
+              <!-- CLIENT RESPONSE -->
+
+              <td>
+
+                <span
+                  class="x-badge"
+                  [ngClass]="{
+                    'x-success': q.responseStatus === 'ACCEPTED',
+                    'x-error': q.responseStatus === 'REJECTED',
+                    'x-muted': q.responseStatus === 'PENDING'
+                  }">
+
+                  {{
+                    q.responseStatus === 'ACCEPTED'
+                      ? 'Accepted'
+                      : q.responseStatus === 'REJECTED'
+                        ? 'Rejected'
+                        : 'Awaiting response'
+                  }}
+
+                </span>
+
+              </td>
+
+
+              <!-- RESPONSE DATE -->
+
+              <td>
+
+                {{ q.responseAt ? (q.responseAt | date:'medium') : '-' }}
+
+              </td>
+
+
+              <!-- REMINDER TRACKING -->
+
+              <td>
+
+                <div>
+                  {{ q.reminderCount || 0 }} sent
+                </div>
+
+                <small
+                  class="x-muted"
+                  *ngIf="q.reminderSentAt">
+
+                  Last:
+                  {{ q.reminderSentAt | date:'mediumDate' }}
+
+                </small>
+
+                <small
+                  class="x-muted"
+                  *ngIf="!q.reminderSentAt">
+
+                  No reminder
+
+                </small>
+
+              </td>
+
+
+              <!-- CLOSURE TRACKING -->
+
+              <td>
+
+                <div *ngIf="q.closedAt">
+
+                  <span class="x-badge x-muted">
+
+                    Closed
+
+                  </span>
+
+
+                  <small class="x-muted">
+
+                    {{
+                      q.closureReason === 'NO_RESPONSE'
+                        ? 'No response'
+                        : q.closureReason === 'REJECTED'
+                          ? 'Rejected'
+                          : q.closureReason || '-'
+                    }}
+
+                  </small>
+
+
+                  <small class="x-muted">
+
+                    {{ q.closedAt | date:'mediumDate' }}
+
+                  </small>
+
+                </div>
+
+
+                <span *ngIf="!q.closedAt">
+
+                  -
+
+                </span>
+
+              </td>
+
+            </tr>
+
+          </tbody>
+
+        </table>
+
+      </div>
 
     </ng-container>
 
