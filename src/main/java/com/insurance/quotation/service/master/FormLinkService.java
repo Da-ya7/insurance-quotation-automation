@@ -5,6 +5,7 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -65,15 +66,41 @@ public class FormLinkService {
     }
 
     /**
-     * Always returns the general form URL.
-     * Does not append a token.
+     * Returns a secure token-based form URL.
+     * Example: http://localhost:4200/form?token=...
      */
     public String url(FormLink link) {
-        return publicFormUrl;
+
+        if (link == null || link.token() == null
+                || link.token().isBlank()) {
+            return publicFormUrl;
+        }
+
+        return publicFormUrl + "?token=" + link.token();
     }
 
     /**
-     * Retains database-backed token creation for other existing workflows.
+     * Returns the direct form URL for a recognised insurance type.
+     * Example: http://localhost:4200/form/TRAVEL
+     */
+    public String urlForInsuranceType(String insuranceType) {
+
+        if (insuranceType == null || insuranceType.isBlank()) {
+            return publicFormUrl;
+        }
+
+        String type = insuranceType.trim().toUpperCase(Locale.ROOT);
+
+        // Allow only safe URL path characters.
+        if (!type.matches("[A-Z0-9_-]+")) {
+            return publicFormUrl;
+        }
+
+        return publicFormUrl + "/" + type;
+    }
+
+    /**
+     * Creates or reuses a valid database-backed form link.
      */
     @Transactional
     public FormLink create(
@@ -119,7 +146,7 @@ public class FormLinkService {
     }
 
     /**
-     * Retains token lookup for existing controller/service callers.
+     * Finds a form link using its secure token.
      */
     public Optional<FormLink> find(String token) {
 
