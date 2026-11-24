@@ -41,6 +41,7 @@ const APPLICANT_FIELDS = [
 ] as const;
 
 const SEARCHABLE_COUNTRY_FIELDS = [
+  'countryOfResidence',
   'identityCountry',
   'passportCountry',
   'passportIssuingCountry',
