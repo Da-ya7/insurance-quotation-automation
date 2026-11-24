@@ -40,6 +40,14 @@ const APPLICANT_FIELDS = [
   ...IDENTITY_FIELDS
 ] as const;
 
+const SEARCHABLE_COUNTRY_FIELDS = [
+  'identityCountry',
+  'passportCountry',
+  'passportIssuingCountry',
+  'originCountry',
+  'destinationCountry'
+] as const;
+
 type ConfiguredField = PublicForm['fields'][number] & {
   section?: string;
 };
@@ -63,6 +71,10 @@ export class ClientForm {
   types = signal<PublicInsuranceType[]>([]);
   countries = signal<PublicCountry[]>([]);
   idTypes = signal<PublicIdentityType[]>([]);
+
+  countrySearch: Record<string, string> = {};
+  identityTypeSearch = '';
+  openDropdown: string | null = null;
 
   matchingClients = signal<ClientChoice[]>([]);
 
@@ -334,8 +346,8 @@ export class ClientForm {
   }
 
   /**
-   * Completely reset the form for a new customer.
-   * Preserve only the mobile number that was verified.
+   * Reset form for a new customer.
+   * Preserve only the verified mobile number.
    */
   private resetForNewCustomer() {
     const verifiedPhone = this.a.phone;
@@ -353,10 +365,8 @@ export class ClientForm {
       identityNumber: null
     };
 
-    // Remove all previously entered quotation-specific values.
     this.values = {};
 
-    // Retain the normal default for travel insurance.
     if (this.type()?.toUpperCase() === 'TRAVEL') {
       this.values['travellers'] = '1';
     }
@@ -365,7 +375,14 @@ export class ClientForm {
     this.loadedExistingClient = false;
     this.idTypes.set([]);
 
+    this.clearDropdownState();
     this.syncCountrySelections();
+  }
+
+  private clearDropdownState() {
+    this.countrySearch = {};
+    this.identityTypeSearch = '';
+    this.openDropdown = null;
   }
 
   onNewPhoneChange() {
@@ -436,6 +453,7 @@ export class ClientForm {
     };
 
     this.values = {};
+    this.clearDropdownState();
 
     this.router.navigate(['/form', code]);
 
@@ -449,6 +467,38 @@ export class ClientForm {
     this.api.publicForm(code).subscribe({
       next: form => {
         this.form.set(form);
+
+        // Temporary diagnostics to verify configured API fields.
+        console.log('========== FORM API DEBUG ==========');
+        console.log('Insurance type:', code);
+        console.log('Complete form response:', form);
+
+        console.table(
+          (form.fields as any[]).map(field => ({
+            fieldName: field.fieldName,
+            displayLabel: field.displayLabel,
+            section: field.section,
+            sortOrder: field.sortOrder,
+            isMandatory: field.isMandatory,
+            dataType: field.dataType
+          }))
+        );
+
+        console.log(
+          'Government ID fields:',
+          (form.fields as any[]).filter(field =>
+            String(field.section ?? '').trim().toUpperCase() ===
+            'GOVERNMENT_ID'
+          )
+        );
+
+        console.log(
+          'Travel fields:',
+          (form.fields as any[]).filter(field =>
+            String(field.section ?? '').trim().toUpperCase() ===
+            'TRAVEL_DETAILS'
+          )
+        );
 
         if (
           code.toUpperCase() === 'TRAVEL' &&
@@ -482,7 +532,6 @@ export class ClientForm {
       this.a.nationality = client.nationality ?? null;
       this.a.countryOfResidence = client.countryOfResidence ?? null;
 
-      // Identity information is never autofilled.
       this.a.phone = null;
     }
 
@@ -572,6 +621,11 @@ export class ClientForm {
     ].includes(fieldName);
   }
 
+  isSearchableCountryField(fieldName: string): boolean {
+    return (SEARCHABLE_COUNTRY_FIELDS as readonly string[])
+      .includes(fieldName);
+  }
+
   isIdentityTypeField(fieldName: string): boolean {
     return fieldName === 'identityType';
   }
@@ -595,6 +649,134 @@ export class ClientForm {
     }
 
     this.setConfiguredFieldValue(fieldName, value);
+  }
+
+  // ------------------------------------------------------------
+  // Custom searchable country dropdown
+  // ------------------------------------------------------------
+
+  setCountrySearch(fieldName: string, value: string): void {
+    this.countrySearch[fieldName] = value ?? '';
+  }
+
+  getCountrySearch(fieldName: string): string {
+    return this.countrySearch[fieldName] ?? '';
+  }
+
+  toggleCountryDropdown(fieldName: string): void {
+    const dropdownId = `country:${fieldName}`;
+
+    if (this.openDropdown === dropdownId) {
+      this.openDropdown = null;
+      return;
+    }
+
+    this.openDropdown = dropdownId;
+    this.countrySearch[fieldName] = '';
+  }
+
+  isCountryDropdownOpen(fieldName: string): boolean {
+    return this.openDropdown === `country:${fieldName}`;
+  }
+
+  filteredCountries(fieldName: string): PublicCountry[] {
+    const search = this.getCountrySearch(fieldName)
+      .trim()
+      .toLowerCase();
+
+    if (!search) {
+      return this.countries();
+    }
+
+    return this.countries().filter(country =>
+      String(country.name ?? '').toLowerCase().includes(search) ||
+      String(country.code ?? '').toLowerCase().includes(search)
+    );
+  }
+
+  countryInputValue(fieldName: string): string {
+    const selectedCode = this.getConfiguredFieldValue(fieldName);
+
+    return this.countries().find(country =>
+      String(country.code ?? '').toUpperCase() ===
+      String(selectedCode ?? '').toUpperCase()
+    )?.name ?? '';
+  }
+
+  onCountrySearchChange(
+    fieldName: string,
+    value: string
+  ): void {
+    this.countrySearch[fieldName] = value ?? '';
+  }
+
+  selectCountry(
+    fieldName: string,
+    country: PublicCountry
+  ): void {
+    if (fieldName === 'identityCountry') {
+      this.onIdCountry(country.code);
+    } else {
+      this.setConfiguredFieldValue(fieldName, country.code);
+    }
+
+    this.countrySearch[fieldName] = '';
+    this.openDropdown = null;
+  }
+
+  // ------------------------------------------------------------
+  // Custom searchable identity document type dropdown
+  // ------------------------------------------------------------
+
+  setIdentityTypeSearch(value: string): void {
+    this.identityTypeSearch = value ?? '';
+  }
+
+  toggleIdentityTypeDropdown(): void {
+    if (!this.a.identityCountry || this.busy()) {
+      return;
+    }
+
+    if (this.openDropdown === 'identityType') {
+      this.openDropdown = null;
+      return;
+    }
+
+    this.openDropdown = 'identityType';
+    this.identityTypeSearch = '';
+  }
+
+  isIdentityTypeDropdownOpen(): boolean {
+    return this.openDropdown === 'identityType';
+  }
+
+  filteredIdentityTypes(): PublicIdentityType[] {
+    const search = this.identityTypeSearch.trim().toLowerCase();
+
+    if (!search) {
+      return this.idTypes();
+    }
+
+    return this.idTypes().filter(type =>
+      String(type.label ?? '').toLowerCase().includes(search) ||
+      String(type.code ?? '').toLowerCase().includes(search)
+    );
+  }
+
+  identityTypeInputValue(): string {
+    return this.idTypes().find(type =>
+      type.code === this.a.identityType
+    )?.label ?? '';
+  }
+
+  onIdentityTypeSearchChange(value: string): void {
+    this.identityTypeSearch = value ?? '';
+  }
+
+  selectIdentityType(type: PublicIdentityType): void {
+    this.a.identityType = type.code;
+    this.identityTypeSearch = '';
+    this.openDropdown = null;
   }
 
   // ------------------------------------------------------------
@@ -676,7 +858,6 @@ export class ClientForm {
     this.busy.set(true);
     this.otpMsg.set('');
 
-    // Existing email form-link verification remains unchanged.
     if (this.token) {
       this.api.verifyOtp(this.token, code).subscribe({
         next: response => {
@@ -724,7 +905,6 @@ export class ClientForm {
 
         this.verificationToken.set(response.verificationToken);
 
-        // Multiple customers share the same verified phone.
         if (
           response.ambiguousPhone &&
           response.clients &&
@@ -740,7 +920,6 @@ export class ClientForm {
           return;
         }
 
-        // Exactly one existing customer matched.
         if (response.client) {
           this.matchingClients.set([]);
 
@@ -754,7 +933,6 @@ export class ClientForm {
           return;
         }
 
-        // No existing customer: reset everything except verified phone.
         if (response.newCustomerAllowed && !response.client) {
           this.resetForNewCustomer();
 
@@ -782,7 +960,7 @@ export class ClientForm {
   }
 
   // ------------------------------------------------------------
-  // Select an existing customer sharing the verified phone
+  // Select an existing customer
   // ------------------------------------------------------------
 
   selectExistingClient(client: ClientChoice) {
@@ -838,7 +1016,7 @@ export class ClientForm {
   }
 
   // ------------------------------------------------------------
-  // Load ONLY the selected customer's personal details
+  // Load selected customer's personal details
   // ------------------------------------------------------------
 
   private loadExistingClient(client: FormLinkClient) {
@@ -849,9 +1027,6 @@ export class ClientForm {
     this.a.nationality = client.nationality ?? null;
     this.a.countryOfResidence = client.countryOfResidence ?? null;
 
-    // Keep the verified phone number entered by the customer.
-
-    // Identity details must be entered for this quotation.
     this.a.identityCountry = null;
     this.a.identityType = null;
     this.a.identityNumber = null;
@@ -905,28 +1080,49 @@ export class ClientForm {
 
     this.loadedExistingClient = true;
     this.idTypes.set([]);
+
+    this.clearDropdownState();
   }
 
   // ------------------------------------------------------------
-  // Main form identity dropdowns
+  // Identity document types
   // ------------------------------------------------------------
 
   onIdCountry(code: string | null) {
     this.a.identityCountry = code;
     this.a.identityType = null;
 
+    this.identityTypeSearch = '';
+    this.openDropdown = null;
+
     this.refreshIdTypes();
   }
 
   private refreshIdTypes() {
-    if (!this.a.identityCountry) {
+    const countryCode = this.a.identityCountry;
+
+    if (!countryCode) {
       this.idTypes.set([]);
       return;
     }
 
-    this.api.publicIdentityTypes(this.a.identityCountry).subscribe({
-      next: types => this.idTypes.set(types),
-      error: () => this.idTypes.set([])
+    this.idTypes.set([]);
+
+    this.api.publicIdentityTypes(countryCode).subscribe({
+      next: types => {
+        // Ignore results if the user has selected a different country
+        // while the previous request was still running.
+        if (this.a.identityCountry !== countryCode) {
+          return;
+        }
+
+        this.idTypes.set(types);
+      },
+      error: () => {
+        if (this.a.identityCountry === countryCode) {
+          this.idTypes.set([]);
+        }
+      }
     });
   }
 
