@@ -38,7 +38,7 @@ public class QuotationEmailService {
             QuotationResponseService responseService,
             @Value("${app.public-base-url:http://localhost:4200}")
             String publicBaseUrl) {
-
+        
         this.mailer = mailer;
         this.quotationRepository = quotationRepository;
         this.formLinks = formLinks;
