@@ -229,6 +229,7 @@
   display: grid;
   gap: 18px;
 }
+
 /* =========================================================
    BROWSER AUTOFILL PREVENTION
 ========================================================= */
@@ -246,8 +247,15 @@
   white-space: nowrap !important;
 }
 
+/* =========================================================
+   CARDS
+========================================================= */
+
 .cf-card {
+  display: block;
+  width: 100%;
   min-width: 0;
+  box-sizing: border-box;
   padding: 26px 28px;
   background: #fff;
   border: 1px solid #e2e8f0;
@@ -475,9 +483,26 @@
 ========================================================= */
 
 .cf-grid {
-  display: grid;
+  display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 20px 18px;
+  width: 100%;
+  min-width: 0;
+  visibility: visible;
+  opacity: 1;
+}
+
+.cf-grid > label {
+  display: block !important;
+  width: 100%;
+  min-width: 0;
+  visibility: visible;
+  opacity: 1;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .cf-wide {
@@ -492,6 +517,10 @@ label {
   font-weight: 700;
   line-height: 1.5;
 }
+
+/* =========================================================
+   INPUTS
+========================================================= */
 
 .cf-input {
   display: block;
@@ -559,6 +588,40 @@ label {
   color: #15803d;
   font-size: 11px;
   font-weight: 650;
+}
+
+/* =========================================================
+   TRAVEL INSURANCE DETAILS
+========================================================= */
+
+/*
+  Explicit display rules for the dynamically generated
+  Travel Insurance fields. These rules do not change the
+  Applicant Details or Government ID sections.
+*/
+
+.cf-card .cf-section-title + .cf-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 20px 18px;
+  width: 100%;
+  min-height: 1px;
+  visibility: visible;
+  opacity: 1;
+}
+
+.cf-card .cf-section-title + .cf-grid > label {
+  display: block !important;
+  min-width: 0;
+  visibility: visible;
+  opacity: 1;
+}
+
+.cf-card .cf-section-title + .cf-grid .cf-input {
+  display: block !important;
+  visibility: visible;
+  opacity: 1;
 }
 
 /* =========================================================
@@ -1297,6 +1360,11 @@ label {
     gap: 15px;
   }
 
+  .cf-card .cf-section-title + .cf-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
   .cf-wide {
     grid-column: auto;
   }
@@ -1456,5 +1524,1182 @@ label {
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
+  }
+}
+
+/* =========================================================
+   SEARCHABLE COUNTRY AND IDENTITY TYPE DROPDOWNS
+========================================================= */
+
+/* Dropdown wrapper */
+.cf-custom-dropdown {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin-top: 8px;
+  z-index: 20;
+}
+
+/* Dropdown trigger button */
+.cf-dropdown-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 45px;
+  padding: 11px 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #fff;
+  color: #172554;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 450;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.cf-dropdown-trigger:hover:not(:disabled) {
+  border-color: #94a9c8;
+}
+
+.cf-dropdown-trigger:focus-visible {
+  outline: none;
+  border-color: #28589b;
+  box-shadow: 0 0 0 3px rgba(40, 88, 155, .12);
+}
+
+.cf-dropdown-trigger:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.cf-dropdown-trigger > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-dropdown-trigger > span:first-child:empty {
+  color: #9aa8bb;
+}
+
+/* Arrow */
+.cf-dropdown-arrow {
+  flex-shrink: 0;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+/* Dropdown floating panel */
+.cf-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  width: 100%;
+  max-height: 310px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 11px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 35, 75, .16);
+}
+
+/* Search input */
+.cf-dropdown-search {
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  outline: none;
+  background: #f8faff;
+  color: #172554;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 450;
+}
+
+.cf-dropdown-search::placeholder {
+  color: #94a3b8;
+}
+
+.cf-dropdown-search:hover {
+  border-color: #94a9c8;
+}
+
+.cf-dropdown-search:focus {
+  border-color: #28589b;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(40, 88, 155, .10);
+}
+
+/* Scrollable options area */
+.cf-dropdown-options {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  max-height: 245px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #b8c8df #f1f5f9;
+}
+
+/* Scrollbar for Chrome and Edge */
+.cf-dropdown-options::-webkit-scrollbar {
+  width: 7px;
+}
+
+.cf-dropdown-options::-webkit-scrollbar-track {
+  border-radius: 10px;
+  background: #f1f5f9;
+}
+
+.cf-dropdown-options::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  background: #b8c8df;
+}
+
+.cf-dropdown-options::-webkit-scrollbar-thumb:hover {
+  background: #829cbd;
+}
+
+/* Individual dropdown option */
+.cf-dropdown-option {
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 38px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 7px;
+  background: #fff;
+  color: #334155;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+
+.cf-dropdown-option:hover {
+  background: #edf4ff;
+  color: #173f7e;
+}
+
+.cf-dropdown-option:focus-visible {
+  outline: 2px solid #28589b;
+  outline-offset: -2px;
+  background: #edf4ff;
+  color: #173f7e;
+}
+
+.cf-dropdown-option:active {
+  background: #dce9fc;
+}
+
+/* No search results */
+.cf-dropdown-empty {
+  padding: 15px 10px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* Keep dropdowns above nearby form content */
+.cf-card {
+  overflow: visible;
+}
+
+.cf-grid {
+  overflow: visible;
+}
+
+.cf-grid > label {
+  position: relative;
+  min-width: 0;
+}
+
+/* Ensure the dropdown panel is not clipped by form sections */
+.cf-card .cf-custom-dropdown {
+  isolation: isolate;
+}
+
+/* =========================================================
+   SEARCHABLE DROPDOWN - MOBILE
+========================================================= */
+
+@media (max-width: 640px) {
+  .cf-dropdown-panel {
+    max-height: 270px;
+    padding: 9px;
+  }
+
+  .cf-dropdown-options {
+    max-height: 205px;
+  }
+
+  .cf-dropdown-trigger {
+    min-height: 44px;
+    padding: 10px 11px;
+    font-size: 12px;
+  }
+
+  .cf-dropdown-search {
+    min-height: 39px;
+    font-size: 12px;
+  }
+
+  .cf-dropdown-option {
+    min-height: 40px;
+    padding: 10px;
+  }
+}
+/* Keep the currently opened searchable dropdown above nearby fields */
+.cf-grid > label:has(.cf-custom-dropdown:focus-within),
+.cf-grid > label:has(.cf-custom-dropdown .cf-dropdown-panel) {
+  position: relative;
+  z-index: 1001;
+}
+
+.cf-custom-dropdown {
+  position: relative;
+  z-index: 1002;
+}
+
+.cf-dropdown-panel {
+  position: absolute;
+  z-index: 1003;
+}
+
+/* Keep other fields behind the open dropdown */
+.cf-grid > label {
+  position: relative;
+  z-index: 1;
+}
+
+
+
+
+
+
+
+
+/* =========================================================
+   PROFESSIONAL APPLICATION COMPLETION SCREEN
+========================================================= */
+
+.cf-completion-card {
+  max-width: 760px;
+  margin: 35px auto;
+  padding: 38px 42px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 35px rgba(15, 35, 75, 0.08);
+  box-sizing: border-box;
+}
+
+/* SUCCESS HEADER */
+
+.cf-completion-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 10px 25px;
+}
+
+.cf-completion-icon {
+  width: 76px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 19px;
+  border-radius: 50%;
+  background: #e8f7ef;
+  border: 6px solid #f3fbf6;
+}
+
+.cf-completion-icon span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #16834a;
+  color: #ffffff;
+  font-size: 29px;
+  font-weight: 800;
+}
+
+.cf-completion-label {
+  margin-bottom: 9px;
+  color: #16834a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.cf-completion-header h2 {
+  margin: 0 0 10px;
+  color: #17365d;
+  font-size: 25px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.cf-completion-header p {
+  max-width: 480px;
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* QUOTATION REFERENCE */
+
+.cf-completion-reference {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0 27px;
+  padding: 22px 15px;
+  border: 1px solid #dce7f5;
+  border-radius: 12px;
+  background: #f3f7fd;
+  text-align: center;
+}
+
+.cf-completion-reference span {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+}
+
+.cf-completion-reference strong {
+  color: #173f7e;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.cf-completion-reference small {
+  color: #8290a4;
+  font-size: 11px;
+}
+
+/* APPLICATION SUMMARY */
+
+.cf-completion-summary {
+  margin-bottom: 22px;
+}
+
+.cf-completion-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e8edf4;
+}
+
+.cf-summary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: #edf3fc;
+  color: #244e85;
+  font-size: 20px;
+}
+
+.cf-completion-section-heading h3 {
+  margin: 0 0 4px;
+  color: #17365d;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.cf-completion-section-heading p {
+  margin: 0;
+  color: #8290a4;
+  font-size: 11px;
+}
+
+.cf-completion-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 25px;
+}
+
+.cf-completion-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px 3px;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.cf-completion-detail span {
+  color: #8290a4;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cf-completion-detail strong {
+  color: #263d5c;
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* EMAIL CONFIRMATION */
+
+.cf-completion-email {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 17px;
+  border: 1px solid #dceee4;
+  border-radius: 11px;
+  background: #f5fbf7;
+}
+
+.cf-email-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: #e2f4e9;
+  color: #16834a;
+  font-size: 19px;
+}
+
+.cf-completion-email h3 {
+  margin: 1px 0 6px;
+  color: #17623d;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.cf-completion-email p {
+  margin: 0;
+  color: #526b5d;
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+/* FINAL SUCCESS MESSAGE */
+
+.cf-completion-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 23px;
+  padding-top: 18px;
+  border-top: 1px solid #e8edf4;
+  text-align: center;
+}
+
+.cf-footer-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #16834a;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cf-completion-footer strong {
+  color: #16834a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* MOBILE RESPONSIVENESS */
+
+@media (max-width: 640px) {
+  .cf-completion-card {
+    margin: 18px auto;
+    padding: 25px 17px;
+    border-radius: 14px;
+  }
+
+  .cf-completion-header h2 {
+    font-size: 21px;
+  }
+
+  .cf-completion-icon {
+    width: 67px;
+    height: 67px;
+  }
+
+  .cf-completion-icon span {
+    width: 43px;
+    height: 43px;
+    font-size: 25px;
+  }
+
+  .cf-completion-reference strong {
+    font-size: 21px;
+  }
+
+  .cf-completion-details {
+    grid-template-columns: 1fr;
+  }
+
+  .cf-completion-detail {
+    padding: 12px 3px;
+  }
+
+  .cf-completion-email {
+    padding: 13px;
+  }
+}
+
+
+
+
+/* 
+
+
+/* =========================================================
+   COMPACT APPLICATION SUCCESS SCREEN - REDUCE SCROLLING
+========================================================= */
+
+.cf-completion-card {
+  max-width: 700px;
+  margin: 12px auto;
+  padding: 22px 30px;
+  border-radius: 15px;
+}
+
+/* Compact success header */
+.cf-completion-header {
+  padding: 0 8px 15px;
+}
+
+.cf-completion-icon {
+  width: 55px;
+  height: 55px;
+  margin-bottom: 10px;
+  border-width: 4px;
+}
+
+.cf-completion-icon span {
+  width: 37px;
+  height: 37px;
+  font-size: 23px;
+}
+
+.cf-completion-label {
+  margin-bottom: 5px;
+  font-size: 10px;
+}
+
+.cf-completion-header h2 {
+  margin-bottom: 5px;
+  font-size: 21px;
+}
+
+.cf-completion-header p {
+  font-size: 12px;
+}
+
+/* Compact quotation reference */
+.cf-completion-reference {
+  gap: 5px;
+  margin: 0 0 16px;
+  padding: 13px;
+}
+
+.cf-completion-reference strong {
+  font-size: 21px;
+}
+
+.cf-completion-reference small {
+  font-size: 10px;
+}
+
+/* Compact summary */
+.cf-completion-summary {
+  margin-bottom: 15px;
+}
+
+.cf-completion-section-heading {
+  gap: 9px;
+  padding-bottom: 9px;
+}
+
+.cf-summary-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 17px;
+}
+
+.cf-completion-section-heading h3 {
+  font-size: 13px;
+}
+
+.cf-completion-section-heading p {
+  font-size: 10px;
+}
+
+.cf-completion-details {
+  gap: 0 20px;
+}
+
+.cf-completion-detail {
+  gap: 4px;
+  padding: 10px 3px;
+}
+
+.cf-completion-detail span {
+  font-size: 10px;
+}
+
+.cf-completion-detail strong {
+  font-size: 12px;
+}
+
+/* Compact email confirmation */
+.cf-completion-email {
+  gap: 10px;
+  padding: 12px;
+}
+
+.cf-email-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+}
+
+.cf-completion-email h3 {
+  font-size: 12px;
+}
+
+.cf-completion-email p {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Compact final message */
+.cf-completion-footer {
+  gap: 7px;
+  margin-top: 13px;
+  padding-top: 12px;
+}
+
+.cf-footer-check {
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+}
+
+.cf-completion-footer strong {
+  font-size: 11px;
+}
+
+/* Remove unnecessary vertical spacing around result */
+.cf-main:has(.cf-completion-card) {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+/* Smaller screens */
+@media (max-width: 640px) {
+  .cf-completion-card {
+    margin: 8px auto;
+    padding: 18px 15px;
+  }
+
+  .cf-completion-header h2 {
+    font-size: 19px;
+  }
+
+  .cf-completion-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 12px;
+  }
+
+  .cf-completion-detail {
+    padding: 9px 2px;
+  }
+} */
+
+
+
+
+
+
+
+
+
+/* =========================================================
+   EXTRA COMPACT SUCCESS CONFIRMATION
+========================================================= */
+
+.cf-completion-card {
+  max-width: 620px;
+  margin: 5px auto;
+  padding: 15px 22px;
+}
+
+/* Success heading */
+.cf-completion-header {
+  padding: 0 5px 10px;
+}
+
+.cf-completion-icon {
+  width: 45px;
+  height: 45px;
+  margin-bottom: 7px;
+  border-width: 3px;
+}
+
+.cf-completion-icon span {
+  width: 31px;
+  height: 31px;
+  font-size: 19px;
+}
+
+.cf-completion-label {
+  margin-bottom: 4px;
+  font-size: 9px;
+  letter-spacing: 1.3px;
+}
+
+.cf-completion-header h2 {
+  margin-bottom: 4px;
+  font-size: 18px;
+}
+
+.cf-completion-header p {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* Quotation reference */
+.cf-completion-reference {
+  gap: 3px;
+  margin-bottom: 11px;
+  padding: 9px;
+}
+
+.cf-completion-reference span {
+  font-size: 9px;
+}
+
+.cf-completion-reference strong {
+  font-size: 18px;
+}
+
+.cf-completion-reference small {
+  font-size: 9px;
+}
+
+/* Application summary */
+.cf-completion-summary {
+  margin-bottom: 10px;
+}
+
+.cf-completion-section-heading {
+  gap: 8px;
+  padding-bottom: 7px;
+}
+
+.cf-summary-icon {
+  width: 27px;
+  height: 27px;
+  font-size: 14px;
+}
+
+.cf-completion-section-heading h3 {
+  margin-bottom: 2px;
+  font-size: 12px;
+}
+
+.cf-completion-section-heading p {
+  font-size: 9px;
+}
+
+.cf-completion-details {
+  gap: 0 15px;
+}
+
+.cf-completion-detail {
+  gap: 3px;
+  padding: 7px 2px;
+}
+
+.cf-completion-detail span {
+  font-size: 9px;
+}
+
+.cf-completion-detail strong {
+  font-size: 11px;
+}
+
+/* Email confirmation */
+.cf-completion-email {
+  gap: 8px;
+  padding: 9px 11px;
+}
+
+.cf-email-icon {
+  width: 27px;
+  height: 27px;
+  font-size: 14px;
+}
+
+.cf-completion-email h3 {
+  margin-bottom: 3px;
+  font-size: 11px;
+}
+
+.cf-completion-email p {
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+/* Final success message */
+.cf-completion-footer {
+  gap: 6px;
+  margin-top: 9px;
+  padding-top: 9px;
+}
+
+.cf-footer-check {
+  width: 16px;
+  height: 16px;
+  font-size: 9px;
+}
+
+.cf-completion-footer strong {
+  font-size: 10px;
+}
+
+/* Overall result page spacing */
+.cf-main:has(.cf-completion-card) {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .cf-completion-card {
+    padding: 13px 12px;
+  }
+
+  .cf-completion-header h2 {
+    font-size: 17px;
+  }
+
+  .cf-completion-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 10px;
+  }
+}
+
+
+
+
+
+
+/* =========================================================
+   FINAL FIX - FIT COMPLETION SCREEN INTO ONE VIEWPORT
+   Applies only after successful quotation submission
+========================================================= */
+
+
+/* =========================================================
+   FINAL FIX - FIT COMPLETION SCREEN INTO ONE VIEWPORT
+   Applies only after successful quotation submission
+========================================================= */
+
+/* Fix the component and page height */
+:host:has(.cf-completion-card) {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cf-page:has(.cf-completion-card) {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Compact header */
+.cf-page:has(.cf-completion-card) .cf-header {
+  flex: 0 0 auto;
+}
+
+.cf-page:has(.cf-completion-card) .cf-header-inner {
+  min-height: 54px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-logo {
+  width: 38px;
+  height: 38px;
+  font-size: 14px;
+}
+
+/* Hero section - align content with the main page container */
+.cf-page:has(.cf-completion-card) .cf-hero {
+  flex: 0 0 auto;
+  padding: 12px max(24px, calc((100% - 1132px) / 2));
+  gap: 15px;
+  justify-content: space-between;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.cf-page:has(.cf-completion-card) .cf-hero-content {
+  flex: 1;
+  max-width: 690px;
+  margin-left: 0;
+  margin-right: auto;
+  text-align: left;
+}
+
+.cf-page:has(.cf-completion-card) .cf-hero h1 {
+  margin-bottom: 5px;
+  font-size: 23px;
+  line-height: 1.2;
+}
+
+.cf-page:has(.cf-completion-card) .cf-hero p {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.cf-page:has(.cf-completion-card) .cf-hero .cf-eyebrow {
+  margin-bottom: 4px;
+  font-size: 9px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-hero-points {
+  justify-content: flex-start;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-hero-points span {
+  font-size: 10px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-hero-decoration {
+  width: 65px;
+  height: 65px;
+  border-radius: 18px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-hero-icon {
+  font-size: 32px;
+}
+
+/* Main content takes only the remaining height */
+.cf-page:has(.cf-completion-card) .cf-main {
+  flex: 1 1 0;
+  min-height: 0;
+  max-width: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 5px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Completion card */
+.cf-page:has(.cf-completion-card) .cf-completion-card {
+  width: min(100%, 620px);
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 10px 20px;
+  box-sizing: border-box;
+}
+
+/* Remove extra spacing inside the success card */
+.cf-page:has(.cf-completion-card) .cf-completion-header {
+  padding: 0 5px 7px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-icon {
+  width: 38px;
+  height: 38px;
+  margin-bottom: 5px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-icon span {
+  width: 27px;
+  height: 27px;
+  font-size: 16px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-label {
+  margin-bottom: 3px;
+  font-size: 8px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-header h2 {
+  margin-bottom: 3px;
+  font-size: 17px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-header p {
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-reference {
+  margin: 0 0 7px;
+  padding: 7px;
+  gap: 2px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-reference strong {
+  font-size: 16px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-summary {
+  margin-bottom: 7px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-section-heading {
+  padding-bottom: 5px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-detail {
+  padding: 5px 2px;
+  gap: 2px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-email {
+  padding: 7px 9px;
+  gap: 7px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-email p {
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.cf-page:has(.cf-completion-card) .cf-completion-footer {
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+/* Compact footer */
+.cf-page:has(.cf-completion-card) .cf-footer {
+  flex: 0 0 auto;
+  padding: 6px 15px;
+}
+
+.cf-page:has(.cf-completion-card) .cf-footer-inner {
+  font-size: 9px;
+}
+
+/* Short laptop screens */
+@media (max-height: 750px) {
+  .cf-page:has(.cf-completion-card) .cf-header-inner {
+    min-height: 46px;
+  }
+
+  .cf-page:has(.cf-completion-card) .cf-hero {
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  .cf-page:has(.cf-completion-card) .cf-hero h1 {
+    font-size: 20px;
+  }
+
+  .cf-page:has(.cf-completion-card) .cf-completion-card {
+    padding: 7px 15px;
+  }
+
+  .cf-page:has(.cf-completion-card) .cf-completion-header h2 {
+    font-size: 15px;
+  }
+
+  .cf-page:has(.cf-completion-card) .cf-completion-detail {
+    padding-top: 3px;
+    padding-bottom: 3px;
+  }
+}
+
+/* Mobile - retain natural scrolling to avoid clipping */
+@media (max-width: 640px) {
+  :host:has(.cf-completion-card) {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .cf-page:has(.cf-completion-card) {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .cf-page:has(.cf-completion-card) .cf-hero {
+    padding: 12px 18px;
+  }
+
+  .cf-page:has(.cf-completion-card) .cf-main {
+    flex: 1 0 auto;
+    overflow: visible;
   }
 }
