@@ -1,4 +1,3 @@
-
 <div class="cf-page">
 
   <!-- HEADER -->
@@ -124,8 +123,6 @@
         }
       </div>
     } -->
-
-
 
     <!-- QUOTATION RESULT -->
     @if (result(); as r) {
@@ -279,7 +276,6 @@
         </div>
       }
     }
-
 
     <!-- INSURANCE TYPE SELECTION -->
     @if (!type() && !loading() && !result()) {
@@ -659,19 +655,55 @@
                     }
 
                     @else if (f.fieldName === 'countryOfResidence') {
-                      <select
-                        class="cf-input"
-                        [ngModel]="a.countryOfResidence"
-                        (ngModelChange)="onConfiguredFieldChange(f.fieldName, $event)"
-                        [name]="f.fieldName"
-                        autocomplete="off"
-                        [required]="f.isMandatory">
+                      <!-- SEARCHABLE COUNTRY OF RESIDENCE -->
+                      <div class="cf-custom-dropdown">
 
-                        <option value="">Select country</option>
-                        @for (c of countries(); track c.code) {
-                          <option [value]="c.code">{{ c.name }}</option>
+                        <button
+                          type="button"
+                          class="cf-dropdown-trigger"
+                          (click)="toggleCountryDropdown('countryOfResidence')"
+                          [disabled]="busy()">
+
+                          <span>
+                            {{ countryInputValue('countryOfResidence') || 'Search country of residence' }}
+                          </span>
+
+                          <span class="cf-dropdown-arrow">
+                            {{ isCountryDropdownOpen('countryOfResidence') ? '▲' : '▼' }}
+                          </span>
+                        </button>
+
+                        @if (isCountryDropdownOpen('countryOfResidence')) {
+                          <div class="cf-dropdown-panel">
+
+                            <input
+                              class="cf-dropdown-search"
+                              type="search"
+                              [ngModel]="getCountrySearch('countryOfResidence')"
+                              (ngModelChange)="setCountrySearch('countryOfResidence', $event)"
+                              name="search_countryOfResidence"
+                              placeholder="Type country name or code..."
+                              autocomplete="off"
+                              aria-label="Search country of residence" />
+
+                            <div class="cf-dropdown-options">
+                              @for (c of filteredCountries('countryOfResidence'); track c.code) {
+                                <button
+                                  type="button"
+                                  class="cf-dropdown-option"
+                                  (click)="selectCountry('countryOfResidence', c)">
+                                  {{ c.name }}
+                                </button>
+                              } @empty {
+                                <div class="cf-dropdown-empty">
+                                  No countries found
+                                </div>
+                              }
+                            </div>
+
+                          </div>
                         }
-                      </select>
+                      </div>
                     }
 
                     @else if (isGenderField(f.fieldName)) {
@@ -1118,16 +1150,56 @@
 
               <label>
                 Country of residence
-                <select
-                  class="cf-input"
-                  [(ngModel)]="a.countryOfResidence"
-                  name="countryOfResidence"
-                  autocomplete="off">
-                  <option [ngValue]="null">Select country</option>
-                  @for (c of countries(); track c.code) {
-                    <option [value]="c.code">{{ c.name }}</option>
+
+                <!-- SEARCHABLE COUNTRY OF RESIDENCE -->
+                <div class="cf-custom-dropdown">
+
+                  <button
+                    type="button"
+                    class="cf-dropdown-trigger"
+                    (click)="toggleCountryDropdown('countryOfResidence')"
+                    [disabled]="busy()">
+
+                    <span>
+                      {{ countryInputValue('countryOfResidence') || 'Search country of residence' }}
+                    </span>
+
+                    <span class="cf-dropdown-arrow">
+                      {{ isCountryDropdownOpen('countryOfResidence') ? '▲' : '▼' }}
+                    </span>
+                  </button>
+
+                  @if (isCountryDropdownOpen('countryOfResidence')) {
+                    <div class="cf-dropdown-panel">
+
+                      <input
+                        class="cf-dropdown-search"
+                        type="search"
+                        [ngModel]="getCountrySearch('countryOfResidence')"
+                        (ngModelChange)="setCountrySearch('countryOfResidence', $event)"
+                        name="search_countryOfResidence_nonTravel"
+                        placeholder="Type country name or code..."
+                        autocomplete="off"
+                        aria-label="Search country of residence" />
+
+                      <div class="cf-dropdown-options">
+                        @for (c of filteredCountries('countryOfResidence'); track c.code) {
+                          <button
+                            type="button"
+                            class="cf-dropdown-option"
+                            (click)="selectCountry('countryOfResidence', c)">
+                            {{ c.name }}
+                          </button>
+                        } @empty {
+                          <div class="cf-dropdown-empty">
+                            No countries found
+                          </div>
+                        }
+                      </div>
+
+                    </div>
                   }
-                </select>
+                </div>
               </label>
 
             </div>
