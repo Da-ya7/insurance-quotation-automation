@@ -1,13 +1,27 @@
+
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, forkJoin, of } from 'rxjs';
-import { ApiService, RequestDetailDto, RequestDto, RequestSummary } from '../core/api.service';
 import {
-  avatarColor, groupClass, groupLabel, initials, kindClass, kindLabel,
-  money, shortDate, simpleStatusClass, statusLabel
+  ApiService,
+  RequestDetailDto,
+  RequestDto,
+  RequestSummary
+} from '../core/api.service';
+import {
+  avatarColor,
+  groupClass,
+  groupLabel,
+  initials,
+  kindClass,
+  kindLabel,
+  money,
+  shortDate,
+  simpleStatusClass,
+  statusLabel
 } from '../core/format';
 import { errorMessage } from '../core/http-error';
 import { goBackOrHome } from '../core/nav';
@@ -167,72 +181,123 @@ export class Quotationrequest {
       });
   }
 
-  /*
-   * CLIENT RESPONSE
-   *
-   * This reads responseStatus from the RequestDto.
-   * The backend must include this field in the request-list API.
-   */
+  // =========================================================
+  // CLIENT RESPONSE STATUS
+  // =========================================================
 
   getResponseStatus(request: RequestDto): string {
-    const responseStatus =
-      (request as RequestDto & {
-        responseStatus?: string;
-      }).responseStatus;
 
-    if (
-      responseStatus === 'ACCEPTED' ||
-      responseStatus === 'REJECTED'
-    ) {
-      return responseStatus;
+    const responseStatus =
+      (request.responseStatus ?? '').trim().toUpperCase();
+
+    // Client acceptance takes priority over closure.
+    if (responseStatus === 'ACCEPTED') {
+      return 'ACCEPTED';
     }
 
+    // Client rejection takes priority over closure.
+    if (responseStatus === 'REJECTED') {
+      return 'REJECTED';
+    }
+
+    // A quotation closed without a client response.
+    if (
+      request.closedAt &&
+      (request.closureReason ?? '').toUpperCase() === 'NO_RESPONSE'
+    ) {
+      return 'CLOSED';
+    }
+
+    // Read the additional quotation fields returned by the backend.
+    const quotation = request as RequestDto & {
+      quotationStatus?: string | null;
+      quotationSentAt?: string | null;
+      quotationPdfAvailable?: boolean;
+    };
+
+    const quotationStatus =
+      (quotation.quotationStatus ?? '').trim().toUpperCase();
+
+    // A quotation must have been sent successfully,
+    // have a sent timestamp, and have a generated PDF.
+    const quotationWasSent =
+      quotationStatus === 'SENT' &&
+      !!quotation.quotationSentAt &&
+      quotation.quotationPdfAvailable === true;
+
+    if (!quotationWasSent) {
+      return 'NOT_SENT';
+    }
+
+    // Sent quotation, waiting for the client's response.
     return 'PENDING';
   }
 
+  // =========================================================
+  // RESPONSE COUNTS
+  // =========================================================
+
   get acceptedCount(): number {
-    return this.requests.filter(
-      r => this.getResponseStatus(r) === 'ACCEPTED'
-    ).length;
+    return this.summary?.accepted ?? 0;
   }
 
   get rejectedCount(): number {
-    return this.requests.filter(
-      r => this.getResponseStatus(r) === 'REJECTED'
-    ).length;
+    return this.summary?.rejected ?? 0;
   }
 
   get pendingCount(): number {
-    return this.requests.filter(
-      r =>
-        r.quotationNumber &&
-        this.getResponseStatus(r) === 'PENDING'
-    ).length;
+    return this.summary?.pending ?? 0;
+  }
+
+  get closedCount(): number {
+    return this.summary?.closed ?? 0;
   }
 
   get totalRequestCount(): number {
     return this.summary?.total ?? this.requests.length;
   }
 
+  // =========================================================
+  // RESPONSE FILTER LABEL
+  // =========================================================
+
   get responseLabel(): string {
     switch (this.responseFilter) {
       case 'ACCEPTED':
         return 'Accepted';
+
       case 'REJECTED':
         return 'Rejected';
+
       case 'PENDING':
         return 'Pending';
+
+      case 'CLOSED':
+        return 'Closed';
+
+      case 'NOT_SENT':
+        return 'Not sent';
+
       default:
         return 'All responses';
     }
   }
+
+  // =========================================================
+  // STATUS OPTIONS
+  // =========================================================
 
   get statusList(): { value: string; label: string }[] {
     return [...this.statusOptions.entries()]
       .map(([value, label]) => ({ value, label }));
   }
 
+  // =========================================================
+  // FILTERED REQUESTS
+  // =========================================================
+
   get filteredRequests(): RequestDto[] {
+
     const search = this.searchText.trim().toLowerCase();
 
     return this.requests.filter(r => {
@@ -254,7 +319,12 @@ export class Quotationrequest {
     });
   }
 
+  // =========================================================
+  // PAGINATION
+  // =========================================================
+
   get paginatedRequests(): RequestDto[] {
+
     const start = this.currentPage * this.pageSize;
 
     return this.filteredRequests.slice(
@@ -282,10 +352,18 @@ export class Quotationrequest {
     );
   }
 
+  // =========================================================
+  // DETAIL FIELD ENTRIES
+  // =========================================================
+
   get fieldEntries(): { key: string; value: string }[] {
     return Object.entries(this.detail?.fields ?? {})
       .map(([key, value]) => ({ key, value }));
   }
+
+  // =========================================================
+  // SEARCH AND PAGINATION ACTIONS
+  // =========================================================
 
   onSearchChange(): void {
     this.currentPage = 0;
@@ -304,18 +382,25 @@ export class Quotationrequest {
   }
 
   private adjustPage(): void {
+
     const pages = this.totalPages;
 
     if (pages === 0) {
       this.currentPage = 0;
+
     } else if (this.currentPage >= pages) {
       this.currentPage = pages - 1;
     }
   }
 
+  // =========================================================
+  // URL NAVIGATION
+  // =========================================================
+
   navigateQuery(
     params: Record<string, string | null>
   ): void {
+
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: params,
@@ -324,6 +409,7 @@ export class Quotationrequest {
   }
 
   applyFilters(): void {
+
     this.currentPage = 0;
 
     this.navigateQuery({
@@ -333,6 +419,7 @@ export class Quotationrequest {
   }
 
   filterGroup(group: string): void {
+
     this.group = group;
     this.status = '';
     this.responseFilter = '';
@@ -347,6 +434,7 @@ export class Quotationrequest {
   }
 
   filterResponse(response: string): void {
+
     this.responseFilter = response;
 
     this.group = '';
@@ -373,12 +461,17 @@ export class Quotationrequest {
     });
   }
 
+  // =========================================================
+  // REFRESH AND CLEAR
+  // =========================================================
+
   refresh(): void {
     this.loading = true;
     this.poller.refresh();
   }
 
   clearFilters(): void {
+
     this.searchText = '';
     this.currentPage = 0;
 

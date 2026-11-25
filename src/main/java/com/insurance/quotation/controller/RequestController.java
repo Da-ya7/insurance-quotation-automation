@@ -74,30 +74,37 @@ public class RequestController {
         List<QuotationRequest> requests;
 
         if (group != null && !group.isBlank()) {
+
             try {
+
                 requests = requestRepository.findByStatusIn(
                         RequestStatusInfo.statuses(
                                 Group.valueOf(group.trim().toUpperCase())));
 
+                requests = new java.util.ArrayList<>(requests);
+                requests.sort((a, b) -> Long.compare(b.getId(), a.getId()));
+
             } catch (IllegalArgumentException e) {
+
                 return ResponseEntity.badRequest()
                         .body("Invalid request group: " + group);
             }
 
-            requests = new java.util.ArrayList<>(requests);
-            requests.sort((a, b) -> Long.compare(b.getId(), a.getId()));
-
         } else if (status != null && !status.isBlank()) {
+
             try {
+
                 requests = requestRepository.findByStatus(
                         RequestStatus.valueOf(status.trim().toUpperCase()));
 
             } catch (IllegalArgumentException e) {
+
                 return ResponseEntity.badRequest()
                         .body("Invalid request status: " + status);
             }
 
         } else {
+
             requests = requestRepository.findAllByOrderByCreatedAtDesc();
         }
 
@@ -115,7 +122,7 @@ public class RequestController {
 
         Map<String, Object> m = new HashMap<>();
 
-        // Existing request status counts
+        // Existing request status counts - unchanged
         m.put("total", requestRepository.count());
 
         m.put("processing",
@@ -141,33 +148,50 @@ public class RequestController {
         long accepted = 0;
         long rejected = 0;
         long pending = 0;
+        long closed = 0;
 
-        List<QuotationRequest> allRequests =
-                requestRepository.findAll();
+        List<QuotationRequest> allRequests = requestRepository.findAll();
 
         for (QuotationRequest request : allRequests) {
 
+            // Only the latest quotation version is considered
             Quotation latestQuotation = quotationRepository
                     .findFirstByQuotationRequestIdOrderByVersionNoDesc(
                             request.getId())
                     .orElse(null);
 
-            // No quotation exists yet
             if (latestQuotation == null) {
-                pending++;
+                continue;
+            }
+
+            // Ignore quotations that have not actually been sent
+            if (!isEligibleForClientResponse(latestQuotation)) {
                 continue;
             }
 
             String responseStatus = latestQuotation.getResponseStatus();
 
+            // Customer response takes priority over closure tracking
             if ("ACCEPTED".equalsIgnoreCase(responseStatus)) {
+
                 accepted++;
 
             } else if ("REJECTED".equalsIgnoreCase(responseStatus)) {
+
                 rejected++;
 
-            } else {
-                // PENDING, null, or any other non-final response
+            } else if ("PENDING".equalsIgnoreCase(responseStatus)
+                    && latestQuotation.getClosedAt() != null
+                    && "NO_RESPONSE".equalsIgnoreCase(
+                            latestQuotation.getClosureReason())) {
+
+                // Automatically closed after no response
+                closed++;
+
+            } else if ("PENDING".equalsIgnoreCase(responseStatus)
+                    && latestQuotation.getClosedAt() == null) {
+
+                // Includes both before and after reminder
                 pending++;
             }
         }
@@ -175,8 +199,25 @@ public class RequestController {
         m.put("accepted", accepted);
         m.put("rejected", rejected);
         m.put("pending", pending);
+        m.put("closed", closed);
 
         return m;
+    }
+
+    // =========================================================
+    // CHECK WHETHER QUOTATION WAS ACTUALLY SENT
+    // =========================================================
+
+    private boolean isEligibleForClientResponse(Quotation quotation) {
+
+        if (quotation == null) {
+            return false;
+        }
+
+        return "SENT".equalsIgnoreCase(quotation.getStatus())
+                && quotation.getSentAt() != null
+                && quotation.getPdfPath() != null
+                && !quotation.getPdfPath().isBlank();
     }
 
     // =========================================================
@@ -229,6 +270,11 @@ public class RequestController {
                     body.put("quotationId", q.getId());
                     body.put("quotationNumber", q.getQuotationNumber());
                     body.put("totalAmount", q.getTotalAmount());
+                    body.put("quotationStatus", q.getStatus());
+                    body.put("quotationSentAt", q.getSentAt());
+                    body.put("quotationPdfAvailable",
+                            q.getPdfPath() != null
+                                    && !q.getPdfPath().isBlank());
                 });
 
         // =====================================================
@@ -401,6 +447,16 @@ public class RequestController {
             m.put("quotationNumber",
                     latestQuotation.getQuotationNumber());
 
+            m.put("quotationStatus",
+                    latestQuotation.getStatus());
+
+            m.put("quotationSentAt",
+                    latestQuotation.getSentAt());
+
+            m.put("quotationPdfAvailable",
+                    latestQuotation.getPdfPath() != null
+                            && !latestQuotation.getPdfPath().isBlank());
+
             m.put("responseStatus",
                     latestQuotation.getResponseStatus() != null
                             ? latestQuotation.getResponseStatus()
@@ -409,11 +465,20 @@ public class RequestController {
             m.put("responseAt",
                     latestQuotation.getResponseAt());
 
+            // Closure tracking
+            m.put("closedAt", latestQuotation.getClosedAt());
+            m.put("closureReason", latestQuotation.getClosureReason());
+
         } else {
 
             m.put("quotationNumber", null);
+            m.put("quotationStatus", null);
+            m.put("quotationSentAt", null);
+            m.put("quotationPdfAvailable", false);
             m.put("responseStatus", "PENDING");
             m.put("responseAt", null);
+            m.put("closedAt", null);
+            m.put("closureReason", null);
         }
 
         // Assignment
