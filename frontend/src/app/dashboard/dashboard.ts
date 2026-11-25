@@ -153,27 +153,27 @@ export class Dashboard {
         link: '/quotations',
         query: { status: 'SENT' }
       },
-      {
-        title: 'Pending Acceptance',
-        icon: '⏳',
-        value: s.pendingAcceptance,
-        note: 'Waiting for client response',
-        link: '/quotations'
-      },
-      {
-        title: 'Accepted',
-        icon: '✅',
-        value: s.quotationsAccepted,
-        note: 'Accepted quotations',
-        link: '/quotations'
-      },
-      {
-        title: 'Rejected',
-        icon: '❌',
-        value: s.quotationsRejected,
-        note: 'Rejected quotations',
-        link: '/quotations'
-      }
+      // {
+      //   title: 'Pending Acceptance',
+      //   icon: '⏳',
+      //   value: s.pendingAcceptance,
+      //   note: 'Waiting for client response',
+      //   link: '/quotations'
+      // },
+      // // {
+      // //   title: 'Accepted',
+      // //   icon: '✅',
+      // //   value: s.quotationsAccepted,
+      // //   note: 'Accepted quotations',
+      // //   link: '/quotations'
+      // // },
+      // // {
+      // //   title: 'Rejected',
+      // //   icon: '❌',
+      // //   value: s.quotationsRejected,
+      // //   note: 'Rejected quotations',
+      // //   link: '/quotations'
+      // // }
     ];
 
     this.buildChart(s);
@@ -260,12 +260,12 @@ export class Dashboard {
 
     return Math.ceil(v / 4) * 4;
   }
-
+  
   goToPage(route: string): void {
     this.router.navigate([route]);
     this.searchQuery = '';
   }
-
+  
   toggleProfileMenu(): void {
     this.showProfileMenu = !this.showProfileMenu;
   }
