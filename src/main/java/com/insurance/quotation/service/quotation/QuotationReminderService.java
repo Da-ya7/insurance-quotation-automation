@@ -41,6 +41,18 @@ public class QuotationReminderService {
             @Value("${quotation.response.close-after-reminder-minutes:5}")
             int closeAfterReminderMinutes) {
 
+        if (reminderAfterDays < 1 || closeAfterReminderDays < 1) {
+            throw new IllegalArgumentException(
+                    "Quotation response periods must both be at least 1 day."
+            );
+        }
+
+        if (reminderAfterDays < 1 || closeAfterReminderDays < 1) {
+            throw new IllegalArgumentException(
+                    "Quotation response periods must both be at least 1 day."
+            );
+        }
+
         this.quotationRepository = quotationRepository;
         this.outboundMailer = outboundMailer;
         this.reminderAfterMinutes = reminderAfterMinutes;
@@ -70,10 +82,12 @@ public class QuotationReminderService {
 
         log.info("Starting quotation response reminder processing");
 
+        // Only successfully sent quotations with a PDF,
+        // awaiting a response and not already closed.
         List<Quotation> pendingQuotations =
-                quotationRepository
-                        .findByResponseStatusAndClosedAtIsNullAndSentAtIsNotNull(
-                                "PENDING");
+                quotationRepository.findEligibleForResponseReminder(
+                        "PENDING"
+                );
 
         log.info(
                 "Pending quotations found: {}",
@@ -87,12 +101,19 @@ public class QuotationReminderService {
 
             try {
 
+                if (!"SENT".equalsIgnoreCase(quotation.getStatus())) {
+                    continue;
+                }
+
                 if (!"PENDING".equalsIgnoreCase(
                         quotation.getResponseStatus())) {
                     continue;
                 }
 
-                if (quotation.getClosedAt() != null) {
+                if (quotation.getClosedAt() != null
+                        || quotation.getSentAt() == null
+                        || quotation.getPdfPath() == null
+                        || quotation.getPdfPath().isBlank()) {
                     continue;
                 }
 
@@ -149,10 +170,7 @@ public class QuotationReminderService {
                     continue;
                 }
 
-                // STEP 2:
-                // Close 5 minutes after reminder email was sent.
-                if (reminderCount == 1
-                        && quotation.getReminderSentAt() != null) {
+                if (quotation.getReminderSentAt() != null) {
 
                     LocalDateTime closureDueAt =
                             quotation.getReminderSentAt()
@@ -209,8 +227,7 @@ public class QuotationReminderService {
         );
     }
 
-    private boolean sendReminderEmail(
-            Quotation quotation) {
+    private boolean sendReminderEmail(Quotation quotation) {
 
         String email = getClientEmail(quotation);
 
@@ -271,8 +288,7 @@ public class QuotationReminderService {
         }
     }
 
-    private void quotationClosedEmail(
-            Quotation quotation) {
+    private void quotationClosedEmail(Quotation quotation) {
 
         String email = getClientEmail(quotation);
 
@@ -323,8 +339,7 @@ public class QuotationReminderService {
         }
     }
 
-    private String getClientEmail(
-            Quotation quotation) {
+    private String getClientEmail(Quotation quotation) {
 
         if (quotation == null
                 || quotation.getQuotationRequest() == null) {

@@ -66,6 +66,7 @@ export interface ClientUpdate {
 }
 
 // ------------------------------------------------------------------ requests
+
 export interface RequestDto {
   id: number;
   reference: string;
@@ -86,9 +87,17 @@ export interface RequestDto {
   statusGroup: string;
   missingFields: string[];
   quotationNumber: string | null;
+
+  // Client quotation response tracking
+  responseStatus: string;
+  responseAt: string | null;
+  closedAt: string | null;
+  closureReason: string | null;
+
   createdAt: string;
   updatedAt: string | null;
 }
+
 
 export interface TravellerDetail {
   number: number;
@@ -137,12 +146,18 @@ export interface RequestDetailDto extends RequestDto {
   missing: { field: string; fieldName: string; status: string }[];
 }
 
+
 export interface RequestSummary {
   total: number;
   processing: number;
   missingDetails: number;
   sent: number;
   needsAttention: number;
+
+  accepted: number;
+  rejected: number;
+  pending: number;
+  closed: number;
 }
 
 // ------------------------------------------------------------------ emails

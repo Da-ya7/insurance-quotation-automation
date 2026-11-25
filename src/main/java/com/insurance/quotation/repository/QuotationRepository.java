@@ -1,3 +1,4 @@
+
 package com.insurance.quotation.repository;
 
 import java.time.LocalDateTime;
@@ -42,9 +43,25 @@ public interface QuotationRepository extends JpaRepository<Quotation, Long> {
     List<Quotation> findByResponseStatusAndClosedAtIsNull(
             String responseStatus);
 
-    // Find pending quotations that have actually been sent to clients
+    // Existing finder retained for compatibility with other application logic
     List<Quotation> findByResponseStatusAndClosedAtIsNullAndSentAtIsNotNull(
             String responseStatus);
+
+    // Scheduler-only query:
+    // Select only successfully sent quotations with a valid PDF path,
+    // awaiting a client response and not already closed.
+    @Query("""
+            SELECT q
+            FROM Quotation q
+            WHERE UPPER(q.status) = 'SENT'
+              AND UPPER(q.responseStatus) = UPPER(:responseStatus)
+              AND q.closedAt IS NULL
+              AND q.sentAt IS NOT NULL
+              AND q.pdfPath IS NOT NULL
+              AND TRIM(q.pdfPath) <> ''
+            """)
+    List<Quotation> findEligibleForResponseReminder(
+            @Param("responseStatus") String responseStatus);
 
     // Lock a quotation while processing a client's response.
     // Prevents simultaneous Accept/Reject requests from changing the decision.
