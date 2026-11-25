@@ -7,8 +7,8 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.insurance.quotation.entity.Client;
@@ -30,26 +30,41 @@ public class QuotationReminderService {
     private final QuotationRepository quotationRepository;
     private final OutboundMailer outboundMailer;
 
-    private final int reminderAfterDays;
-    private final int closeAfterReminderDays;
+    private final int reminderAfterMinutes;
+    private final int closeAfterReminderMinutes;
 
     public QuotationReminderService(
             QuotationRepository quotationRepository,
             OutboundMailer outboundMailer,
-            @Value("${quotation.response.reminder-after-days:3}")
-            int reminderAfterDays,
-            @Value("${quotation.response.close-after-reminder-days:2}")
-            int closeAfterReminderDays) {
+            @Value("${quotation.response.reminder-after-minutes:5}")
+            int reminderAfterMinutes,
+            @Value("${quotation.response.close-after-reminder-minutes:5}")
+            int closeAfterReminderMinutes) {
 
         this.quotationRepository = quotationRepository;
         this.outboundMailer = outboundMailer;
-        this.reminderAfterDays = reminderAfterDays;
-        this.closeAfterReminderDays = closeAfterReminderDays;
+        this.reminderAfterMinutes = reminderAfterMinutes;
+        this.closeAfterReminderMinutes = closeAfterReminderMinutes;
+
+        log.info(
+                "QUOTATION REMINDER CONFIGURATION: "
+                        + "reminderAfterMinutes={}, "
+                        + "closeAfterReminderMinutes={}",
+                this.reminderAfterMinutes,
+                this.closeAfterReminderMinutes
+        );
+
+        if (this.reminderAfterMinutes < 1
+                || this.closeAfterReminderMinutes < 1) {
+            throw new IllegalArgumentException(
+                    "Quotation reminder and closure delays must be at least 1 minute."
+            );
+        }
     }
 
     @Scheduled(
             fixedDelayString =
-                    "${quotation.response.scheduler-delay-ms:3600000}"
+                    "${quotation.response.scheduler-delay-ms:1000}"
     )
     public void processPendingQuotations() {
 
@@ -60,7 +75,10 @@ public class QuotationReminderService {
                         .findByResponseStatusAndClosedAtIsNullAndSentAtIsNotNull(
                                 "PENDING");
 
-        LocalDateTime now = LocalDateTime.now();
+        log.info(
+                "Pending quotations found: {}",
+                pendingQuotations.size()
+        );
 
         int remindersSent = 0;
         int quotationsClosed = 0;
@@ -83,11 +101,24 @@ public class QuotationReminderService {
                                 ? quotation.getReminderCount()
                                 : 0;
 
+                // STEP 1:
+                // Send reminder exactly 5 minutes after original quotation email.
                 if (reminderCount == 0) {
 
                     LocalDateTime reminderDueAt =
                             quotation.getSentAt()
-                                    .plusDays(reminderAfterDays);
+                                    .plusMinutes(reminderAfterMinutes);
+
+                    LocalDateTime now = LocalDateTime.now();
+
+                    log.info(
+                            "Quotation {}: original email sent at {}, "
+                                    + "reminder due at {}, current time {}",
+                            quotation.getQuotationNumber(),
+                            quotation.getSentAt(),
+                            reminderDueAt,
+                            now
+                    );
 
                     if (!now.isBefore(reminderDueAt)) {
 
@@ -96,7 +127,9 @@ public class QuotationReminderService {
 
                         if (sent) {
 
-                            quotation.setReminderSentAt(now);
+                            quotation.setReminderSentAt(
+                                    LocalDateTime.now());
+
                             quotation.setReminderCount(1);
 
                             quotationRepository.save(quotation);
@@ -104,22 +137,42 @@ public class QuotationReminderService {
                             remindersSent++;
 
                             log.info(
-                                    "Reminder sent for quotation {}",
-                                    quotation.getQuotationNumber()
+                                    "Reminder successfully sent for quotation {} "
+                                            + "at {}",
+                                    quotation.getQuotationNumber(),
+                                    quotation.getReminderSentAt()
                             );
                         }
                     }
 
+                    // Never close in the same processing step as reminder.
                     continue;
                 }
 
-                if (quotation.getReminderSentAt() != null) {
+                // STEP 2:
+                // Close 5 minutes after reminder email was sent.
+                if (reminderCount == 1
+                        && quotation.getReminderSentAt() != null) {
 
                     LocalDateTime closureDueAt =
                             quotation.getReminderSentAt()
-                                    .plusDays(closeAfterReminderDays);
+                                    .plusMinutes(closeAfterReminderMinutes);
 
-                    if (!now.isBefore(closureDueAt)) {
+                    LocalDateTime now = LocalDateTime.now();
+
+                    log.info(
+                            "Quotation {}: reminder sent at {}, "
+                                    + "closure due at {}, current time {}",
+                            quotation.getQuotationNumber(),
+                            quotation.getReminderSentAt(),
+                            closureDueAt,
+                            now
+                    );
+
+                    if (!now.isBefore(closureDueAt)
+                            && "PENDING".equalsIgnoreCase(
+                                    quotation.getResponseStatus())
+                            && quotation.getClosedAt() == null) {
 
                         quotation.setClosedAt(now);
                         quotation.setClosureReason("NO_RESPONSE");
@@ -131,8 +184,9 @@ public class QuotationReminderService {
                         quotationsClosed++;
 
                         log.info(
-                                "Quotation {} closed due to no response",
-                                quotation.getQuotationNumber()
+                                "Quotation {} closed due to no response at {}",
+                                quotation.getQuotationNumber(),
+                                now
                         );
                     }
                 }
