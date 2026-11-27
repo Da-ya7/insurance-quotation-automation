@@ -1,21 +1,21 @@
-
+ 
 package com.insurance.quotation.service.quotation;
-
+ 
 import java.time.LocalDateTime;
 import java.util.List;
-
+ 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-
+ 
 import com.insurance.quotation.entity.Client;
 import com.insurance.quotation.entity.Quotation;
 import com.insurance.quotation.mailbox.OutboundMailer;
 import com.insurance.quotation.repository.QuotationRepository;
-
+ 
 @Service
 @ConditionalOnProperty(
         name = "quotation.response.scheduler-enabled",
@@ -23,16 +23,16 @@ import com.insurance.quotation.repository.QuotationRepository;
         matchIfMissing = false
 )
 public class QuotationReminderService {
-
+ 
     private static final Logger log =
             LoggerFactory.getLogger(QuotationReminderService.class);
-
+ 
     private final QuotationRepository quotationRepository;
     private final OutboundMailer outboundMailer;
-
+ 
     private final int reminderAfterMinutes;
     private final int closeAfterReminderMinutes;
-
+ 
     public QuotationReminderService(
             QuotationRepository quotationRepository,
             OutboundMailer outboundMailer,
@@ -40,24 +40,12 @@ public class QuotationReminderService {
             int reminderAfterMinutes,
             @Value("${quotation.response.close-after-reminder-minutes:5}")
             int closeAfterReminderMinutes) {
-
-        if (reminderAfterDays < 1 || closeAfterReminderDays < 1) {
-            throw new IllegalArgumentException(
-                    "Quotation response periods must both be at least 1 day."
-            );
-        }
-
-        if (reminderAfterDays < 1 || closeAfterReminderDays < 1) {
-            throw new IllegalArgumentException(
-                    "Quotation response periods must both be at least 1 day."
-            );
-        }
-
+ 
         this.quotationRepository = quotationRepository;
         this.outboundMailer = outboundMailer;
         this.reminderAfterMinutes = reminderAfterMinutes;
         this.closeAfterReminderMinutes = closeAfterReminderMinutes;
-
+ 
         log.info(
                 "QUOTATION REMINDER CONFIGURATION: "
                         + "reminderAfterMinutes={}, "
@@ -65,7 +53,7 @@ public class QuotationReminderService {
                 this.reminderAfterMinutes,
                 this.closeAfterReminderMinutes
         );
-
+ 
         if (this.reminderAfterMinutes < 1
                 || this.closeAfterReminderMinutes < 1) {
             throw new IllegalArgumentException(
@@ -73,65 +61,56 @@ public class QuotationReminderService {
             );
         }
     }
-
+ 
     @Scheduled(
             fixedDelayString =
                     "${quotation.response.scheduler-delay-ms:1000}"
     )
     public void processPendingQuotations() {
-
+ 
         log.info("Starting quotation response reminder processing");
-
-        // Only successfully sent quotations with a PDF,
-        // awaiting a response and not already closed.
+ 
         List<Quotation> pendingQuotations =
-                quotationRepository.findEligibleForResponseReminder(
-                        "PENDING"
-                );
-
+                quotationRepository
+                        .findByResponseStatusAndClosedAtIsNullAndSentAtIsNotNull(
+                                "PENDING");
+ 
         log.info(
                 "Pending quotations found: {}",
                 pendingQuotations.size()
         );
-
+ 
         int remindersSent = 0;
         int quotationsClosed = 0;
-
+ 
         for (Quotation quotation : pendingQuotations) {
-
+ 
             try {
-
-                if (!"SENT".equalsIgnoreCase(quotation.getStatus())) {
-                    continue;
-                }
-
+ 
                 if (!"PENDING".equalsIgnoreCase(
                         quotation.getResponseStatus())) {
                     continue;
                 }
-
-                if (quotation.getClosedAt() != null
-                        || quotation.getSentAt() == null
-                        || quotation.getPdfPath() == null
-                        || quotation.getPdfPath().isBlank()) {
+ 
+                if (quotation.getClosedAt() != null) {
                     continue;
                 }
-
+ 
                 Integer reminderCount =
                         quotation.getReminderCount() != null
                                 ? quotation.getReminderCount()
                                 : 0;
-
+ 
                 // STEP 1:
                 // Send reminder exactly 5 minutes after original quotation email.
                 if (reminderCount == 0) {
-
+ 
                     LocalDateTime reminderDueAt =
                             quotation.getSentAt()
                                     .plusMinutes(reminderAfterMinutes);
-
+ 
                     LocalDateTime now = LocalDateTime.now();
-
+ 
                     log.info(
                             "Quotation {}: original email sent at {}, "
                                     + "reminder due at {}, current time {}",
@@ -140,23 +119,23 @@ public class QuotationReminderService {
                             reminderDueAt,
                             now
                     );
-
+ 
                     if (!now.isBefore(reminderDueAt)) {
-
+ 
                         boolean sent =
                                 sendReminderEmail(quotation);
-
+ 
                         if (sent) {
-
+ 
                             quotation.setReminderSentAt(
                                     LocalDateTime.now());
-
+ 
                             quotation.setReminderCount(1);
-
+ 
                             quotationRepository.save(quotation);
-
+ 
                             remindersSent++;
-
+ 
                             log.info(
                                     "Reminder successfully sent for quotation {} "
                                             + "at {}",
@@ -165,19 +144,22 @@ public class QuotationReminderService {
                             );
                         }
                     }
-
+ 
                     // Never close in the same processing step as reminder.
                     continue;
                 }
-
-                if (quotation.getReminderSentAt() != null) {
-
+ 
+                // STEP 2:
+                // Close 5 minutes after reminder email was sent.
+                if (reminderCount == 1
+                        && quotation.getReminderSentAt() != null) {
+ 
                     LocalDateTime closureDueAt =
                             quotation.getReminderSentAt()
                                     .plusMinutes(closeAfterReminderMinutes);
-
+ 
                     LocalDateTime now = LocalDateTime.now();
-
+ 
                     log.info(
                             "Quotation {}: reminder sent at {}, "
                                     + "closure due at {}, current time {}",
@@ -186,21 +168,21 @@ public class QuotationReminderService {
                             closureDueAt,
                             now
                     );
-
+ 
                     if (!now.isBefore(closureDueAt)
                             && "PENDING".equalsIgnoreCase(
                                     quotation.getResponseStatus())
                             && quotation.getClosedAt() == null) {
-
+ 
                         quotation.setClosedAt(now);
                         quotation.setClosureReason("NO_RESPONSE");
-
+ 
                         quotationRepository.save(quotation);
-
+ 
                         quotationClosedEmail(quotation);
-
+ 
                         quotationsClosed++;
-
+ 
                         log.info(
                                 "Quotation {} closed due to no response at {}",
                                 quotation.getQuotationNumber(),
@@ -208,9 +190,9 @@ public class QuotationReminderService {
                         );
                     }
                 }
-
+ 
             } catch (RuntimeException e) {
-
+ 
                 log.error(
                         "Failed to process response reminder for quotation {}",
                         quotation.getQuotationNumber(),
@@ -218,7 +200,7 @@ public class QuotationReminderService {
                 );
             }
         }
-
+ 
         log.info(
                 "Quotation response processing completed. "
                         + "Reminders sent: {}, quotations closed: {}",
@@ -226,26 +208,27 @@ public class QuotationReminderService {
                 quotationsClosed
         );
     }
-
-    private boolean sendReminderEmail(Quotation quotation) {
-
+ 
+    private boolean sendReminderEmail(
+            Quotation quotation) {
+ 
         String email = getClientEmail(quotation);
-
+ 
         if (email == null || email.isBlank()) {
-
+ 
             log.warn(
                     "Cannot send reminder for quotation {}: "
                             + "client email is missing",
                     quotation.getQuotationNumber()
             );
-
+ 
             return false;
         }
-
+ 
         String subject =
                 "Reminder: Quotation Awaiting Your Response - "
                         + quotation.getQuotationNumber();
-
+ 
         String body =
                 "Dear Customer,\n\n"
                         + "We would like to remind you that the quotation "
@@ -265,48 +248,49 @@ public class QuotationReminderService {
                         + "this reminder.\n\n"
                         + "Regards,\n"
                         + "Insurance Quotation Team";
-
+ 
         try {
-
+ 
             outboundMailer.sendPlain(
                     email,
                     subject,
                     body
             );
-
+ 
             return true;
-
+ 
         } catch (RuntimeException e) {
-
+ 
             log.error(
                     "Failed to send reminder for quotation {}",
                     quotation.getQuotationNumber(),
                     e
             );
-
+ 
             return false;
         }
     }
-
-    private void quotationClosedEmail(Quotation quotation) {
-
+ 
+    private void quotationClosedEmail(
+            Quotation quotation) {
+ 
         String email = getClientEmail(quotation);
-
+ 
         if (email == null || email.isBlank()) {
-
+ 
             log.warn(
                     "Cannot send closure email for quotation {}: "
                             + "client email is missing",
                     quotation.getQuotationNumber()
             );
-
+ 
             return;
         }
-
+ 
         String subject =
                 "Quotation Closure Notification - "
                         + quotation.getQuotationNumber();
-
+ 
         String body =
                 "Dear Customer,\n\n"
                         + "We have not received a response to the "
@@ -320,17 +304,17 @@ public class QuotationReminderService {
                         + "our team to request a new quotation.\n\n"
                         + "Regards,\n"
                         + "Insurance Quotation Team";
-
+ 
         try {
-
+ 
             outboundMailer.sendPlain(
                     email,
                     subject,
                     body
             );
-
+ 
         } catch (RuntimeException e) {
-
+ 
             log.error(
                     "Failed to send closure notification for quotation {}",
                     quotation.getQuotationNumber(),
@@ -338,22 +322,24 @@ public class QuotationReminderService {
             );
         }
     }
-
-    private String getClientEmail(Quotation quotation) {
-
+ 
+    private String getClientEmail(
+            Quotation quotation) {
+ 
         if (quotation == null
                 || quotation.getQuotationRequest() == null) {
-
+ 
             return null;
         }
-
+ 
         Client client =
                 quotation.getQuotationRequest().getClient();
-
+ 
         if (client == null) {
             return null;
         }
-
+ 
         return client.getEmail();
     }
 }
+ 
